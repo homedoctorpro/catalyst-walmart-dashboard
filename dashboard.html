@@ -225,6 +225,7 @@
     <!-- Charts -->
     <div class="chart-grid">
       <div class="chart-card"><h3>Units Sold / Week (U/S/W)</h3><div id="chart-usw" class="chart-div"></div></div>
+      <div class="chart-card"><h3>Adjusted U/S/W (at 100% Instock)</h3><div id="chart-adj-usw" class="chart-div"></div></div>
       <div class="chart-card"><h3>Instock %</h3><div id="chart-instock" class="chart-div"></div></div>
       <div class="chart-card"><h3>Units Sold (POS Qty)</h3><div id="chart-units" class="chart-div"></div></div>
       <div class="chart-card"><h3>Retail Sales ($)</h3><div id="chart-retail" class="chart-div"></div></div>
@@ -378,7 +379,12 @@ const SKU_COLORS = {
 };
 
 const ALL_SERIES = [...DATA.skus, "Total"];
-const METRIC_CHART_IDS = ["chart-usw","chart-instock","chart-units","chart-retail","chart-wholesale"];
+const METRIC_CHART_IDS = ["chart-usw","chart-adj-usw","chart-instock","chart-units","chart-retail","chart-wholesale"];
+
+// Global max consecutive OOS weeks — used to anchor OOS dot color scale across all weeks
+const MAX_CONSEC_WEEKS = Math.max(1, ...Object.values(DATA.consecutive_oos_by_week).flatMap(
+  weekData => Object.values(weekData).flatMap(skuData => Object.values(skuData))
+));
 const visibleSeries = new Set(ALL_SERIES);
 
 const STATE_NAME_TO_ABBR = {
@@ -530,6 +536,15 @@ function buildMetricCharts() {
     ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("usw", s), s==="Total", "%{y:.2f}")),
     {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"Units/Store/Week"}}, cfg);
 
+  // Adjusted U/S/W = usw / (instock_pct / 100)  — projects to 100% in-stock velocity
+  Plotly.newPlot("chart-adj-usw",
+    ALL_SERIES.map(s => makeTrace(s, xLabels,
+      weeks.map(w => {
+        const m = (met[w]||{})[s]; if (!m || !m.usw || !m.instock_pct) return null;
+        return Math.round(m.usw / (m.instock_pct / 100) * 100) / 100;
+      }), s==="Total", "%{y:.2f}")),
+    {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"Adj. Units/Store/Week"}}, cfg);
+
   Plotly.newPlot("chart-instock",
     ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("instock_pct", s), s==="Total", "%{y:.2f}%")),
     {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"%", range:[50,105], ticksuffix:"%"}}, cfg);
@@ -672,7 +687,16 @@ function renderSalesMap() {
 
   Plotly.react("sales-map", [choro, {
     type:"scattergeo", lat:dotLats, lon:dotLons, text:dotText, hoverinfo:"text",
-    marker:{size:dotSizes, color:dotColors, colorscale:[[0,"#90caf9"],[1,"#0d47a1"]], showscale:false, line:{width:0.5,color:"#fff"}},
+    marker:{
+      size: 8,
+      color: dotColors,
+      colorscale: [[0,"#c6dbef"],[0.33,"#6baed6"],[0.66,"#2171b5"],[1,"#08306b"]],
+      cmin: 0, cmax: Math.max(...dotColors, 1),
+      showscale: true,
+      colorbar: { title:{text:"Units",side:"right"}, len:0.45, thickness:12, x:1.01 },
+      line: {width:0.8, color:"#fff"},
+      opacity: 0.9,
+    },
   }], GEO_LAYOUT_BASE);
 }
 
@@ -722,24 +746,39 @@ function renderOosMap() {
 }
 
 function buildOosDots(wData, skuSet, consec) {
-  const gL=[],gLo=[],gT=[], rL=[],rLo=[],rT=[];
+  const gL=[],gLo=[],gT=[];
+  const rL=[],rLo=[],rT=[],rCw=[];
+
   Object.entries(wData).forEach(([sn,sdata]) => {
     const info=DATA.stores[sn]; if(!info||!info.lat||!info.lon) return;
-    let anyOos=false; const lines=[];
+    let anyOos=false, maxCw=0; const lines=[];
     Object.entries(sdata.skus||{}).forEach(([sku,sv]) => {
       if(!skuSet.has(sku)) return;
       const isOos=sv.on_hand===0; if(isOos) anyOos=true;
       const cw=(consec[sku]||{})[sn]||0;
+      if(isOos && cw>maxCw) maxCw=cw;
       lines.push(`${SKU_SHORT[sku]||sku}: ${isOos?"❌ OOS":"✅ In Stock"}${cw>0?` (${cw}wk consec)`:""}`);
     });
     if(!lines.length) return;
     const tip=`Store #${sn}<br>${info.street}<br>${info.city}, ${info.state}<br>${lines.join("<br>")}`;
-    if(anyOos){rL.push(info.lat);rLo.push(info.lon);rT.push(tip);}
-    else       {gL.push(info.lat);gLo.push(info.lon);gT.push(tip);}
+    if(anyOos){ rL.push(info.lat); rLo.push(info.lon); rT.push(tip); rCw.push(Math.max(1,maxCw)); }
+    else       { gL.push(info.lat); gLo.push(info.lon); gT.push(tip); }
   });
+
   return [
-    {type:"scattergeo",lat:gL,lon:gLo,text:gT,hoverinfo:"text",name:"In Stock",marker:{size:7,color:"#00c853",line:{width:0.5,color:"#fff"}}},
-    {type:"scattergeo",lat:rL,lon:rLo,text:rT,hoverinfo:"text",name:"OOS",     marker:{size:7,color:"#d50000",line:{width:0.5,color:"#fff"}}},
+    { type:"scattergeo", lat:gL, lon:gLo, text:gT, hoverinfo:"text", name:"In Stock",
+      marker:{ size:6, color:"#00c853", opacity:0.75, line:{width:0.5,color:"#fff"} } },
+    { type:"scattergeo", lat:rL, lon:rLo, text:rT, hoverinfo:"text", name:"OOS",
+      marker:{
+        size: 8,
+        color: rCw,
+        colorscale: [[0,"#ffd600"],[0.4,"#ff6d00"],[0.7,"#d50000"],[1,"#4a0000"]],
+        cmin: 1, cmax: MAX_CONSEC_WEEKS,
+        showscale: true,
+        colorbar: { title:{text:"Consec. Wks OOS",side:"right"}, len:0.45, thickness:12, x:1.01 },
+        line: {width:0.8, color:"#fff"},
+      }
+    },
   ];
 }
 
