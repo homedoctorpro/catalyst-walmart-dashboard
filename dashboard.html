@@ -144,6 +144,40 @@
   .oos-sku-tag  { background: #fff3e0; color: #e65100; padding: 1px 7px; border-radius: 10px;
                   font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
 
+  /* ── Sales Map Layout (map + top-20 side panel) ── */
+  .sales-map-row { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 14px; }
+  .sales-map-row .map-card { flex: 1; min-width: 0; }
+  .top-stores-card { width: 260px; flex-shrink: 0; background: #fff; border-radius: 12px;
+                     padding: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+                     max-height: 488px; overflow-y: auto; }
+  .top-stores-card h3 { font-size: 0.8rem; font-weight: 700; color: #666; text-transform: uppercase;
+                        letter-spacing: 0.06em; margin-bottom: 10px; }
+  .top-store-row { display: flex; align-items: flex-start; padding: 6px 0;
+                   border-bottom: 1px solid #f0f0f0; font-size: 0.79rem; }
+  .top-store-row:last-child { border-bottom: none; }
+  .top-store-rank { color: #999; font-weight: 700; min-width: 22px; padding-top: 1px; }
+  .top-store-info { flex: 1; padding: 0 6px; }
+  .top-store-name { font-weight: 700; color: #222; }
+  .top-store-loc  { color: #888; font-size: 0.72rem; }
+  .top-store-skus { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+  .top-store-qty  { font-weight: 700; color: #0057e7; white-space: nowrap; font-size: 0.82rem; padding-top: 1px; }
+
+  /* ── Store List Card (full store table below map) ── */
+  .store-list-card { background: #fff; border-radius: 12px; padding: 16px;
+                     box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-top: 0; }
+  .store-list-card h3 { font-size: 0.8rem; font-weight: 700; color: #666; text-transform: uppercase;
+                        letter-spacing: 0.06em; margin-bottom: 12px; }
+  .store-list-scroll { max-height: 440px; overflow-y: auto; }
+  .store-list-tbl { width: 100%; border-collapse: collapse; font-size: 0.79rem; }
+  .store-list-tbl th { background: #f5f5f5; padding: 7px 10px; text-align: right; font-weight: 700;
+                       color: #444; border-bottom: 2px solid #e0e0e0; white-space: nowrap;
+                       position: sticky; top: 0; z-index: 1; }
+  .store-list-tbl th:nth-child(1), .store-list-tbl th:nth-child(2) { text-align: left; }
+  .store-list-tbl td { padding: 5px 10px; border-bottom: 1px solid #f0f0f0; text-align: right; }
+  .store-list-tbl td:nth-child(1), .store-list-tbl td:nth-child(2) { text-align: left; white-space: nowrap; }
+  .store-list-tbl tr:hover td { background: #f8f9ff; }
+  .store-list-tbl .total-col { font-weight: 700; }
+
   /* ── State OOS Summary Table ── */
   .state-oos-tbl { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
   .state-oos-tbl th { background: #f5f5f5; padding: 7px 12px; text-align: left; font-weight: 700;
@@ -269,7 +303,22 @@
       <button class="ctrl-btn play" id="sales-play-btn" onclick="togglePlay('sales')">▶ Play</button>
     </div>
     <div class="sku-filter" id="sales-sku-filter"><label>SKU Filter:</label></div>
-    <div class="map-card"><div id="sales-map" class="map-div"></div></div>
+    <div class="sales-map-row">
+      <div class="map-card"><div id="sales-map" class="map-div"></div></div>
+      <div class="top-stores-card">
+        <h3>Top 20 Stores — Units Sold</h3>
+        <div id="top-stores-list"></div>
+      </div>
+    </div>
+    <div class="store-list-card">
+      <h3>All Stores — Sales by SKU</h3>
+      <div class="store-list-scroll">
+        <table class="store-list-tbl">
+          <thead id="store-list-thead"></thead>
+          <tbody id="store-list-tbody"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <!-- ── Tab 3: OOS Map ─────────────────────────────────────────────────── -->
@@ -288,6 +337,9 @@
       <table class="oos-tbl" id="oos-summary-tbl">
         <thead><tr><th>Consecutive Weeks OOS</th><th># Stores</th></tr></thead>
         <tbody id="oos-summary-tbody"></tbody>
+      </table>
+      <table class="oos-tbl" style="margin-top:12px">
+        <tbody id="oos-totals-tbody"></tbody>
       </table>
     </div>
     <div class="oos-table-card">
@@ -312,7 +364,7 @@
     </div>
     <div class="map2-grid">
       <div class="map-card">
-        <div style="font-size:0.78rem;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Units Sold by State</div>
+        <div style="font-size:0.78rem;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Units/Store by State (U/S/W)</div>
         <div id="ss-sales-map" class="map2-div"></div>
       </div>
       <div class="map-card">
@@ -765,6 +817,59 @@ function renderSalesMap() {
       opacity: 0.92,
     },
   }], geoLayout());
+
+  updateSalesStoreList(wData, skuSet);
+}
+
+function updateSalesStoreList(wData, skuSet) {
+  const skus = DATA.skus.filter(s => skuSet.has(s));
+  const storeArr = [];
+  Object.entries(wData).forEach(([sn, sdata]) => {
+    const info = DATA.stores[sn] || {};
+    const skuQtys = {};
+    let total = 0;
+    skus.forEach(sku => {
+      const q = (sdata.skus?.[sku]?.qty) || 0;
+      skuQtys[sku] = q;
+      total += q;
+    });
+    if (!total) return;
+    storeArr.push({ sn, city: info.city||"", state: info.state||"", skuQtys, total });
+  });
+  storeArr.sort((a, b) => b.total - a.total);
+
+  // Top 20 panel
+  const topEl = document.getElementById("top-stores-list");
+  topEl.innerHTML = "";
+  storeArr.slice(0, 20).forEach((s, i) => {
+    const skuTags = skus.filter(k => s.skuQtys[k] > 0)
+      .map(k => `<span class="oos-sku-tag">${SKU_SHORT[k]||k}: ${s.skuQtys[k]}</span>`).join("");
+    const div = document.createElement("div");
+    div.className = "top-store-row";
+    div.innerHTML = `<span class="top-store-rank">${i+1}.</span>
+      <div class="top-store-info">
+        <div class="top-store-name">Store #${s.sn}</div>
+        <div class="top-store-loc">${s.city}, ${s.state}</div>
+        <div class="top-store-skus">${skuTags}</div>
+      </div>
+      <span class="top-store-qty">${s.total.toLocaleString()}</span>`;
+    topEl.appendChild(div);
+  });
+  if (!storeArr.length)
+    topEl.innerHTML = `<div style="color:#999;font-size:0.8rem;padding:12px 0">No store data</div>`;
+
+  // Full store list table
+  const thead = document.getElementById("store-list-thead");
+  const tbody = document.getElementById("store-list-tbody");
+  thead.innerHTML = `<tr><th>Store #</th><th>Location</th>${skus.map(k=>`<th>${SKU_SHORT[k]||k}</th>`).join("")}<th class="total-col">Total</th></tr>`;
+  tbody.innerHTML = "";
+  storeArr.forEach(s => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>#${s.sn}</td><td>${s.city}, ${s.state}</td>${skus.map(k=>`<td>${s.skuQtys[k]||"—"}</td>`).join("")}<td class="total-col">${s.total.toLocaleString()}</td>`;
+    tbody.appendChild(tr);
+  });
+  if (!storeArr.length)
+    tbody.innerHTML = `<tr><td colspan="${skus.length+3}" style="color:#999;text-align:center;padding:16px">No store sales data</td></tr>`;
 }
 
 function salesNav(dir) { salesWeekIdx=(salesWeekIdx+dir+DATA.store_weeks.length)%DATA.store_weeks.length; renderSalesMap(); }
@@ -897,6 +1002,24 @@ function updateOosTable(wData, skuSet, consec) {
   });
   if(!Object.keys(weekCounts).length)
     summaryTbody.innerHTML=`<tr><td colspan="2" style="color:#999;text-align:center;padding:12px">No OOS stores</td></tr>`;
+
+  // Totals: all OOS and 2+ consecutive weeks
+  const totalStores = Object.values(wData).filter(sdata =>
+    Object.keys(sdata.skus||{}).some(sku => skuSet.has(sku))
+  ).length;
+  const totalOos  = storeRows.length;
+  const twoPlus   = storeRows.filter(r => r.maxCw >= 2).length;
+  const pct = n => totalStores > 0 ? ` (${(n/totalStores*100).toFixed(1)}% of ${totalStores.toLocaleString()} stores)` : "";
+  const totalsTbody = document.getElementById("oos-totals-tbody");
+  totalsTbody.innerHTML = `
+    <tr>
+      <td style="color:#555">Total stores OOS</td>
+      <td style="font-weight:700">${totalOos.toLocaleString()}<span style="color:#888;font-weight:400;font-size:0.85em">${pct(totalOos)}</span></td>
+    </tr>
+    <tr>
+      <td style="color:#555">OOS 2+ consecutive weeks</td>
+      <td style="font-weight:700">${twoPlus.toLocaleString()}<span style="color:#888;font-weight:400;font-size:0.85em">${pct(twoPlus)}</span></td>
+    </tr>`;
 }
 
 function oosNav(dir) { oosWeekIdx=(oosWeekIdx+dir+DATA.store_weeks.length)%DATA.store_weeks.length; renderOosMap(); }
@@ -981,19 +1104,19 @@ function renderStateStats() {
   if (!week) return;
   document.getElementById("ss-week-label").textContent = weekLabel(week);
 
-  // Sales choropleth
-  const stateSales = DATA.state_sales[week] || {};
+  // Sales choropleth — U/S/W per store (store-weighted)
+  const stateUsw = getStateUSW(week);
   const salesLocs = [], salesVals = [];
-  Object.entries(stateSales).forEach(([name, qty]) => {
+  Object.entries(stateUsw).forEach(([name, uswPerStore]) => {
     const abbr = toStateAbbr(name);
-    if (abbr) { salesLocs.push(abbr); salesVals.push(qty); }
+    if (abbr) { salesLocs.push(abbr); salesVals.push(parseFloat(uswPerStore.toFixed(2))); }
   });
   Plotly.react("ss-sales-map", [{
     type:"choropleth", locationmode:"USA-states",
     locations: salesLocs, z: salesVals,
     colorscale:[[0,"#e8f4f8"],[0.5,"#4e9af1"],[1,"#003580"]],
-    showscale:true, colorbar:{title:{text:"Units",side:"right"},len:0.7,thickness:12},
-    hovertemplate:"%{location}: %{z} units<extra></extra>", zmin:0,
+    showscale:true, colorbar:{title:{text:"Units/Store",side:"right"},len:0.7,thickness:12},
+    hovertemplate:"%{location}: %{z:.2f} units/store<extra></extra>", zmin:0,
   }], geoLayout());
 
   // OOS % choropleth
