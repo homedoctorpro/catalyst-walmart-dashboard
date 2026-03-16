@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Catalyst Pet – Walmart Sales Dashboard</title>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -191,6 +196,21 @@
   .bar-chart-card h3 { font-size: 0.8rem; font-weight: 700; color: #666; text-transform: uppercase;
                        letter-spacing: 0.06em; margin-bottom: 10px; }
 
+  /* ── Store Map Tab ── */
+  #store-map-leaflet { width: 100%; height: 620px; border-radius: 8px; z-index: 0; }
+  .store-map-legend { background: #fff; padding: 12px 14px; border-radius: 8px;
+                      box-shadow: 0 2px 10px rgba(0,0,0,0.2); max-height: 420px;
+                      overflow-y: auto; min-width: 180px; font-family: inherit; }
+  .store-map-legend h4 { font-size: 0.82rem; font-weight: 700; color: #333; margin-bottom: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; padding: 4px 6px;
+                 border-radius: 4px; cursor: pointer; font-size: 0.79rem; user-select: none; }
+  .legend-item:hover { background: #f0f4ff; }
+  .legend-item.active { background: #e3f2fd; }
+  .legend-dot { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid #000; flex-shrink: 0; }
+  .store-map-info { background: #fff; padding: 8px 12px; border-radius: 8px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 0.82rem;
+                    font-family: inherit; line-height: 1.5; }
+
   @media (max-width: 900px) {
     .kpi-row      { grid-template-columns: repeat(3, 1fr); }
     .chart-grid   { grid-template-columns: 1fr; }
@@ -227,6 +247,7 @@
     <button class="tab-btn"        onclick="switchTab('oos',this)">⚠️ OOS Map</button>
     <button class="tab-btn"        onclick="switchTab('statestats',this)">🏛️ State Stats</button>
     <button class="tab-btn"        onclick="switchTab('statecharts',this)">📊 State Charts</button>
+    <button class="tab-btn"        onclick="switchTab('storemap',this)">🏪 Store Map</button>
   </div>
 
   <!-- ── Tab 1: Metrics ─────────────────────────────────────────────────── -->
@@ -410,6 +431,13 @@
       <div id="chart-state-usw-instock"></div>
     </div>
   </div>
+
+  <!-- ── Tab 6: Store Map ───────────────────────────────────────────────── -->
+  <div id="tab-storemap" class="tab-panel">
+    <div class="map-card" style="padding:0;overflow:hidden">
+      <div id="store-map-leaflet"></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -534,6 +562,126 @@ function switchTab(name, btn) {
         Plotly.Plots.resize(document.getElementById("chart-state-usw-instock"));
       }, 50);
     }
+  }
+  if (name === "storemap") {
+    if (!storeMapInit) { initStoreMap(); storeMapInit = true; }
+    else if (storeMapLeaflet) setTimeout(() => storeMapLeaflet.map.invalidateSize(), 50);
+  }
+}
+
+// ══ Tab 6: Store Map (Leaflet) ════════════════════════════════════════════════
+let storeMapLeaflet = null;
+let storeMapInit    = false;
+let storeMapActiveCombo = null;
+
+const SKU_COMBO_COLORS = {
+  "CATALYST15ORIG":                                                              "#4CAF50",
+  "CATALYST15UNSCEN":                                                            "#7CB342",
+  "CATALYST34LBORIGINAL":                                                        "#2196F3",
+  "CATALYSTPET34LBUNSCE":                                                        "#FF9800",
+  "CATALYST15ORIG,CATALYST15UNSCEN":                                             "#8BC34A",
+  "CATALYST15ORIG,CATALYST34LBORIGINAL":                                         "#009688",
+  "CATALYST15ORIG,CATALYSTPET34LBUNSCE":                                         "#CDDC39",
+  "CATALYST15UNSCEN,CATALYST34LBORIGINAL":                                       "#3F51B5",
+  "CATALYST15UNSCEN,CATALYSTPET34LBUNSCE":                                       "#FF5722",
+  "CATALYST34LBORIGINAL,CATALYSTPET34LBUNSCE":                                   "#795548",
+  "CATALYST15ORIG,CATALYST15UNSCEN,CATALYST34LBORIGINAL":                        "#673AB7",
+  "CATALYST15ORIG,CATALYST15UNSCEN,CATALYSTPET34LBUNSCE":                        "#E91E63",
+  "CATALYST15ORIG,CATALYST34LBORIGINAL,CATALYSTPET34LBUNSCE":                    "#FF4081",
+  "CATALYST15UNSCEN,CATALYST34LBORIGINAL,CATALYSTPET34LBUNSCE":                  "#7B1FA2",
+  "CATALYST15ORIG,CATALYST15UNSCEN,CATALYST34LBORIGINAL,CATALYSTPET34LBUNSCE":   "#F44336",
+};
+
+function initStoreMap() {
+  // Determine which SKUs each store carries across all weeks
+  const storeSkuSets = {};
+  DATA.store_weeks.forEach(week => {
+    const wData = DATA.weekly_stores[week] || {};
+    Object.entries(wData).forEach(([sn, sdata]) => {
+      if (!storeSkuSets[sn]) storeSkuSets[sn] = new Set();
+      Object.keys(sdata.skus || {}).forEach(sku => storeSkuSets[sn].add(sku));
+    });
+  });
+
+  // Build per-combo cluster groups
+  const comboGroups = {}; // combo key -> { clusterGroup, stores[], color, label }
+  Object.entries(DATA.stores).forEach(([sn, info]) => {
+    if (!info.lat || !info.lon) return;
+    const skuArr = [...(storeSkuSets[sn] || new Set())].sort();
+    if (!skuArr.length) return;
+    const combo = skuArr.join(",");
+    const color = SKU_COMBO_COLORS[combo] || "#999999";
+
+    if (!comboGroups[combo]) {
+      comboGroups[combo] = {
+        clusterGroup: L.markerClusterGroup({
+          maxClusterRadius: 50, disableClusteringAtZoom: 10,
+          showCoverageOnHover: false, spiderfyOnMaxZoom: true,
+        }),
+        stores: [], color,
+        label: skuArr.map(s => SKU_SHORT[s] || s).join(" / "),
+      };
+    }
+    const popup = `<strong>Store #${sn}</strong><br>${info.city || ""}, ${info.state || ""}<br>${info.street || ""}<br><br><strong>SKUs (${skuArr.length}):</strong><br>${skuArr.map(s => `&bull; ${SKU_SHORT[s]||s}`).join("<br>")}`;
+    L.circleMarker([info.lat, info.lon], {
+      radius: 6, fillColor: color, color: "#000", weight: 1, opacity: 1, fillOpacity: 0.8,
+    }).bindPopup(popup).addTo(comboGroups[combo].clusterGroup);
+    comboGroups[combo].stores.push(sn);
+  });
+
+  const map = L.map("store-map-leaflet", { center: [39.8283, -98.5795], zoom: 5 });
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 18, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  }).addTo(map);
+  Object.values(comboGroups).forEach(g => map.addLayer(g.clusterGroup));
+
+  // Info box (top-right)
+  const totalStores = Object.values(comboGroups).reduce((s, g) => s + g.stores.length, 0);
+  const infoCtrl = L.control({ position: "topright" });
+  infoCtrl.onAdd = () => {
+    const d = L.DomUtil.create("div", "store-map-info");
+    d.innerHTML = `<strong>${totalStores.toLocaleString()} stores</strong><br><span style="font-size:0.75rem;color:#666">${Object.keys(comboGroups).length} SKU combinations</span>`;
+    return d;
+  };
+  infoCtrl.addTo(map);
+
+  // Legend (bottom-left)
+  const legendCtrl = L.control({ position: "bottomleft" });
+  legendCtrl.onAdd = () => {
+    const d = L.DomUtil.create("div", "store-map-legend");
+    L.DomEvent.disableClickPropagation(d);
+    const sorted = Object.entries(comboGroups).sort((a, b) => b[1].stores.length - a[1].stores.length);
+    d.innerHTML = `<h4>SKU Combinations <span style="font-weight:400;font-size:0.75rem">(click to filter)</span></h4>` +
+      sorted.map(([combo, g]) =>
+        `<div class="legend-item" data-combo="${combo}">
+          <span class="legend-dot" style="background:${g.color}"></span>
+          <span><strong>${g.stores.length}</strong> &nbsp;${g.label}</span>
+        </div>`
+      ).join("");
+    d.querySelectorAll(".legend-item").forEach(el => {
+      el.addEventListener("click", () => toggleStoreMapCombo(el, el.dataset.combo));
+    });
+    return d;
+  };
+  legendCtrl.addTo(map);
+
+  storeMapLeaflet = { map, comboGroups };
+}
+
+function toggleStoreMapCombo(el, combo) {
+  const { map, comboGroups } = storeMapLeaflet;
+  if (storeMapActiveCombo === combo) {
+    Object.values(comboGroups).forEach(g => { if (!map.hasLayer(g.clusterGroup)) map.addLayer(g.clusterGroup); });
+    document.querySelectorAll("#store-map-leaflet ~ * .legend-item, .store-map-legend .legend-item").forEach(i => i.classList.remove("active"));
+    storeMapActiveCombo = null;
+  } else {
+    Object.entries(comboGroups).forEach(([c, g]) => {
+      if (c === combo) { if (!map.hasLayer(g.clusterGroup)) map.addLayer(g.clusterGroup); }
+      else             { if ( map.hasLayer(g.clusterGroup)) map.removeLayer(g.clusterGroup); }
+    });
+    document.querySelectorAll(".store-map-legend .legend-item").forEach(i => i.classList.remove("active"));
+    el.classList.add("active");
+    storeMapActiveCombo = combo;
   }
 }
 
