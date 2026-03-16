@@ -277,10 +277,6 @@ function showApp() {
   initDashboard();
 }
 
-if (localStorage.getItem(AUTH_KEY) === "ok") {
-  showApp();
-}
-
 // ══ Constants ═════════════════════════════════════════════════════════════════
 
 // Fiscal week → human label (dates are the Saturday end of each Walmart fiscal week)
@@ -781,6 +777,11 @@ function togglePlay(tab) {
       }, 1200);
     }
   }
+}
+
+// ── Auto-login: must be last — all constants/functions must be declared first ──
+if (localStorage.getItem(AUTH_KEY) === "ok") {
+  showApp();
 }
 </script>
 </body>
