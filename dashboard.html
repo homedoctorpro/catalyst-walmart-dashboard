@@ -50,12 +50,13 @@
   .tab-panel.active { display: block; }
 
   /* ── KPI Cards ── */
-  .kpi-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 14px; margin-bottom: 16px; }
+  .kpi-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; margin-bottom: 16px; }
   .kpi-card { background: #fff; border-radius: 12px; padding: 18px 20px;
               box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #0057e7; }
   .kpi-label { font-size: 0.75rem; font-weight: 700; color: #888; text-transform: uppercase;
                letter-spacing: 0.06em; margin-bottom: 6px; }
   .kpi-value { font-size: 1.6rem; font-weight: 800; color: #1a1a2e; line-height: 1; }
+  .kpi-chg   { font-size: 0.8rem; font-weight: 600; margin-left: 5px; vertical-align: middle; }
   .kpi-sub   { font-size: 0.72rem; color: #aaa; margin-top: 6px; }
 
   /* ── Metrics Filter / Series Filter ── */
@@ -306,11 +307,6 @@
         <div class="kpi-label">Wholesale Rev.</div>
         <div class="kpi-value" id="kpi-wholesale">—</div>
         <div class="kpi-sub">Est. Wholesale $</div>
-      </div>
-      <div class="kpi-card" style="border-left-color:#c62828">
-        <div class="kpi-label">Organic Growth</div>
-        <div class="kpi-value" id="kpi-organic-growth">—</div>
-        <div class="kpi-sub" id="kpi-organic-growth-sub">Adj. U/S/W WoW</div>
       </div>
     </div>
 
@@ -834,36 +830,30 @@ function calcAdjUSW(m) {
 
 function buildKPIs() {
   const latestWeek = DATA.weeks[DATA.weeks.length - 1];
-  const total = ((DATA.metrics[latestWeek] || {})["Total"]) || {};
-  const adjUSW = calcAdjUSW(total);
-  document.getElementById("kpi-week-sub").textContent  = weekLabel(latestWeek);
-  document.getElementById("kpi-usw").textContent       = total.usw != null ? total.usw.toFixed(2) : "—";
-  document.getElementById("kpi-adj-usw").textContent   = adjUSW != null ? adjUSW.toFixed(2) : "—";
-  document.getElementById("kpi-instock").textContent   = total.instock_pct != null ? total.instock_pct.toFixed(2) + "%" : "—";
-  document.getElementById("kpi-units").textContent     = total.pos_qty != null ? total.pos_qty.toLocaleString() : "—";
-  document.getElementById("kpi-retail").textContent    = total.pos_dollars != null ? "$" + Math.round(total.pos_dollars).toLocaleString() : "—";
-  document.getElementById("kpi-wholesale").textContent = total.wholesale_dollars != null ? "$" + Math.round(total.wholesale_dollars).toLocaleString() : "—";
+  const total      = ((DATA.metrics[latestWeek] || {})["Total"]) || {};
+  const adjUSW     = calcAdjUSW(total);
 
-  // Organic growth: WoW % change in Adj U/S/W (Total), last two weeks with data
+  // Find previous week that has Total metrics
   const weeksWithTotal = DATA.weeks.filter(w => DATA.metrics[w]?.["Total"]);
-  const ogEl  = document.getElementById("kpi-organic-growth");
-  const ogSub = document.getElementById("kpi-organic-growth-sub");
-  if (weeksWithTotal.length >= 2) {
-    const prevWeek  = weeksWithTotal[weeksWithTotal.length - 2];
-    const prevTotal = (DATA.metrics[prevWeek] || {})["Total"] || {};
-    const prevAdj   = calcAdjUSW(prevTotal);
-    if (prevAdj && adjUSW != null) {
-      const growth = (adjUSW - prevAdj) / Math.abs(prevAdj) * 100;
-      const sign = growth >= 0 ? "+" : "";
-      ogEl.textContent  = sign + growth.toFixed(1) + "%";
-      ogEl.style.color  = growth < 0 ? "#d32f2f" : "#2e7d32";
-      ogSub.textContent = `${weekLabel(prevWeek)} → ${weekLabel(latestWeek)}`;
-    } else {
-      ogEl.textContent = "—";
-    }
-  } else {
-    ogEl.textContent = "—";
-  }
+  const prevWeek  = weeksWithTotal.length >= 2 ? weeksWithTotal[weeksWithTotal.length - 2] : null;
+  const prevTotal = prevWeek ? ((DATA.metrics[prevWeek] || {})["Total"] || {}) : {};
+  const prevAdj   = calcAdjUSW(prevTotal);
+
+  const chg = (curr, prev) => {
+    if (curr == null || prev == null || prev === 0) return "";
+    const pct  = (curr - prev) / Math.abs(prev) * 100;
+    const sign  = pct >= 0 ? "+" : "";
+    const color = pct < 0 ? "#d32f2f" : "#2e7d32";
+    return `<span class="kpi-chg" style="color:${color}">${sign}${pct.toFixed(1)}%</span>`;
+  };
+
+  document.getElementById("kpi-week-sub").textContent = weekLabel(latestWeek);
+  document.getElementById("kpi-usw").innerHTML      = (total.usw != null ? total.usw.toFixed(2) : "—") + chg(total.usw, prevTotal.usw);
+  document.getElementById("kpi-adj-usw").innerHTML  = (adjUSW != null ? adjUSW.toFixed(2) : "—") + chg(adjUSW, prevAdj);
+  document.getElementById("kpi-instock").innerHTML  = (total.instock_pct != null ? total.instock_pct.toFixed(2) + "%" : "—") + chg(total.instock_pct, prevTotal.instock_pct);
+  document.getElementById("kpi-units").innerHTML    = (total.pos_qty != null ? total.pos_qty.toLocaleString() : "—") + chg(total.pos_qty, prevTotal.pos_qty);
+  document.getElementById("kpi-retail").innerHTML   = (total.pos_dollars != null ? "$" + Math.round(total.pos_dollars).toLocaleString() : "—") + chg(total.pos_dollars, prevTotal.pos_dollars);
+  document.getElementById("kpi-wholesale").innerHTML= (total.wholesale_dollars != null ? "$" + Math.round(total.wholesale_dollars).toLocaleString() : "—") + chg(total.wholesale_dollars, prevTotal.wholesale_dollars);
 }
 
 // ══ Metrics Series Filter ═════════════════════════════════════════════════════
