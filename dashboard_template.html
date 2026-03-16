@@ -382,8 +382,6 @@
       <table class="oos-tbl" id="oos-summary-tbl">
         <thead><tr><th>Consecutive Weeks OOS</th><th># Stores</th></tr></thead>
         <tbody id="oos-summary-tbody"></tbody>
-      </table>
-      <table class="oos-tbl" style="margin-top:12px">
         <tbody id="oos-totals-tbody"></tbody>
       </table>
     </div>
@@ -1331,12 +1329,13 @@ function updateOosTable(wData, skuSet, consec) {
   const pct = n => totalStores > 0 ? ` (${(n/totalStores*100).toFixed(1)}% of ${totalStores.toLocaleString()} stores)` : "";
   const totalsTbody = document.getElementById("oos-totals-tbody");
   totalsTbody.innerHTML = `
+    <tr><td colspan="2" style="padding:0;border-bottom:2px solid #e0e0e0"></td></tr>
     <tr>
-      <td style="color:#555">Total stores OOS</td>
+      <td style="color:#555">Total unique stores OOS</td>
       <td style="font-weight:700">${totalOos.toLocaleString()}<span style="color:#888;font-weight:400;font-size:0.85em">${pct(totalOos)}</span></td>
     </tr>
     <tr>
-      <td style="color:#555">OOS 2+ consecutive weeks</td>
+      <td style="color:#555">Unique stores OOS 2+ consecutive weeks</td>
       <td style="font-weight:700">${twoPlus.toLocaleString()}<span style="color:#888;font-weight:400;font-size:0.85em">${pct(twoPlus)}</span></td>
     </tr>`;
 }
