@@ -121,6 +121,12 @@
   .map2-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
   .map2-div  { width: 100%; height: 380px; }
 
+  /* ── OOS Summary Card ── */
+  .oos-summary-card { background: #fff; border-radius: 12px; padding: 16px;
+                      box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-top: 14px; }
+  .oos-summary-card h3 { font-size: 0.8rem; font-weight: 700; color: #666; text-transform: uppercase;
+                         letter-spacing: 0.06em; margin-bottom: 10px; }
+
   /* ── OOS Table (scrollable, below map) ── */
   .oos-table-card { background: #fff; border-radius: 12px; padding: 16px;
                     box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-top: 14px; }
@@ -277,6 +283,13 @@
     </div>
     <div class="sku-filter" id="oos-sku-filter"><label>SKU Filter:</label></div>
     <div class="map-card"><div id="oos-map" class="map-div"></div></div>
+    <div class="oos-summary-card">
+      <h3>OOS Duration Summary</h3>
+      <table class="oos-tbl" id="oos-summary-tbl">
+        <thead><tr><th>Consecutive Weeks OOS</th><th># Stores</th></tr></thead>
+        <tbody id="oos-summary-tbody"></tbody>
+      </table>
+    </div>
     <div class="oos-table-card">
       <h3>All OOS Stores — Current Week</h3>
       <div class="oos-scroll">
@@ -334,6 +347,10 @@
     <div class="bar-chart-card">
       <h3>Instock % by State (descending)</h3>
       <div id="chart-state-instock"></div>
+    </div>
+    <div class="bar-chart-card">
+      <h3>U/S/W by State — bars colored by Instock %</h3>
+      <div id="chart-state-usw-instock"></div>
     </div>
   </div>
 </div>
@@ -457,6 +474,7 @@ function switchTab(name, btn) {
       setTimeout(() => {
         Plotly.Plots.resize(document.getElementById("chart-state-usw"));
         Plotly.Plots.resize(document.getElementById("chart-state-instock"));
+        Plotly.Plots.resize(document.getElementById("chart-state-usw-instock"));
       }, 50);
     }
   }
@@ -680,16 +698,17 @@ function renderSalesMap() {
     filteredStateSales[stName] = (filteredStateSales[stName]||0) + qty;
   });
 
+  // Choropleth — no colorbar (avoid double scale)
   const choro = {
     type:"choropleth", locationmode:"USA-states",
     locations: Object.keys(filteredStateSales).map(n => STATE_NAME_TO_ABBR[n]||n),
     z: Object.values(filteredStateSales),
-    colorscale:[[0,"#e8f4f8"],[0.5,"#4e9af1"],[1,"#003580"]],
-    showscale:true, colorbar:{title:{text:"Units",side:"right"},len:0.6,thickness:14},
+    colorscale:[[0,"#dceeff"],[0.5,"#5ca3e6"],[1,"#003580"]],
+    showscale: false,
     hovertemplate:"%{location}: %{z} units<extra></extra>", zmin:0,
   };
 
-  const dotLats=[], dotLons=[], dotText=[], dotColors=[], dotSizes=[];
+  const dotLats=[], dotLons=[], dotText=[], dotColors=[], dotSqrt=[];
   Object.entries(wData).forEach(([sn, sdata]) => {
     const info = DATA.stores[sn]; if (!info||!info.lat||!info.lon) return;
     let qty=0; const lines=[];
@@ -697,20 +716,29 @@ function renderSalesMap() {
     if (!qty) return;
     dotLats.push(info.lat); dotLons.push(info.lon);
     dotText.push(`Store #${sn}<br>${info.street}<br>${info.city}, ${info.state}<br>${lines.join("<br>")}`);
-    dotColors.push(qty); dotSizes.push(Math.max(4, Math.log1p(qty)*3));
+    dotColors.push(qty);
+    dotSqrt.push(Math.sqrt(qty));
   });
+
+  const sqrtMax = Math.max(...dotSqrt, 1);
+  // Build custom tick labels mapping sqrt scale back to real units
+  const tickSqrts = [0, 0.25, 0.5, 0.75, 1].map(t => t * sqrtMax);
+  const tickUnits  = tickSqrts.map(s => Math.round(s * s));
 
   Plotly.react("sales-map", [choro, {
     type:"scattergeo", lat:dotLats, lon:dotLons, text:dotText, hoverinfo:"text",
     marker:{
       size: 8,
-      color: dotColors,
-      colorscale: [[0,"#c6dbef"],[0.33,"#6baed6"],[0.66,"#2171b5"],[1,"#08306b"]],
-      cmin: 0, cmax: Math.max(...dotColors, 1),
+      color: dotSqrt,
+      colorscale: [[0,"#fff7bc"],[0.25,"#fec44f"],[0.6,"#d95f0e"],[1,"#7f0000"]],
+      cmin: 0, cmax: sqrtMax,
       showscale: true,
-      colorbar: { title:{text:"Units",side:"right"}, len:0.45, thickness:12, x:1.01 },
+      colorbar: {
+        title:{text:"Units",side:"right"}, len:0.5, thickness:12, x:1.01,
+        tickmode:"array", tickvals: tickSqrts, ticktext: tickUnits.map(String),
+      },
       line: {width:0.8, color:"#fff"},
-      opacity: 0.9,
+      opacity: 0.92,
     },
   }], geoLayout());
 }
@@ -751,8 +779,8 @@ function renderOosMap() {
     { type:"choropleth", locationmode:"USA-states",
       locations:stNames.map(n=>STATE_NAME_TO_ABBR[n]||n),
       z:stNames.map(n=>stOosDen[n]>0?Math.round((stOosNum[n]||0)/stOosDen[n]*100):0),
-      zmin:0, zmax:100, colorscale:[[0,"#00c853"],[0.5,"#ffd600"],[1,"#d50000"]],
-      showscale:true, colorbar:{title:{text:"OOS %",side:"right"},len:0.6,thickness:14,ticksuffix:"%"},
+      zmin:0, zmax:100, colorscale:[[0,"#c8f5d8"],[0.5,"#ffe082"],[1,"#ffcdd2"]],
+      showscale: false,
       hovertemplate:"%{location}: %{z}% OOS<extra></extra>" },
     ...buildOosDots(wData, skuSet, consec),
   ], geoLayout());
@@ -831,6 +859,20 @@ function updateOosTable(wData, skuSet, consec) {
   });
   if(!storeRows.length)
     tbody.innerHTML=`<tr><td colspan="4" style="color:#999;text-align:center;padding:20px">No OOS stores for selected SKUs</td></tr>`;
+
+  // ── OOS Duration Summary
+  const weekCounts = {};
+  storeRows.forEach(r => { weekCounts[r.maxCw] = (weekCounts[r.maxCw]||0) + 1; });
+  const summaryTbody = document.getElementById("oos-summary-tbody");
+  summaryTbody.innerHTML = "";
+  Object.entries(weekCounts).sort((a,b) => b[0]-a[0]).forEach(([wks, count]) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td><span class="badge-oos">${wks} week${wks>1?"s":""} OOS</span></td>
+      <td style="font-weight:700">${count} store${count>1?"s":""}</td>`;
+    summaryTbody.appendChild(tr);
+  });
+  if(!Object.keys(weekCounts).length)
+    summaryTbody.innerHTML=`<tr><td colspan="2" style="color:#999;text-align:center;padding:12px">No OOS stores</td></tr>`;
 }
 
 function oosNav(dir) { oosWeekIdx=(oosWeekIdx+dir+DATA.store_weeks.length)%DATA.store_weeks.length; renderOosMap(); }
@@ -1024,6 +1066,45 @@ function renderStateCharts() {
     xaxis:{title:"Instock %", range:[0,110], gridcolor:"#e8e8e8", ticksuffix:"%"},
     yaxis:{autorange:"reversed", tickfont:{size:10}},
     height: instockH,
+  }, cfg);
+
+  // ── Chart 3: U/S/W sorted descending, bars colored by Instock %
+  // Re-use uswEntries (sorted by U/S/W desc), color each bar by that state's instock %
+  const uswInstockColors = uswStates.map(st => {
+    const pct = instockData[st] || 0;
+    const t = pct / 100;
+    const r = Math.round(213*(1-t));
+    const g = Math.round(200*t);
+    const b = Math.round(83*t);
+    return `rgb(${r},${g},${b})`;
+  });
+  const uswInstockAnnotations = uswStates.map((st, i) => {
+    const pct = instockData[st];
+    return pct != null ? pct.toFixed(1) + "%" : "";
+  });
+  const uiH = Math.max(400, uswStates.length * 22 + 80);
+  document.getElementById("chart-state-usw-instock").style.height = uiH + "px";
+
+  Plotly.react("chart-state-usw-instock", [{
+    type:"bar", orientation:"h",
+    y: uswStates, x: uswVals,
+    text: uswVals.map((v, i) => `${v.toFixed(2)} (${uswInstockAnnotations[i]})`),
+    textposition:"outside",
+    marker:{ color: uswInstockColors },
+    hovertemplate:"%{y}: %{x:.2f} U/S/W | Instock: %{text}<extra></extra>",
+    customdata: uswInstockAnnotations,
+  }], {
+    margin:{t:10,b:40,l:140,r:100},
+    paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
+    font:{family:"-apple-system,sans-serif",size:11},
+    xaxis:{title:"U/S/W", gridcolor:"#e8e8e8"},
+    yaxis:{autorange:"reversed", tickfont:{size:10}},
+    height: uiH,
+    annotations:[{
+      x:1.01, y:0.98, xref:"paper", yref:"paper", showarrow:false,
+      text:"🟢 Green = High Instock<br>🔴 Red = Low Instock",
+      font:{size:10, color:"#666"}, align:"left",
+    }],
   }, cfg);
 }
 
