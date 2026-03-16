@@ -1096,15 +1096,30 @@ function renderSalesMap() {
   };
 
   const dotLats=[], dotLons=[], dotText=[], dotColors=[], dotSqrt=[];
+  const zeroLats=[], zeroLons=[], zeroText=[];
+
+  // Collect stores with sales from wData
   Object.entries(wData).forEach(([sn, sdata]) => {
     const info = DATA.stores[sn]; if (!info||!info.lat||!info.lon) return;
     let qty=0; const lines=[];
     Object.entries(sdata.skus||{}).forEach(([sku,sv]) => { if(skuSet.has(sku)){qty+=sv.qty||0; lines.push(`${sku}: ${sv.qty} units`);} });
-    if (!qty) return;
-    dotLats.push(info.lat); dotLons.push(info.lon);
-    dotText.push(`Store #${sn}<br>${info.street}<br>${info.city}, ${info.state}<br>${lines.join("<br>")}`);
-    dotColors.push(qty);
-    dotSqrt.push(Math.sqrt(qty));
+    if (qty > 0) {
+      dotLats.push(info.lat); dotLons.push(info.lon);
+      dotText.push(`Store #${sn}<br>${info.street}<br>${info.city}, ${info.state}<br>${lines.join("<br>")}`);
+      dotColors.push(qty);
+      dotSqrt.push(Math.sqrt(qty));
+    } else {
+      zeroLats.push(info.lat); zeroLons.push(info.lon);
+      zeroText.push(`Store #${sn}<br>${info.street}<br>${info.city}, ${info.state}<br><i>No sales this week</i>`);
+    }
+  });
+
+  // Add stores not in wData at all (no record this week)
+  const wDataKeys = new Set(Object.keys(wData));
+  Object.entries(DATA.stores).forEach(([sn, info]) => {
+    if (wDataKeys.has(sn) || !info.lat || !info.lon) return;
+    zeroLats.push(info.lat); zeroLons.push(info.lon);
+    zeroText.push(`Store #${sn}<br>${info.street||""}<br>${info.city}, ${info.state}<br><i>No sales data this week</i>`);
   });
 
   const sqrtMax = Math.max(...dotSqrt, 1);
@@ -1112,22 +1127,25 @@ function renderSalesMap() {
   const tickSqrts = [0, 0.25, 0.5, 0.75, 1].map(t => t * sqrtMax);
   const tickUnits  = tickSqrts.map(s => Math.round(s * s));
 
-  Plotly.react("sales-map", [choro, {
-    type:"scattergeo", lat:dotLats, lon:dotLons, text:dotText, hoverinfo:"text",
-    marker:{
-      size: 8,
-      color: dotSqrt,
-      colorscale: [[0,"#fff7bc"],[0.25,"#fec44f"],[0.6,"#d95f0e"],[1,"#7f0000"]],
-      cmin: 0, cmax: sqrtMax,
-      showscale: true,
-      colorbar: {
-        title:{text:"Units",side:"right"}, len:0.5, thickness:12, x:1.01,
-        tickmode:"array", tickvals: tickSqrts, ticktext: tickUnits.map(String),
+  Plotly.react("sales-map", [choro,
+    { type:"scattergeo", lat:zeroLats, lon:zeroLons, text:zeroText, hoverinfo:"text", name:"No Sales",
+      marker:{ size:5, color:"#bbb", opacity:0.55, line:{width:0.5, color:"#fff"} } },
+    { type:"scattergeo", lat:dotLats, lon:dotLons, text:dotText, hoverinfo:"text", name:"Has Sales",
+      marker:{
+        size: 8,
+        color: dotSqrt,
+        colorscale: [[0,"#fff7bc"],[0.25,"#fec44f"],[0.6,"#d95f0e"],[1,"#7f0000"]],
+        cmin: 0, cmax: sqrtMax,
+        showscale: true,
+        colorbar: {
+          title:{text:"Units",side:"right"}, len:0.5, thickness:12, x:1.01,
+          tickmode:"array", tickvals: tickSqrts, ticktext: tickUnits.map(String),
+        },
+        line: {width:0.8, color:"#fff"},
+        opacity: 0.92,
       },
-      line: {width:0.8, color:"#fff"},
-      opacity: 0.92,
     },
-  }], geoLayout());
+  ], geoLayout());
 
   updateSalesStoreList(wData, skuSet);
 }
@@ -1135,8 +1153,9 @@ function renderSalesMap() {
 function updateSalesStoreList(wData, skuSet) {
   const skus = DATA.skus.filter(s => skuSet.has(s));
   const storeArr = [];
-  Object.entries(wData).forEach(([sn, sdata]) => {
-    const info = DATA.stores[sn] || {};
+  // Iterate all known stores so zero-sale stores are included
+  Object.entries(DATA.stores).forEach(([sn, info]) => {
+    const sdata = wData[sn] || {};
     const skuQtys = {};
     let total = 0;
     skus.forEach(sku => {
@@ -1144,7 +1163,6 @@ function updateSalesStoreList(wData, skuSet) {
       skuQtys[sku] = q;
       total += q;
     });
-    if (!total) return;
     storeArr.push({ sn, city: info.city||"", state: info.state||"", skuQtys, total });
   });
   storeArr.sort((a, b) => b.total - a.total);
@@ -1176,11 +1194,11 @@ function updateSalesStoreList(wData, skuSet) {
   tbody.innerHTML = "";
   storeArr.forEach(s => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>#${s.sn}</td><td>${s.city}, ${s.state}</td>${skus.map(k=>`<td>${s.skuQtys[k]||"—"}</td>`).join("")}<td class="total-col">${s.total.toLocaleString()}</td>`;
+    tr.innerHTML = `<td>#${s.sn}</td><td>${s.city}, ${s.state}</td>${skus.map(k=>`<td>${s.skuQtys[k]||0}</td>`).join("")}<td class="total-col">${s.total.toLocaleString()}</td>`;
     tbody.appendChild(tr);
   });
   if (!storeArr.length)
-    tbody.innerHTML = `<tr><td colspan="${skus.length+3}" style="color:#999;text-align:center;padding:16px">No store sales data</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${skus.length+3}" style="color:#999;text-align:center;padding:16px">No store data</td></tr>`;
 }
 
 function salesNav(dir) { salesWeekIdx=(salesWeekIdx+dir+DATA.store_weeks.length)%DATA.store_weeks.length; renderSalesMap(); }
