@@ -196,6 +196,28 @@
   .bar-chart-card h3 { font-size: 0.8rem; font-weight: 700; color: #666; text-transform: uppercase;
                        letter-spacing: 0.06em; margin-bottom: 10px; }
 
+  /* ── Data Table Tab ── */
+  .data-table-card { background: #fff; border-radius: 12px; padding: 16px;
+                     box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .data-table-card h3 { font-size: 0.8rem; font-weight: 700; color: #666; text-transform: uppercase;
+                        letter-spacing: 0.06em; margin-bottom: 12px; }
+  .data-table-search { width: 260px; padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 8px;
+                       font-size: 0.85rem; margin-bottom: 12px; outline: none; }
+  .data-table-search:focus { border-color: #0057e7; }
+  .data-tbl { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  .data-tbl th { background: #f5f5f5; padding: 8px 12px; text-align: right; font-weight: 700;
+                 color: #444; border-bottom: 2px solid #e0e0e0; white-space: nowrap; cursor: pointer;
+                 position: sticky; top: 0; z-index: 1; user-select: none; }
+  .data-tbl th:first-child { text-align: left; }
+  .data-tbl th:hover { background: #eaeaea; }
+  .data-tbl td { padding: 6px 12px; border-bottom: 1px solid #f0f0f0; text-align: right; }
+  .data-tbl td:first-child { text-align: left; font-weight: 500; }
+  .data-tbl tr:hover td { background: #f8f9ff; }
+  .data-tbl tfoot td { font-weight: 700; background: #f0f4ff; border-top: 2px solid #d0d8f0; }
+  .data-table-scroll { max-height: 600px; overflow-y: auto; }
+  /* ── Toggle button active state ── */
+  .ctrl-btn.active { background: #003580; color: #fff; border-color: #003580; }
+
   /* ── Store Map Tab ── */
   #store-map-leaflet { width: 100%; height: 620px; border-radius: 8px; z-index: 0; }
   .store-map-legend { background: #fff; padding: 12px 14px; border-radius: 8px;
@@ -248,6 +270,7 @@
     <button class="tab-btn"        onclick="switchTab('statestats',this)">🏛️ State Stats</button>
     <button class="tab-btn"        onclick="switchTab('statecharts',this)">📊 State Charts</button>
     <button class="tab-btn"        onclick="switchTab('storemap',this)">🏪 Store Map</button>
+    <button class="tab-btn"        onclick="switchTab('storedata',this)">📋 Store Data</button>
   </div>
 
   <!-- ── Tab 1: Metrics ─────────────────────────────────────────────────── -->
@@ -419,7 +442,10 @@
       <button class="ctrl-btn play" id="sc-play-btn" onclick="togglePlay('statecharts')">▶ Play</button>
     </div>
     <div class="bar-chart-card">
-      <h3>U/S/W by State (descending)</h3>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <h3 style="margin:0" id="sc-usw-title">U/S/W by State (descending)</h3>
+        <button class="ctrl-btn" id="sc-usw-toggle" onclick="toggleUswMode()" style="font-size:0.78rem;padding:5px 12px">Adj. for Instock %</button>
+      </div>
       <div id="chart-state-usw"></div>
     </div>
     <div class="bar-chart-card">
@@ -432,10 +458,34 @@
     </div>
   </div>
 
-  <!-- ── Tab 6: Store Map ───────────────────────────────────────────────── -->
+  <!-- ── Tab 6: Store Map ─────────────────────────────────────────────────── -->
   <div id="tab-storemap" class="tab-panel">
     <div class="map-card" style="padding:0;overflow:hidden">
       <div id="store-map-leaflet"></div>
+    </div>
+  </div>
+
+  <!-- ── Tab 7: Store Data ─────────────────────────────────────────────────── -->
+  <div id="tab-storedata" class="tab-panel">
+    <div class="data-table-card">
+      <h3>Store Count by State &amp; SKU</h3>
+      <input class="data-table-search" id="store-data-search" type="text" placeholder="Filter by state…" oninput="filterStoreDataTable()">
+      <div class="data-table-scroll">
+        <table class="data-tbl" id="store-data-tbl">
+          <thead>
+            <tr>
+              <th onclick="sortStoreDataTable(0)">State ⇅</th>
+              <th onclick="sortStoreDataTable(1)">Total Stores ⇅</th>
+              <th onclick="sortStoreDataTable(2)">15O ⇅</th>
+              <th onclick="sortStoreDataTable(3)">15U ⇅</th>
+              <th onclick="sortStoreDataTable(4)">34O ⇅</th>
+              <th onclick="sortStoreDataTable(5)">34U ⇅</th>
+            </tr>
+          </thead>
+          <tbody id="store-data-tbody"></tbody>
+          <tfoot id="store-data-tfoot"></tfoot>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -567,7 +617,86 @@ function switchTab(name, btn) {
     if (!storeMapInit) { initStoreMap(); storeMapInit = true; }
     else if (storeMapLeaflet) setTimeout(() => storeMapLeaflet.map.invalidateSize(), 50);
   }
+  if (name === "storedata") {
+    if (!storeDataInit) { initStoreDataTable(); storeDataInit = true; }
+  }
 }
+
+// ══ Tab 7: Store Data Table ═══════════════════════════════════════════════════
+let storeDataInit = false;
+let storeDataRows = [];   // [{state, total, skuCounts:{sku:n}}]
+let storeDataSortCol = 1; // default: Total Stores
+let storeDataSortAsc = false;
+const DATA_TABLE_SKUS = ["CATALYST15ORIG","CATALYST15UNSCEN","CATALYST34LBORIGINAL","CATALYSTPET34LBUNSCE"];
+
+function initStoreDataTable() {
+  // Determine which SKUs each store carries across all weeks
+  const storeSkuSets = {};
+  DATA.store_weeks.forEach(week => {
+    const wData = DATA.weekly_stores[week] || {};
+    Object.entries(wData).forEach(([sn, sdata]) => {
+      if (!storeSkuSets[sn]) storeSkuSets[sn] = new Set();
+      Object.keys(sdata.skus || {}).forEach(sku => storeSkuSets[sn].add(sku));
+    });
+  });
+
+  // Aggregate by state
+  const stateMap = {}; // state -> {total, skuCounts}
+  Object.entries(DATA.stores).forEach(([sn, info]) => {
+    const state = info.state || "Unknown";
+    if (!stateMap[state]) stateMap[state] = { total: 0, skuCounts: {} };
+    stateMap[state].total++;
+    const skus = storeSkuSets[sn] || new Set();
+    skus.forEach(sku => {
+      stateMap[state].skuCounts[sku] = (stateMap[state].skuCounts[sku] || 0) + 1;
+    });
+  });
+
+  storeDataRows = Object.entries(stateMap).map(([state, d]) => ({
+    state, total: d.total, skuCounts: d.skuCounts,
+  }));
+  renderStoreDataTable();
+}
+
+function renderStoreDataTable() {
+  const query = (document.getElementById("store-data-search")?.value || "").toLowerCase();
+  const filtered = storeDataRows.filter(r => !query || r.state.toLowerCase().includes(query));
+
+  const col = storeDataSortCol;
+  const dir = storeDataSortAsc ? 1 : -1;
+  filtered.sort((a, b) => {
+    const av = col === 0 ? a.state : col === 1 ? a.total : (a.skuCounts[DATA_TABLE_SKUS[col-2]]||0);
+    const bv = col === 0 ? b.state : col === 1 ? b.total : (b.skuCounts[DATA_TABLE_SKUS[col-2]]||0);
+    return typeof av === "string" ? dir * av.localeCompare(bv) : dir * (av - bv);
+  });
+
+  const tbody = document.getElementById("store-data-tbody");
+  tbody.innerHTML = "";
+  filtered.forEach(r => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${r.state}</td><td>${r.total}</td>` +
+      DATA_TABLE_SKUS.map(sku => `<td>${r.skuCounts[sku] || 0}</td>`).join("");
+    tbody.appendChild(tr);
+  });
+
+  // Totals footer
+  const totals = { total: 0, skuCounts: {} };
+  filtered.forEach(r => {
+    totals.total += r.total;
+    DATA_TABLE_SKUS.forEach(sku => { totals.skuCounts[sku] = (totals.skuCounts[sku]||0) + (r.skuCounts[sku]||0); });
+  });
+  document.getElementById("store-data-tfoot").innerHTML =
+    `<tr><td>TOTAL (${filtered.length} states)</td><td>${totals.total}</td>` +
+    DATA_TABLE_SKUS.map(sku => `<td>${totals.skuCounts[sku]||0}</td>`).join("") + `</tr>`;
+}
+
+function sortStoreDataTable(col) {
+  storeDataSortAsc = storeDataSortCol === col ? !storeDataSortAsc : false;
+  storeDataSortCol = col;
+  renderStoreDataTable();
+}
+
+function filterStoreDataTable() { renderStoreDataTable(); }
 
 // ══ Tab 6: Store Map (Leaflet) ════════════════════════════════════════════════
 let storeMapLeaflet = null;
@@ -1347,10 +1476,75 @@ function stateStatsNav(dir) {
 
 // ══ Tab 5: State Charts ═══════════════════════════════════════════════════════
 let stateChartsWeekIdx = DATA.store_weeks.length - 1;
+let stateChartsUswMode = "actual"; // "actual" | "adj"
+let stateChartsUswReady = false;
 let stateChartsPlayTimer = null;
 
 function initStateCharts() {
   renderStateCharts();
+}
+
+function getUswChartEntries(week) {
+  const uswData    = getStateUSW(week);
+  const instockData = getStateInstock(week);
+  const entries = Object.entries(uswData).map(([st, usw]) => {
+    if (stateChartsUswMode === "adj") {
+      const pct = instockData[st];
+      return [st, pct ? Math.round(usw / (pct / 100) * 100) / 100 : Math.round(usw * 100) / 100];
+    }
+    return [st, Math.round(usw * 100) / 100];
+  });
+  entries.sort((a, b) => b[1] - a[1]);
+  return entries;
+}
+
+function renderUswChart(animate) {
+  const week = DATA.store_weeks[stateChartsWeekIdx];
+  if (!week) return;
+  const entries = getUswChartEntries(week);
+  const states  = entries.map(e => e[0]);
+  const vals    = entries.map(e => e[1]);
+  const h       = Math.max(400, states.length * 22 + 80);
+  const isAdj   = stateChartsUswMode === "adj";
+  const xTitle  = isAdj ? "Adj. Units/Store/Week (at 100% Instock)" : "Units/Store/Week";
+  const hoverTpl = `%{y}: %{x:.2f} ${isAdj ? "Adj. U/S/W" : "U/S/W"}<extra></extra>`;
+
+  document.getElementById("chart-state-usw").style.height = h + "px";
+  document.getElementById("sc-usw-title").textContent =
+    isAdj ? "Adj. U/S/W by State (at 100% Instock, descending)" : "U/S/W by State (descending)";
+  document.getElementById("sc-usw-toggle").classList.toggle("active", isAdj);
+
+  const traceUpdate = {
+    type:"bar", orientation:"h",
+    y: states, x: vals,
+    text: vals.map(v => v.toFixed(2)), textposition:"outside",
+    marker:{ color:vals, colorscale:[[0,"#e8f4f8"],[0.5,"#4e9af1"],[1,"#003580"]], showscale:false },
+    hovertemplate: hoverTpl,
+  };
+  const layoutUpdate = {
+    margin:{t:10,b:40,l:140,r:60},
+    paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
+    font:{family:"-apple-system,sans-serif",size:11},
+    xaxis:{title:xTitle, gridcolor:"#e8e8e8"},
+    yaxis:{autorange:"reversed", tickfont:{size:10}},
+    height: h,
+  };
+  const cfg = {responsive:true, displayModeBar:false};
+
+  if (animate && stateChartsUswReady) {
+    Plotly.animate("chart-state-usw",
+      { data:[traceUpdate], layout:layoutUpdate, traces:[0] },
+      { transition:{duration:600, easing:"cubic-in-out"}, frame:{duration:600, redraw:true} }
+    );
+  } else {
+    Plotly.react("chart-state-usw", [traceUpdate], layoutUpdate, cfg);
+    stateChartsUswReady = true;
+  }
+}
+
+function toggleUswMode() {
+  stateChartsUswMode = stateChartsUswMode === "actual" ? "adj" : "actual";
+  renderUswChart(true);
 }
 
 function renderStateCharts() {
@@ -1358,29 +1552,9 @@ function renderStateCharts() {
   if (!week) return;
   document.getElementById("sc-week-label").textContent = weekLabel(week);
 
-  const cfg = { responsive:true, displayModeBar:false };
+  renderUswChart(true);
 
-  // ── U/S/W by state
-  const uswData = getStateUSW(week);
-  const uswEntries = Object.entries(uswData).sort((a,b)=>b[1]-a[1]);
-  const uswStates = uswEntries.map(e=>e[0]);
-  const uswVals   = uswEntries.map(e=>Math.round(e[1]*100)/100);
-  const uswH = Math.max(400, uswStates.length * 22 + 80);
-  document.getElementById("chart-state-usw").style.height = uswH + "px";
-  Plotly.react("chart-state-usw", [{
-    type:"bar", orientation:"h",
-    y: uswStates, x: uswVals,
-    text: uswVals.map(v=>v.toFixed(2)), textposition:"outside",
-    marker:{ color:uswVals, colorscale:[[0,"#e8f4f8"],[0.5,"#4e9af1"],[1,"#003580"]], showscale:false },
-    hovertemplate:"%{y}: %{x:.2f} U/S/W<extra></extra>",
-  }], {
-    margin:{t:10,b:40,l:140,r:60},
-    paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
-    font:{family:"-apple-system,sans-serif",size:11},
-    xaxis:{title:"Units/Store/Week", gridcolor:"#e8e8e8"},
-    yaxis:{autorange:"reversed", tickfont:{size:10}},
-    height: uswH,
-  }, cfg);
+  const cfg = { responsive:true, displayModeBar:false };
 
   // ── Instock % by state
   const instockData = getStateInstock(week);
