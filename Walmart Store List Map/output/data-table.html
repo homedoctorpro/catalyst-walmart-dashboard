@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catalyst Pet - Store Data by State</title>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; }
+
+        #header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        #header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        #header p {
+            font-size: 14px;
+            opacity: 0.95;
+        }
+
+        .nav-links {
+            margin-top: 12px;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            margin-right: 15px;
+            padding: 8px 16px;
+            border: 1px solid rgba(255,255,255,0.5);
+            border-radius: 4px;
+            transition: all 0.3s;
+            display: inline-block;
+            font-size: 14px;
+        }
+
+        .nav-links a:hover {
+            background: white;
+            color: #667eea;
+        }
+
+        .nav-links a.active {
+            background: rgba(255,255,255,0.2);
+            border-color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        .search-filter {
+            margin: 0 0 20px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .search-filter input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100%;
+            max-width: 400px;
+            font-size: 14px;
+        }
+
+        .search-filter input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .table-wrapper {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #667eea;
+            color: white;
+        }
+
+        th {
+            padding: 15px 12px;
+            text-align: left;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+            font-size: 13px;
+        }
+
+        th:hover {
+            background: #5568d3;
+        }
+
+        th::after {
+            content: ' ⇅';
+            opacity: 0.5;
+            font-size: 11px;
+        }
+
+        th.number-header {
+            text-align: right;
+        }
+
+        td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        tfoot {
+            font-weight: bold;
+            background: #f5f5f5;
+            border-top: 2px solid #667eea;
+        }
+
+        tfoot td {
+            padding: 15px 12px;
+            border-bottom: none;
+        }
+
+        .number-cell {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 0 10px; }
+            th, td { padding: 10px 8px; font-size: 12px; }
+            .search-filter { padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h1>Catalyst Pet - Store Count by State</h1>
+        <p>SKU distribution across all 50 states</p>
+        <div class="nav-links">
+            <a href="index.html">Map View</a>
+            <a href="data-table.html" class="active">Data Table</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="search-filter">
+            <input type="text" id="stateFilter" placeholder="Filter by state name...">
+        </div>
+
+        <div class="table-wrapper">
+            <table id="dataTable">
+                <thead>
+                    <tr>
+                        <th onclick="sortTable(0)">State</th>
+                        <th onclick="sortTable(1)" class="number-header">Total Stores</th>
+                        <th onclick="sortTable(2)" class="number-header">CATALYST15ORIG</th>
+                        <th onclick="sortTable(3)" class="number-header">CATALYST15UNSCEN</th>
+                        <th onclick="sortTable(4)" class="number-header">CATALYST34LBORIGINAL</th>
+                        <th onclick="sortTable(5)" class="number-header">CATALYSTPET34LBUNSCE</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <!-- Generated by JavaScript -->
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td>TOTAL</td>
+                        <td class="number-cell" id="totalStores">-</td>
+                        <td class="number-cell" id="total15Orig">-</td>
+                        <td class="number-cell" id="total15Unscen">-</td>
+                        <td class="number-cell" id="total34Orig">-</td>
+                        <td class="number-cell" id="totalPet34">-</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <script>
+    const STATE_SUMMARY = {"states":[{"state":"TEXAS","total_stores":389,"sku_counts":{"CATALYST15ORIG":356,"CATALYST15UNSCEN":42,"CATALYST34LBORIGINAL":117,"CATALYSTPET34LBUNSCE":23}},{"state":"FLORIDA","total_stores":261,"sku_counts":{"CATALYST15ORIG":247,"CATALYST15UNSCEN":27,"CATALYST34LBORIGINAL":79,"CATALYSTPET34LBUNSCE":16}},{"state":"CALIFORNIA","total_stores":213,"sku_counts":{"CATALYST15ORIG":193,"CATALYST15UNSCEN":31,"CATALYST34LBORIGINAL":65,"CATALYSTPET34LBUNSCE":17}},{"state":"NORTH CAROLINA","total_stores":160,"sku_counts":{"CATALYST15ORIG":147,"CATALYST15UNSCEN":17,"CATALYST34LBORIGINAL":48,"CATALYSTPET34LBUNSCE":10}},{"state":"GEORGIA","total_stores":153,"sku_counts":{"CATALYST15ORIG":138,"CATALYST15UNSCEN":5,"CATALYST34LBORIGINAL":39,"CATALYSTPET34LBUNSCE":9}},{"state":"OHIO","total_stores":135,"sku_counts":{"CATALYST15ORIG":128,"CATALYST15UNSCEN":31,"CATALYST34LBORIGINAL":46,"CATALYSTPET34LBUNSCE":21}},{"state":"ILLINOIS","total_stores":131,"sku_counts":{"CATALYST15ORIG":123,"CATALYST15UNSCEN":16,"CATALYST34LBORIGINAL":40,"CATALYSTPET34LBUNSCE":10}},{"state":"TENNESSEE","total_stores":119,"sku_counts":{"CATALYST15ORIG":110,"CATALYST15UNSCEN":13,"CATALYST34LBORIGINAL":37,"CATALYSTPET34LBUNSCE":9}},{"state":"PENNSYLVANIA","total_stores":116,"sku_counts":{"CATALYST15ORIG":108,"CATALYST15UNSCEN":28,"CATALYST34LBORIGINAL":42,"CATALYSTPET34LBUNSCE":21}},{"state":"MISSOURI","total_stores":113,"sku_counts":{"CATALYST15ORIG":106,"CATALYST15UNSCEN":9,"CATALYST34LBORIGINAL":37,"CATALYSTPET34LBUNSCE":9}},{"state":"VIRGINIA","total_stores":106,"sku_counts":{"CATALYST15ORIG":96,"CATALYST15UNSCEN":14,"CATALYST34LBORIGINAL":34,"CATALYSTPET34LBUNSCE":8}},{"state":"ALABAMA","total_stores":101,"sku_counts":{"CATALYST15ORIG":96,"CATALYST15UNSCEN":7,"CATALYST34LBORIGINAL":22,"CATALYSTPET34LBUNSCE":10}},{"state":"LOUISIANA","total_stores":98,"sku_counts":{"CATALYST15ORIG":89,"CATALYST15UNSCEN":7,"CATALYST34LBORIGINAL":25,"CATALYSTPET34LBUNSCE":1}},{"state":"INDIANA","total_stores":96,"sku_counts":{"CATALYST15ORIG":91,"CATALYST15UNSCEN":18,"CATALYST34LBORIGINAL":35,"CATALYSTPET34LBUNSCE":7}},{"state":"OKLAHOMA","total_stores":88,"sku_counts":{"CATALYST15ORIG":82,"CATALYST15UNSCEN":6,"CATALYST34LBORIGINAL":25,"CATALYSTPET34LBUNSCE":7}},{"state":"NEW YORK","total_stores":88,"sku_counts":{"CATALYST15ORIG":83,"CATALYST15UNSCEN":16,"CATALYST34LBORIGINAL":36,"CATALYSTPET34LBUNSCE":15}},{"state":"MICHIGAN","total_stores":87,"sku_counts":{"CATALYST15ORIG":84,"CATALYST15UNSCEN":12,"CATALYST34LBORIGINAL":27,"CATALYSTPET34LBUNSCE":7}},{"state":"SOUTH CAROLINA","total_stores":84,"sku_counts":{"CATALYST15ORIG":76,"CATALYST15UNSCEN":15,"CATALYST34LBORIGINAL":25,"CATALYSTPET34LBUNSCE":7}},{"state":"ARIZONA","total_stores":84,"sku_counts":{"CATALYST15ORIG":80,"CATALYST15UNSCEN":7,"CATALYST34LBORIGINAL":27,"CATALYSTPET34LBUNSCE":5}},{"state":"ARKANSAS","total_stores":83,"sku_counts":{"CATALYST15ORIG":79,"CATALYST15UNSCEN":4,"CATALYST34LBORIGINAL":15,"CATALYSTPET34LBUNSCE":1}},{"state":"WISCONSIN","total_stores":78,"sku_counts":{"CATALYST15ORIG":73,"CATALYST15UNSCEN":15,"CATALYST34LBORIGINAL":33,"CATALYSTPET34LBUNSCE":10}},{"state":"KENTUCKY","total_stores":72,"sku_counts":{"CATALYST15ORIG":71,"CATALYST15UNSCEN":6,"CATALYST34LBORIGINAL":16,"CATALYSTPET34LBUNSCE":5}},{"state":"COLORADO","total_stores":71,"sku_counts":{"CATALYST15ORIG":68,"CATALYST15UNSCEN":15,"CATALYST34LBORIGINAL":34,"CATALYSTPET34LBUNSCE":7}},{"state":"MINNESOTA","total_stores":63,"sku_counts":{"CATALYST15ORIG":60,"CATALYST15UNSCEN":12,"CATALYST34LBORIGINAL":20,"CATALYSTPET34LBUNSCE":8}},{"state":"WASHINGTON","total_stores":61,"sku_counts":{"CATALYST15ORIG":57,"CATALYST15UNSCEN":18,"CATALYST34LBORIGINAL":29,"CATALYSTPET34LBUNSCE":7}},{"state":"KANSAS","total_stores":55,"sku_counts":{"CATALYST15ORIG":52,"CATALYST15UNSCEN":5,"CATALYST34LBORIGINAL":17,"CATALYSTPET34LBUNSCE":5}},{"state":"NEW JERSEY","total_stores":55,"sku_counts":{"CATALYST15ORIG":53,"CATALYST15UNSCEN":11,"CATALYST34LBORIGINAL":26,"CATALYSTPET34LBUNSCE":3}},{"state":"MISSISSIPPI","total_stores":51,"sku_counts":{"CATALYST15ORIG":50,"CATALYST15UNSCEN":3,"CATALYST34LBORIGINAL":7,"CATALYSTPET34LBUNSCE":1}},{"state":"IOWA","total_stores":51,"sku_counts":{"CATALYST15ORIG":48,"CATALYST15UNSCEN":10,"CATALYST34LBORIGINAL":21,"CATALYSTPET34LBUNSCE":3}},{"state":"MASSACHUSETTS","total_stores":41,"sku_counts":{"CATALYST15ORIG":41,"CATALYST15UNSCEN":7,"CATALYST34LBORIGINAL":15,"CATALYSTPET34LBUNSCE":3}},{"state":"UTAH","total_stores":39,"sku_counts":{"CATALYST15ORIG":36,"CATALYST15UNSCEN":2,"CATALYST34LBORIGINAL":12,"CATALYSTPET34LBUNSCE":1}},{"state":"OREGON","total_stores":39,"sku_counts":{"CATALYST15ORIG":36,"CATALYST15UNSCEN":6,"CATALYST34LBORIGINAL":13,"CATALYSTPET34LBUNSCE":3}},{"state":"NEVADA","total_stores":38,"sku_counts":{"CATALYST15ORIG":33,"CATALYST15UNSCEN":5,"CATALYST34LBORIGINAL":13,"CATALYSTPET34LBUNSCE":2}},{"state":"NEW MEXICO","total_stores":37,"sku_counts":{"CATALYST15ORIG":35,"CATALYST15UNSCEN":1,"CATALYST34LBORIGINAL":6,"CATALYSTPET34LBUNSCE":2}},{"state":"MARYLAND","total_stores":37,"sku_counts":{"CATALYST15ORIG":36,"CATALYST15UNSCEN":3,"CATALYST34LBORIGINAL":7,"CATALYSTPET34LBUNSCE":5}},{"state":"NEBRASKA","total_stores":36,"sku_counts":{"CATALYST15ORIG":36,"CATALYST15UNSCEN":2,"CATALYST34LBORIGINAL":10,"CATALYSTPET34LBUNSCE":0}},{"state":"WEST VIRGINIA","total_stores":32,"sku_counts":{"CATALYST15ORIG":30,"CATALYST15UNSCEN":6,"CATALYST34LBORIGINAL":11,"CATALYSTPET34LBUNSCE":4}},{"state":"CONNECTICUT","total_stores":29,"sku_counts":{"CATALYST15ORIG":28,"CATALYST15UNSCEN":7,"CATALYST34LBORIGINAL":13,"CATALYSTPET34LBUNSCE":5}},{"state":"IDAHO","total_stores":23,"sku_counts":{"CATALYST15ORIG":22,"CATALYST15UNSCEN":2,"CATALYST34LBORIGINAL":11,"CATALYSTPET34LBUNSCE":3}},{"state":"NEW HAMPSHIRE","total_stores":22,"sku_counts":{"CATALYST15ORIG":21,"CATALYST15UNSCEN":3,"CATALYST34LBORIGINAL":7,"CATALYSTPET34LBUNSCE":3}},{"state":"MAINE","total_stores":19,"sku_counts":{"CATALYST15ORIG":17,"CATALYST15UNSCEN":6,"CATALYST34LBORIGINAL":11,"CATALYSTPET34LBUNSCE":2}},{"state":"MONTANA","total_stores":14,"sku_counts":{"CATALYST15ORIG":13,"CATALYST15UNSCEN":4,"CATALYST34LBORIGINAL":4,"CATALYSTPET34LBUNSCE":2}},{"state":"SOUTH DAKOTA","total_stores":13,"sku_counts":{"CATALYST15ORIG":12,"CATALYST15UNSCEN":1,"CATALYST34LBORIGINAL":4,"CATALYSTPET34LBUNSCE":0}},{"state":"NORTH DAKOTA","total_stores":13,"sku_counts":{"CATALYST15ORIG":13,"CATALYST15UNSCEN":2,"CATALYST34LBORIGINAL":2,"CATALYSTPET34LBUNSCE":3}},{"state":"WYOMING","total_stores":9,"sku_counts":{"CATALYST15ORIG":9,"CATALYST15UNSCEN":2,"CATALYST34LBORIGINAL":2,"CATALYSTPET34LBUNSCE":0}},{"state":"RHODE ISLAND","total_stores":9,"sku_counts":{"CATALYST15ORIG":9,"CATALYST15UNSCEN":2,"CATALYST34LBORIGINAL":4,"CATALYSTPET34LBUNSCE":1}},{"state":"ALASKA","total_stores":8,"sku_counts":{"CATALYST15ORIG":5,"CATALYST15UNSCEN":1,"CATALYST34LBORIGINAL":4,"CATALYSTPET34LBUNSCE":0}},{"state":"DELAWARE","total_stores":6,"sku_counts":{"CATALYST15ORIG":6,"CATALYST15UNSCEN":3,"CATALYST34LBORIGINAL":2,"CATALYSTPET34LBUNSCE":0}},{"state":"VERMONT","total_stores":5,"sku_counts":{"CATALYST15ORIG":5,"CATALYST15UNSCEN":0,"CATALYST34LBORIGINAL":0,"CATALYSTPET34LBUNSCE":0}},{"state":"HAWAII","total_stores":4,"sku_counts":{"CATALYST15ORIG":4,"CATALYST15UNSCEN":0,"CATALYST34LBORIGINAL":0,"CATALYSTPET34LBUNSCE":0}}],"totals":{"total_stores":3735,"CATALYST15ORIG":3491,"CATALYST15UNSCEN":485,"CATALYST34LBORIGINAL":1175,"CATALYSTPET34LBUNSCE":301},"generated_date":"2026-01-08 14:12:14"};
+
+    let currentSort = {column: 1, ascending: false};
+    let currentData = STATE_SUMMARY.states;
+
+    // Populate table
+    function populateTable(data) {
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+
+        data.forEach(state => {
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td>${state.state}</td>
+                <td class="number-cell">${state.total_stores.toLocaleString()}</td>
+                <td class="number-cell">${state.sku_counts.CATALYST15ORIG.toLocaleString()}</td>
+                <td class="number-cell">${state.sku_counts.CATALYST15UNSCEN.toLocaleString()}</td>
+                <td class="number-cell">${state.sku_counts.CATALYST34LBORIGINAL.toLocaleString()}</td>
+                <td class="number-cell">${state.sku_counts.CATALYSTPET34LBUNSCE.toLocaleString()}</td>
+            `;
+        });
+
+        updateTotals(data);
+    }
+
+    function updateTotals(data) {
+        const totals = STATE_SUMMARY.totals;
+        document.getElementById('totalStores').textContent = totals.total_stores.toLocaleString();
+        document.getElementById('total15Orig').textContent = totals.CATALYST15ORIG.toLocaleString();
+        document.getElementById('total15Unscen').textContent = totals.CATALYST15UNSCEN.toLocaleString();
+        document.getElementById('total34Orig').textContent = totals.CATALYST34LBORIGINAL.toLocaleString();
+        document.getElementById('totalPet34').textContent = totals.CATALYSTPET34LBUNSCE.toLocaleString();
+    }
+
+    // Sort table
+    function sortTable(columnIndex) {
+        const data = [...currentData];
+
+        if (currentSort.column === columnIndex) {
+            currentSort.ascending = !currentSort.ascending;
+        } else {
+            currentSort.column = columnIndex;
+            currentSort.ascending = false;
+        }
+
+        data.sort((a, b) => {
+            let aVal, bVal;
+
+            switch(columnIndex) {
+                case 0: // State name
+                    aVal = a.state;
+                    bVal = b.state;
+                    break;
+                case 1: // Total stores
+                    aVal = a.total_stores;
+                    bVal = b.total_stores;
+                    break;
+                case 2: // CATALYST15ORIG
+                    aVal = a.sku_counts.CATALYST15ORIG;
+                    bVal = b.sku_counts.CATALYST15ORIG;
+                    break;
+                case 3: // CATALYST15UNSCEN
+                    aVal = a.sku_counts.CATALYST15UNSCEN;
+                    bVal = b.sku_counts.CATALYST15UNSCEN;
+                    break;
+                case 4: // CATALYST34LBORIGINAL
+                    aVal = a.sku_counts.CATALYST34LBORIGINAL;
+                    bVal = b.sku_counts.CATALYST34LBORIGINAL;
+                    break;
+                case 5: // CATALYSTPET34LBUNSCE
+                    aVal = a.sku_counts.CATALYSTPET34LBUNSCE;
+                    bVal = b.sku_counts.CATALYSTPET34LBUNSCE;
+                    break;
+            }
+
+            if (typeof aVal === 'string') {
+                return currentSort.ascending ?
+                    aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            } else {
+                return currentSort.ascending ? aVal - bVal : bVal - aVal;
+            }
+        });
+
+        currentData = data;
+        populateTable(data);
+    }
+
+    // Filter functionality
+    document.getElementById('stateFilter').addEventListener('input', (e) => {
+        const filter = e.target.value.toLowerCase();
+        const filtered = STATE_SUMMARY.states.filter(s =>
+            s.state.toLowerCase().includes(filter)
+        );
+        currentData = filtered;
+        populateTable(filtered);
+    });
+
+    // Initialize
+    populateTable(currentData);
+    sortTable(1); // Sort by total stores descending
+    </script>
+</body>
+</html>

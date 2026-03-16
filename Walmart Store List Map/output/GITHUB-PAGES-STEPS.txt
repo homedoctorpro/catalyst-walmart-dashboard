@@ -1,0 +1,167 @@
+═══════════════════════════════════════════════════════════════
+    GITHUB PAGES - STEP-BY-STEP GUIDE
+═══════════════════════════════════════════════════════════════
+
+Follow these steps to upload your Catalyst Pet store map to GitHub Pages
+
+
+═══════════════════════════════════════════════════════════════
+STEP 1: Create a GitHub Account (if you don't have one)
+═══════════════════════════════════════════════════════════════
+
+1. Go to: https://github.com/signup
+
+2. Enter your email address, create a password, and choose a username
+   Example username: "catalystpet" or "yourname"
+
+3. Verify your account (check your email)
+
+4. You're done! Now you have a GitHub account.
+
+
+═══════════════════════════════════════════════════════════════
+STEP 2: Create a New Repository
+═══════════════════════════════════════════════════════════════
+
+1. Once logged in, click the "+" button in the top-right corner
+
+2. Click "New repository"
+
+3. Fill in the repository details:
+
+   Repository name: catalyst-pet-stores
+   (You can choose any name - this will be part of your URL)
+
+   Description (optional): Catalyst Pet Walmart Store Distribution Map
+
+   ✓ Make sure "Public" is selected (NOT Private)
+
+   ✗ Do NOT check "Add a README file"
+
+4. Click the green "Create repository" button at the bottom
+
+
+═══════════════════════════════════════════════════════════════
+STEP 3: Upload Your HTML File
+═══════════════════════════════════════════════════════════════
+
+1. You'll see a page with setup instructions. Look for this text:
+   "uploading an existing file"
+   Click on that link
+
+2. You'll see a page that says "Drag files here to add them"
+
+3. Drag and drop your index.html file from:
+   Z:\Catalyst Pet\Phil Files\Walmart Store List Map\output\index.html
+
+   OR click "choose your files" and browse to select it
+
+4. After the file uploads, scroll down and click the green
+   "Commit changes" button
+   (You can leave the commit message as the default)
+
+
+═══════════════════════════════════════════════════════════════
+STEP 4: Enable GitHub Pages
+═══════════════════════════════════════════════════════════════
+
+1. Click on "Settings" (top of the page, near the right)
+
+2. In the left sidebar, scroll down and click "Pages"
+
+3. Under "Source", you'll see a dropdown that says "None"
+   - Click it and select "main" (or "master" if that's the option)
+
+4. Keep the folder as "/ (root)"
+
+5. Click "Save"
+
+6. GitHub will show a message:
+   "Your site is ready to be published at https://..."
+
+
+═══════════════════════════════════════════════════════════════
+STEP 5: Get Your URL
+═══════════════════════════════════════════════════════════════
+
+1. Wait 1-2 minutes for GitHub to build your site
+
+2. Refresh the Pages settings page
+
+3. You'll see a green box that says:
+   "Your site is live at https://YOUR-USERNAME.github.io/catalyst-pet-stores/"
+
+4. Click that URL to view your map!
+
+5. Share this URL with anyone - it's public and free!
+
+
+═══════════════════════════════════════════════════════════════
+YOUR FINAL URL WILL BE:
+═══════════════════════════════════════════════════════════════
+
+https://YOUR-USERNAME.github.io/catalyst-pet-stores/
+
+(Replace YOUR-USERNAME with your actual GitHub username)
+
+
+═══════════════════════════════════════════════════════════════
+UPDATING THE MAP LATER
+═══════════════════════════════════════════════════════════════
+
+If you need to update the map with new data:
+
+1. Go to your repository:
+   https://github.com/YOUR-USERNAME/catalyst-pet-stores
+
+2. Click on "index.html" to open it
+
+3. Click the pencil icon (Edit this file) or trash icon (Delete)
+
+4. Upload the new index.html file using "Add file" > "Upload files"
+
+5. Commit the changes
+
+6. Wait 1-2 minutes and your site will update automatically
+
+
+═══════════════════════════════════════════════════════════════
+TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════
+
+Problem: "Page not found" or 404 error
+Solution: Wait 2-3 minutes after enabling Pages, then try again
+
+Problem: Page shows code instead of the map
+Solution: Make sure your file is named exactly "index.html" (not Index.html)
+
+Problem: Can't find the Pages setting
+Solution: Make sure your repository is Public, not Private
+
+Problem: URL doesn't work
+Solution: The URL format is:
+         https://USERNAME.github.io/REPO-NAME/
+         Make sure you're using your actual username and repo name
+
+
+═══════════════════════════════════════════════════════════════
+QUICK SUMMARY
+═══════════════════════════════════════════════════════════════
+
+1. Sign up at github.com
+2. Create new repository (public)
+3. Upload index.html
+4. Settings → Pages → Source: main → Save
+5. Wait 2 minutes
+6. Visit https://YOUR-USERNAME.github.io/catalyst-pet-stores/
+
+
+═══════════════════════════════════════════════════════════════
+NEED HELP?
+═══════════════════════════════════════════════════════════════
+
+If you get stuck, you can:
+- Ask me for help with a specific step
+- Check GitHub's guide: https://pages.github.com/
+
+The whole process takes about 5 minutes!

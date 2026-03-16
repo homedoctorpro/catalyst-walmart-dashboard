@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Catalyst Pet – Walmart Sales Dashboard</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         background: #f0f2f5; color: #1a1a2e; min-height: 100vh; }
+
+  /* ── Gate ── */
+  #gate { display: flex; align-items: center; justify-content: center;
+          min-height: 100vh; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); }
+  .gate-card { background: #fff; border-radius: 16px; padding: 48px 40px;
+               box-shadow: 0 20px 60px rgba(0,0,0,0.4); text-align: center; width: 360px; }
+  .gate-card h1 { font-size: 1.5rem; margin-bottom: 8px; color: #1a1a2e; }
+  .gate-card p  { color: #666; margin-bottom: 28px; font-size: 0.9rem; }
+  .gate-card input { width: 100%; padding: 12px 16px; border: 2px solid #e0e0e0;
+                     border-radius: 8px; font-size: 1rem; margin-bottom: 16px; transition: border-color 0.2s; }
+  .gate-card input:focus { outline: none; border-color: #0057e7; }
+  .gate-card button { width: 100%; padding: 12px; background: #0057e7; color: #fff;
+                      border: none; border-radius: 8px; font-size: 1rem; font-weight: 600;
+                      cursor: pointer; transition: background 0.2s; }
+  .gate-card button:hover { background: #0041b5; }
+  .gate-card .error { color: #d32f2f; font-size: 0.85rem; margin-top: 8px; min-height: 20px; }
+
+  /* ── App Shell ── */
+  #app { display: none; flex-direction: column; min-height: 100vh; }
+  header { background: linear-gradient(90deg, #1a1a2e 0%, #16213e 100%); color: #fff;
+           padding: 14px 24px; display: flex; align-items: center; justify-content: space-between;
+           box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  header h1 { font-size: 1.15rem; font-weight: 700; }
+  header span { font-size: 0.8rem; opacity: 0.6; }
+
+  /* ── Tabs ── */
+  .tab-bar { display: flex; background: #fff; border-bottom: 2px solid #e0e0e0; padding: 0 24px; overflow-x: auto; }
+  .tab-btn { padding: 13px 18px; border: none; background: transparent; font-size: 0.9rem;
+             font-weight: 500; color: #666; cursor: pointer; border-bottom: 3px solid transparent;
+             margin-bottom: -2px; transition: all 0.2s; white-space: nowrap; }
+  .tab-btn:hover { color: #0057e7; }
+  .tab-btn.active { color: #0057e7; border-bottom-color: #0057e7; font-weight: 700; }
+  .tab-panel { display: none; flex: 1; padding: 20px 24px; overflow-y: auto; }
+  .tab-panel.active { display: block; }
+
+  /* ── KPI Cards ── */
+  .kpi-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; margin-bottom: 16px; }
+  .kpi-card { background: #fff; border-radius: 12px; padding: 18px 20px;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #0057e7; }
+  .kpi-label { font-size: 0.75rem; font-weight: 700; color: #888; text-transform: uppercase;
+               letter-spacing: 0.06em; margin-bottom: 6px; }
+  .kpi-value { font-size: 1.6rem; font-weight: 800; color: #1a1a2e; line-height: 1; }
+  .kpi-sub   { font-size: 0.72rem; color: #aaa; margin-top: 6px; }
+
+  /* ── Metrics Filter / Series Filter ── */
+  .metrics-filter { background: #fff; border-radius: 12px; padding: 12px 18px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; align-items: center;
+                    gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .metrics-filter > span { font-weight: 600; font-size: 0.85rem; color: #444; }
+  .series-chip { display: flex; align-items: center; gap: 5px; font-size: 0.8rem; color: #333;
+                 cursor: pointer; background: #f5f5f5; padding: 4px 10px; border-radius: 20px;
+                 border: 2px solid transparent; transition: all 0.15s; user-select: none; }
+  .series-chip input { accent-color: #0057e7; width: 13px; height: 13px; cursor: pointer; }
+  .series-chip:has(input:checked) { border-color: #0057e7; background: #e8f0fe; }
+
+  /* ── Charts ── */
+  .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 18px; }
+  .chart-card { background: #fff; border-radius: 12px; padding: 18px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .chart-card h3 { font-size: 0.8rem; font-weight: 700; color: #666; text-transform: uppercase;
+                   letter-spacing: 0.06em; margin-bottom: 10px; }
+  .chart-div { width: 100%; height: 270px; }
+
+  /* ── Metrics Table ── */
+  .metrics-table-card { background: #fff; border-radius: 12px; padding: 20px;
+                         box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-top: 18px; overflow-x: auto; }
+  .metrics-table-card h3 { font-size: 0.8rem; font-weight: 700; color: #666; text-transform: uppercase;
+                            letter-spacing: 0.06em; margin-bottom: 14px; }
+  #metrics-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  #metrics-table th { background: #f5f5f5; padding: 8px 12px; text-align: right; font-weight: 700;
+                      color: #444; border-bottom: 2px solid #e0e0e0; white-space: nowrap; }
+  #metrics-table th:nth-child(1) { text-align: left; }
+  #metrics-table td { padding: 6px 12px; border-bottom: 1px solid #f0f0f0; text-align: right; vertical-align: middle; }
+  #metrics-table td:nth-child(1) { text-align: left; }
+  #metrics-table .week-group-row td { background: #f0f4ff; color: #0057e7; font-weight: 700;
+    font-size: 0.8rem; padding: 8px 12px; border-top: 2px solid #d0d8f0; }
+  #metrics-table .total-row td { font-weight: 700; background: #fafafa; }
+  #metrics-table tbody tr:hover td { background: #f8f9ff; }
+
+  /* ── Map Controls ── */
+  .map-controls { background: #fff; border-radius: 12px; padding: 14px 18px;
+                  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+                  display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+  .map-controls label { font-weight: 600; font-size: 0.9rem; color: #444; }
+  .week-display { font-size: 0.95rem; font-weight: 700; color: #0057e7; min-width: 130px; text-align: center; }
+  .ctrl-btn { padding: 7px 16px; border: 2px solid #0057e7; border-radius: 8px;
+              background: #fff; color: #0057e7; font-weight: 700; cursor: pointer;
+              font-size: 0.85rem; transition: all 0.15s; }
+  .ctrl-btn:hover { background: #0057e7; color: #fff; }
+  .ctrl-btn.play { background: #0057e7; color: #fff; }
+  .ctrl-btn.play:hover { background: #0041b5; }
+
+  /* ── SKU Filter ── */
+  .sku-filter { background: #fff; border-radius: 12px; padding: 12px 18px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; align-items: center;
+                gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .sku-filter > label { font-weight: 600; font-size: 0.85rem; color: #444; }
+  .sku-cb-label { display: flex; align-items: center; gap: 5px; font-size: 0.8rem; color: #333;
+                  cursor: pointer; background: #f5f5f5; padding: 4px 10px; border-radius: 20px;
+                  border: 2px solid transparent; transition: all 0.15s; user-select: none; }
+  .sku-cb-label input { accent-color: #0057e7; width: 13px; height: 13px; cursor: pointer; }
+  .sku-cb-label:has(input:checked) { border-color: #0057e7; background: #e8f0fe; }
+
+  /* ── Map Cards ── */
+  .map-card { background: #fff; border-radius: 12px; padding: 14px;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .map-div  { width: 100%; height: 460px; }
+
+  /* ── Two Maps Side by Side (State Stats) ── */
+  .map2-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .map2-div  { width: 100%; height: 380px; }
+
+  /* ── OOS Summary Card ── */
+  .oos-summary-card { background: #fff; border-radius: 12px; padding: 16px;
+                      box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-top: 14px; }
+  .oos-summary-card h3 { font-size: 0.8rem; font-weight: 700; color: #666; text-transform: uppercase;
+                         letter-spacing: 0.06em; margin-bottom: 10px; }
+
+  /* ── OOS Table (scrollable, below map) ── */
+  .oos-table-card { background: #fff; border-radius: 12px; padding: 16px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-top: 14px; }
+  .oos-table-card h3 { font-size: 0.8rem; font-weight: 700; color: #666; text-transform: uppercase;
+                       letter-spacing: 0.06em; margin-bottom: 12px; }
+  .oos-scroll { max-height: 520px; overflow-y: auto; }
+  .oos-tbl { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .oos-tbl th { background: #f5f5f5; padding: 7px 10px; text-align: left; font-weight: 700;
+                color: #444; border-bottom: 2px solid #e0e0e0; position: sticky; top: 0; z-index: 1; }
+  .oos-tbl td { padding: 6px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+  .oos-tbl tr:hover td { background: #f8f9ff; }
+  .badge-oos  { background: #ffebee; color: #c62828; padding: 2px 8px; border-radius: 12px;
+                font-weight: 700; font-size: 0.73rem; }
+  .oos-sku-list { display: flex; flex-wrap: wrap; gap: 4px; }
+  .oos-sku-tag  { background: #fff3e0; color: #e65100; padding: 1px 7px; border-radius: 10px;
+                  font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+
+  /* ── State OOS Summary Table ── */
+  .state-oos-tbl { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  .state-oos-tbl th { background: #f5f5f5; padding: 7px 12px; text-align: left; font-weight: 700;
+                      color: #444; border-bottom: 2px solid #e0e0e0; }
+  .state-oos-tbl td { padding: 6px 12px; border-bottom: 1px solid #f0f0f0; }
+  .state-oos-tbl tr:hover td { background: #f8f9ff; }
+
+  /* ── Bar Charts ── */
+  .bar-chart-card { background: #fff; border-radius: 12px; padding: 18px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 18px; overflow-y: auto; }
+  .bar-chart-card h3 { font-size: 0.8rem; font-weight: 700; color: #666; text-transform: uppercase;
+                       letter-spacing: 0.06em; margin-bottom: 10px; }
+
+  @media (max-width: 900px) {
+    .kpi-row      { grid-template-columns: repeat(3, 1fr); }
+    .chart-grid   { grid-template-columns: 1fr; }
+    .map2-grid    { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 600px) {
+    .kpi-row { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ Gate ══════════════════════════════════════════════════════════════════ -->
+<div id="gate">
+  <div class="gate-card">
+    <h1>Catalyst Pet</h1>
+    <p>Walmart Sales Dashboard — Team Access</p>
+    <input type="password" id="pw-input" placeholder="Enter password" autocomplete="current-password">
+    <button onclick="checkPassword()">Unlock Dashboard</button>
+    <div class="error" id="pw-error"></div>
+  </div>
+</div>
+
+<!-- ══ App ═══════════════════════════════════════════════════════════════════ -->
+<div id="app">
+  <header>
+    <h1>⚡ Catalyst Pet — Walmart Sales Dashboard</h1>
+    <span id="header-range"></span>
+  </header>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('metrics',this)">📈 Metrics</button>
+    <button class="tab-btn"        onclick="switchTab('sales',this)">🗺️ Sales Map</button>
+    <button class="tab-btn"        onclick="switchTab('oos',this)">⚠️ OOS Map</button>
+    <button class="tab-btn"        onclick="switchTab('statestats',this)">🏛️ State Stats</button>
+    <button class="tab-btn"        onclick="switchTab('statecharts',this)">📊 State Charts</button>
+  </div>
+
+  <!-- ── Tab 1: Metrics ─────────────────────────────────────────────────── -->
+  <div id="tab-metrics" class="tab-panel active">
+    <!-- KPI Row -->
+    <div class="kpi-row" id="kpi-row">
+      <div class="kpi-card" style="border-left-color:#0057e7">
+        <div class="kpi-label">U/S/W</div>
+        <div class="kpi-value" id="kpi-usw">—</div>
+        <div class="kpi-sub" id="kpi-week-sub">Latest Week</div>
+      </div>
+      <div class="kpi-card" style="border-left-color:#1565c0">
+        <div class="kpi-label">Adj. U/S/W</div>
+        <div class="kpi-value" id="kpi-adj-usw">—</div>
+        <div class="kpi-sub">At 100% instock</div>
+      </div>
+      <div class="kpi-card" style="border-left-color:#00a86b">
+        <div class="kpi-label">Instock %</div>
+        <div class="kpi-value" id="kpi-instock">—</div>
+        <div class="kpi-sub">Total (all SKUs)</div>
+      </div>
+      <div class="kpi-card" style="border-left-color:#e67300">
+        <div class="kpi-label">Units Sold</div>
+        <div class="kpi-value" id="kpi-units">—</div>
+        <div class="kpi-sub">POS Qty</div>
+      </div>
+      <div class="kpi-card" style="border-left-color:#9c27b0">
+        <div class="kpi-label">Retail Sales</div>
+        <div class="kpi-value" id="kpi-retail">—</div>
+        <div class="kpi-sub">POS $</div>
+      </div>
+      <div class="kpi-card" style="border-left-color:#333">
+        <div class="kpi-label">Wholesale Rev.</div>
+        <div class="kpi-value" id="kpi-wholesale">—</div>
+        <div class="kpi-sub">Est. Wholesale $</div>
+      </div>
+    </div>
+
+    <!-- Series Filter -->
+    <div class="metrics-filter" id="metrics-filter"><span>Show:</span></div>
+
+    <!-- Charts -->
+    <div class="chart-grid">
+      <div class="chart-card"><h3>Units Sold / Week (U/S/W)</h3><div id="chart-usw" class="chart-div"></div></div>
+      <div class="chart-card"><h3>Adjusted U/S/W (at 100% Instock)</h3><div id="chart-adj-usw" class="chart-div"></div></div>
+      <div class="chart-card"><h3>Instock %</h3><div id="chart-instock" class="chart-div"></div></div>
+      <div class="chart-card"><h3>Units Sold (POS Qty)</h3><div id="chart-units" class="chart-div"></div></div>
+      <div class="chart-card"><h3>Retail Sales ($)</h3><div id="chart-retail" class="chart-div"></div></div>
+      <div class="chart-card"><h3>Wholesale Revenue ($)</h3><div id="chart-wholesale" class="chart-div"></div></div>
+    </div>
+
+    <!-- Metrics Table -->
+    <div class="metrics-table-card">
+      <h3>Full Metrics Data</h3>
+      <table id="metrics-table">
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>U/S/W</th><th>Adj U/S/W</th><th>Instock %</th><th>Units Sold</th><th>Retail $</th><th>Wholesale $</th>
+          </tr>
+        </thead>
+        <tbody id="metrics-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Tab 2: Sales Map ───────────────────────────────────────────────── -->
+  <div id="tab-sales" class="tab-panel">
+    <div class="map-controls">
+      <label>Week:</label>
+      <button class="ctrl-btn" onclick="salesNav(-1)">◀ Prev</button>
+      <div class="week-display" id="sales-week-label">—</div>
+      <button class="ctrl-btn" onclick="salesNav(+1)">Next ▶</button>
+      <button class="ctrl-btn play" id="sales-play-btn" onclick="togglePlay('sales')">▶ Play</button>
+    </div>
+    <div class="sku-filter" id="sales-sku-filter"><label>SKU Filter:</label></div>
+    <div class="map-card"><div id="sales-map" class="map-div"></div></div>
+  </div>
+
+  <!-- ── Tab 3: OOS Map ─────────────────────────────────────────────────── -->
+  <div id="tab-oos" class="tab-panel">
+    <div class="map-controls">
+      <label>Week:</label>
+      <button class="ctrl-btn" onclick="oosNav(-1)">◀ Prev</button>
+      <div class="week-display" id="oos-week-label">—</div>
+      <button class="ctrl-btn" onclick="oosNav(+1)">Next ▶</button>
+      <button class="ctrl-btn play" id="oos-play-btn" onclick="togglePlay('oos')">▶ Play</button>
+    </div>
+    <div class="sku-filter" id="oos-sku-filter"><label>SKU Filter:</label></div>
+    <div class="map-card"><div id="oos-map" class="map-div"></div></div>
+    <div class="oos-summary-card">
+      <h3>OOS Duration Summary</h3>
+      <table class="oos-tbl" id="oos-summary-tbl">
+        <thead><tr><th>Consecutive Weeks OOS</th><th># Stores</th></tr></thead>
+        <tbody id="oos-summary-tbody"></tbody>
+      </table>
+    </div>
+    <div class="oos-table-card">
+      <h3>All OOS Stores — Current Week</h3>
+      <div class="oos-scroll">
+        <table class="oos-tbl">
+          <thead><tr><th>Store</th><th>Location</th><th>OOS SKUs</th><th>Max Consec. Wks</th></tr></thead>
+          <tbody id="oos-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tab 4: State Stats ─────────────────────────────────────────────── -->
+  <div id="tab-statestats" class="tab-panel">
+    <div class="map-controls">
+      <label>Week:</label>
+      <button class="ctrl-btn" onclick="stateStatsNav(-1)">◀ Prev</button>
+      <div class="week-display" id="ss-week-label">—</div>
+      <button class="ctrl-btn" onclick="stateStatsNav(+1)">Next ▶</button>
+      <button class="ctrl-btn play" id="ss-play-btn" onclick="togglePlay('statestats')">▶ Play</button>
+    </div>
+    <div class="map2-grid">
+      <div class="map-card">
+        <div style="font-size:0.78rem;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Units Sold by State</div>
+        <div id="ss-sales-map" class="map2-div"></div>
+      </div>
+      <div class="map-card">
+        <div style="font-size:0.78rem;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">OOS % by State</div>
+        <div id="ss-oos-map" class="map2-div"></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3>OOS Stores by State</h3>
+      <div style="max-height:380px;overflow-y:auto">
+        <table class="state-oos-tbl" id="state-oos-tbl">
+          <thead><tr><th>State</th><th>OOS Stores</th><th>Total Stores</th><th>OOS %</th></tr></thead>
+          <tbody id="state-oos-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tab 5: State Charts ────────────────────────────────────────────── -->
+  <div id="tab-statecharts" class="tab-panel">
+    <div class="map-controls">
+      <label>Week:</label>
+      <button class="ctrl-btn" onclick="stateChartsNav(-1)">◀ Prev</button>
+      <div class="week-display" id="sc-week-label">—</div>
+      <button class="ctrl-btn" onclick="stateChartsNav(+1)">Next ▶</button>
+      <button class="ctrl-btn play" id="sc-play-btn" onclick="togglePlay('statecharts')">▶ Play</button>
+    </div>
+    <div class="bar-chart-card">
+      <h3>U/S/W by State (descending)</h3>
+      <div id="chart-state-usw"></div>
+    </div>
+    <div class="bar-chart-card">
+      <h3>Instock % by State (descending)</h3>
+      <div id="chart-state-instock"></div>
+    </div>
+    <div class="bar-chart-card">
+      <h3>U/S/W by State — bars colored by Instock %</h3>
+      <div id="chart-state-usw-instock"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/*DATA_PLACEHOLDER*/
+
+// ══ Auth ══════════════════════════════════════════════════════════════════════
+const PASSWORD = "pellets123";
+const AUTH_KEY = "wm_catalyst_auth";
+
+function checkPassword() {
+  const val = document.getElementById("pw-input").value;
+  if (val === PASSWORD) { localStorage.setItem(AUTH_KEY, "ok"); showApp(); }
+  else document.getElementById("pw-error").textContent = "Incorrect password. Try again.";
+}
+document.getElementById("pw-input").addEventListener("keydown", e => { if (e.key === "Enter") checkPassword(); });
+
+function showApp() {
+  document.getElementById("gate").style.display = "none";
+  document.getElementById("app").style.display = "flex";
+  initDashboard();
+}
+
+// ══ Constants ═════════════════════════════════════════════════════════════════
+
+const WEEK_LABELS = {
+  "202601": "Week 1 (2/6/26)",
+  "202602": "Week 2 (2/13/26)",
+  "202603": "Week 3 (2/20/26)",
+  "202604": "Week 4 (2/27/26)",
+  "202605": "Week 5 (3/6/26)",
+  "202606": "Week 6 (3/13/26)",
+};
+
+const SKU_SHORT = {
+  "CATALYST15ORIG":       "15O",
+  "CATALYST15UNSCEN":     "15U",
+  "CATALYST34LBORIGINAL": "34O",
+  "CATALYSTPET34LBUNSCE": "34U",
+};
+
+const SKU_COLORS = {
+  "CATALYST15ORIG":       "#0057e7",
+  "CATALYST15UNSCEN":     "#00a86b",
+  "CATALYST34LBORIGINAL": "#e67300",
+  "CATALYSTPET34LBUNSCE": "#9c27b0",
+  "Total":                "#333333",
+};
+
+const ALL_SERIES = [...DATA.skus, "Total"];
+const METRIC_CHART_IDS = ["chart-usw","chart-adj-usw","chart-instock","chart-units","chart-retail","chart-wholesale"];
+
+// Global max consecutive OOS weeks — used to anchor OOS dot color scale across all weeks
+const MAX_CONSEC_WEEKS = Math.max(1, ...Object.values(DATA.consecutive_oos_by_week).flatMap(
+  weekData => Object.values(weekData).flatMap(skuData => Object.values(skuData))
+));
+const visibleSeries = new Set(ALL_SERIES);
+
+const STATE_NAME_TO_ABBR = {
+  "Alabama":"AL","Alaska":"AK","Arizona":"AZ","Arkansas":"AR","California":"CA",
+  "Colorado":"CO","Connecticut":"CT","Delaware":"DE","Florida":"FL","Georgia":"GA",
+  "Hawaii":"HI","Idaho":"ID","Illinois":"IL","Indiana":"IN","Iowa":"IA",
+  "Kansas":"KS","Kentucky":"KY","Louisiana":"LA","Maine":"ME","Maryland":"MD",
+  "Massachusetts":"MA","Michigan":"MI","Minnesota":"MN","Mississippi":"MS",
+  "Missouri":"MO","Montana":"MT","Nebraska":"NE","Nevada":"NV",
+  "New Hampshire":"NH","New Jersey":"NJ","New Mexico":"NM","New York":"NY",
+  "North Carolina":"NC","North Dakota":"ND","Ohio":"OH","Oklahoma":"OK",
+  "Oregon":"OR","Pennsylvania":"PA","Rhode Island":"RI","South Carolina":"SC",
+  "South Dakota":"SD","Tennessee":"TN","Texas":"TX","Utah":"UT",
+  "Vermont":"VT","Virginia":"VA","Washington":"WA","West Virginia":"WV",
+  "Wisconsin":"WI","Wyoming":"WY","District of Columbia":"DC",
+};
+const ABBR_TO_STATE = Object.fromEntries(Object.entries(STATE_NAME_TO_ABBR).map(([n,a]) => [a,n]));
+
+const PLOTLY_LAYOUT_BASE = {
+  margin: { t:10, b:60, l:70, r:20 },
+  paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+  font: { family: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif", size:11 },
+  legend: { orientation:"h", y:-0.28, font:{size:10} },
+  xaxis: { showgrid:false, tickangle:-30, type:"category" },
+  yaxis: { gridcolor:"#e8e8e8" },
+  hovermode: "x unified",
+};
+
+
+function weekLabel(w) { return WEEK_LABELS[w] || w; }
+
+// ══ Tab Switching ═════════════════════════════════════════════════════════════
+let salesMapInit     = false;
+let oosMapInit       = false;
+let stateStatsInit   = false;
+let stateChartsInit  = false;
+
+function switchTab(name, btn) {
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById("tab-" + name).classList.add("active");
+
+  if (name === "sales") {
+    if (!salesMapInit) { initSalesMap(); salesMapInit = true; }
+    else setTimeout(() => Plotly.Plots.resize(document.getElementById("sales-map")), 50);
+  }
+  if (name === "oos") {
+    if (!oosMapInit) { initOosMap(); oosMapInit = true; }
+    else setTimeout(() => Plotly.Plots.resize(document.getElementById("oos-map")), 50);
+  }
+  if (name === "statestats") {
+    if (!stateStatsInit) { initStateStats(); stateStatsInit = true; }
+    else {
+      setTimeout(() => {
+        Plotly.Plots.resize(document.getElementById("ss-sales-map"));
+        Plotly.Plots.resize(document.getElementById("ss-oos-map"));
+      }, 50);
+    }
+  }
+  if (name === "statecharts") {
+    if (!stateChartsInit) { initStateCharts(); stateChartsInit = true; }
+    else {
+      setTimeout(() => {
+        Plotly.Plots.resize(document.getElementById("chart-state-usw"));
+        Plotly.Plots.resize(document.getElementById("chart-state-instock"));
+        Plotly.Plots.resize(document.getElementById("chart-state-usw-instock"));
+      }, 50);
+    }
+  }
+}
+
+// ══ Init ══════════════════════════════════════════════════════════════════════
+function initDashboard() {
+  if (DATA.weeks && DATA.weeks.length)
+    document.getElementById("header-range").textContent =
+      `Weeks ${DATA.weeks[0]} – ${DATA.weeks[DATA.weeks.length-1]}`;
+  buildKPIs();
+  buildMetricFilter();
+  buildMetricCharts();
+  buildMetricsTable();
+  buildSkuFilters();
+}
+
+// ══ KPI Cards ═════════════════════════════════════════════════════════════════
+function calcAdjUSW(m) {
+  if (!m || m.usw == null || !m.instock_pct) return null;
+  return Math.round(m.usw / (m.instock_pct / 100) * 100) / 100;
+}
+
+function buildKPIs() {
+  const latestWeek = DATA.weeks[DATA.weeks.length - 1];
+  const total = ((DATA.metrics[latestWeek] || {})["Total"]) || {};
+  const adjUSW = calcAdjUSW(total);
+  document.getElementById("kpi-week-sub").textContent  = weekLabel(latestWeek);
+  document.getElementById("kpi-usw").textContent       = total.usw != null ? total.usw.toFixed(2) : "—";
+  document.getElementById("kpi-adj-usw").textContent   = adjUSW != null ? adjUSW.toFixed(2) : "—";
+  document.getElementById("kpi-instock").textContent   = total.instock_pct != null ? total.instock_pct.toFixed(2) + "%" : "—";
+  document.getElementById("kpi-units").textContent     = total.pos_qty != null ? total.pos_qty.toLocaleString() : "—";
+  document.getElementById("kpi-retail").textContent    = total.pos_dollars != null ? "$" + Math.round(total.pos_dollars).toLocaleString() : "—";
+  document.getElementById("kpi-wholesale").textContent = total.wholesale_dollars != null ? "$" + Math.round(total.wholesale_dollars).toLocaleString() : "—";
+}
+
+// ══ Metrics Series Filter ═════════════════════════════════════════════════════
+function buildMetricFilter() {
+  const container = document.getElementById("metrics-filter");
+  ALL_SERIES.forEach((series, idx) => {
+    const lbl = document.createElement("label");
+    lbl.className = "series-chip";
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.checked = true;
+    cb.addEventListener("change", () => {
+      if (cb.checked) visibleSeries.add(series); else visibleSeries.delete(series);
+      METRIC_CHART_IDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.data) Plotly.restyle(el, { visible: cb.checked ? true : "legendonly" }, [idx]);
+      });
+    });
+    const swatch = document.createElement("span");
+    swatch.style.cssText = `display:inline-block;width:10px;height:10px;background:${SKU_COLORS[series]};border-radius:${series==="Total"?"2px":"50%"}`;
+    lbl.appendChild(cb); lbl.appendChild(swatch);
+    lbl.appendChild(document.createTextNode(" " + series));
+    container.appendChild(lbl);
+  });
+}
+
+// ══ Metric Charts ════════════════════════════════════════════════════════════
+function makeTrace(label, xLabels, values, isTotal, hoverFmt) {
+  return {
+    x: xLabels, y: values, name: label,
+    type: "scatter", mode: "lines+markers", connectgaps: false,
+    line:   { color: SKU_COLORS[label]||"#999", width: isTotal?3:2, dash: isTotal?"dash":"solid" },
+    marker: { size: isTotal?8:6, color: SKU_COLORS[label]||"#999", symbol: isTotal?"diamond":"circle" },
+    hovertemplate: hoverFmt + "<extra></extra>",
+  };
+}
+
+function buildMetricCharts() {
+  const weeks   = DATA.weeks;
+  const xLabels = weeks.map(weekLabel);
+  const met     = DATA.metrics;
+  const cfg     = { responsive:true, displayModeBar:false };
+
+  function getVals(key, label) {
+    return weeks.map(w => (met[w] && met[w][label] != null) ? met[w][label][key] : null);
+  }
+
+  Plotly.newPlot("chart-usw",
+    ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("usw", s), s==="Total", "%{y:.2f}")),
+    {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"Units/Store/Week"}}, cfg);
+
+  // Adjusted U/S/W = usw / (instock_pct / 100)  — projects to 100% in-stock velocity
+  Plotly.newPlot("chart-adj-usw",
+    ALL_SERIES.map(s => makeTrace(s, xLabels,
+      weeks.map(w => {
+        const m = (met[w]||{})[s]; if (!m || !m.usw || !m.instock_pct) return null;
+        return Math.round(m.usw / (m.instock_pct / 100) * 100) / 100;
+      }), s==="Total", "%{y:.2f}")),
+    {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"Adj. Units/Store/Week"}}, cfg);
+
+  Plotly.newPlot("chart-instock",
+    ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("instock_pct", s), s==="Total", "%{y:.2f}%")),
+    {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"%", range:[50,105], ticksuffix:"%"}}, cfg);
+
+  Plotly.newPlot("chart-units",
+    ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("pos_qty", s), s==="Total", "%{y:,.0f}")),
+    {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"Units"}}, cfg);
+
+  Plotly.newPlot("chart-retail",
+    ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("pos_dollars", s), s==="Total", "$%{y:,.0f}")),
+    {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"$", tickprefix:"$", tickformat:",.0f"}}, cfg);
+
+  Plotly.newPlot("chart-wholesale",
+    ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("wholesale_dollars", s), s==="Total", "$%{y:,.0f}")),
+    {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"$", tickprefix:"$", tickformat:",.0f"}}, cfg);
+}
+
+// ══ Metrics Table ═════════════════════════════════════════════════════════════
+function buildMetricsTable() {
+  const tbody = document.getElementById("metrics-tbody");
+  const fmt = (v, type) => {
+    if (v == null) return "—";
+    if (type === "pct")    return v.toFixed(2) + "%";
+    if (type === "usw")    return v.toFixed(2);
+    if (type === "int")    return v.toLocaleString();
+    if (type === "dollar") return "$" + Math.round(v).toLocaleString();
+    return v;
+  };
+  const fmtChg = (curr, prev) => {
+    if (curr == null || prev == null || prev === 0) return "";
+    const chg = (curr - prev) / Math.abs(prev) * 100;
+    const sign = chg >= 0 ? "+" : "";
+    const color = chg < 0 ? "#d32f2f" : "#2e7d32";
+    return `<span style="font-size:0.75em;color:${color};margin-left:4px">(${sign}${chg.toFixed(1)}%)</span>`;
+  };
+
+  // 7 data columns: SKU | U/S/W | Adj U/S/W | Instock% | Units | Retail$ | Wholesale$
+  const COL_COUNT = 7;
+
+  DATA.weeks.forEach((w, wIdx) => {
+    // Week group header row — spans all columns
+    const trHead = document.createElement("tr");
+    trHead.className = "week-group-row";
+    const tdHead = document.createElement("td");
+    tdHead.colSpan = COL_COUNT;
+    tdHead.textContent = weekLabel(w);
+    trHead.appendChild(tdHead);
+    tbody.appendChild(trHead);
+
+    const wMet   = DATA.metrics[w] || {};
+    const prevW  = wIdx > 0 ? DATA.weeks[wIdx - 1] : null;
+    const prevMet = prevW ? (DATA.metrics[prevW] || {}) : {};
+
+    ALL_SERIES.forEach(series => {
+      const m  = wMet[series]  || {};
+      const pm = prevMet[series] || {};
+      const adjUSW  = calcAdjUSW(m);
+      const pAdjUSW = calcAdjUSW(pm);
+      const tr = document.createElement("tr");
+      if (series === "Total") tr.className = "total-row";
+
+      const cellDefs = [
+        { text: series,                          curr: null,              prev: null },
+        { text: fmt(m.usw, "usw"),               curr: m.usw,             prev: pm.usw },
+        { text: fmt(adjUSW, "usw"),              curr: adjUSW,            prev: pAdjUSW },
+        { text: fmt(m.instock_pct, "pct"),       curr: m.instock_pct,     prev: pm.instock_pct },
+        { text: fmt(m.pos_qty, "int"),           curr: m.pos_qty,         prev: pm.pos_qty },
+        { text: fmt(m.pos_dollars, "dollar"),    curr: m.pos_dollars,     prev: pm.pos_dollars },
+        { text: fmt(m.wholesale_dollars,"dollar"), curr: m.wholesale_dollars, prev: pm.wholesale_dollars },
+      ];
+      cellDefs.forEach(({ text, curr, prev }) => {
+        const td = document.createElement("td");
+        if (prevW && curr != null) {
+          td.innerHTML = text + fmtChg(curr, prev);
+        } else {
+          td.textContent = text;
+        }
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  });
+}
+
+// ══ SKU Filters (Maps) ════════════════════════════════════════════════════════
+const selectedSkus = { sales: new Set(DATA.skus), oos: new Set(DATA.skus) };
+
+function buildSkuFilters() {
+  ["sales","oos"].forEach(tab => {
+    const container = document.getElementById(`${tab}-sku-filter`);
+    const allLbl = document.createElement("label");
+    allLbl.className = "sku-cb-label";
+    const allCb = document.createElement("input");
+    allCb.type = "checkbox"; allCb.checked = true; allCb.id = `${tab}-cb-all`;
+    allCb.addEventListener("change", () => handleSkuFilter(tab, "all", allCb.checked));
+    allLbl.appendChild(allCb); allLbl.appendChild(document.createTextNode(" All"));
+    container.appendChild(allLbl);
+    DATA.skus.forEach(sku => {
+      const lbl = document.createElement("label"); lbl.className = "sku-cb-label";
+      const cb  = document.createElement("input"); cb.type = "checkbox"; cb.checked = true;
+      cb.id = `${tab}-cb-${sku}`;
+      cb.addEventListener("change", () => handleSkuFilter(tab, sku, cb.checked));
+      lbl.appendChild(cb); lbl.appendChild(document.createTextNode(" " + sku));
+      container.appendChild(lbl);
+    });
+  });
+}
+
+function handleSkuFilter(tab, sku, checked) {
+  if (sku === "all") {
+    selectedSkus[tab] = checked ? new Set(DATA.skus) : new Set();
+    DATA.skus.forEach(s => { const cb = document.getElementById(`${tab}-cb-${s}`); if(cb) cb.checked = checked; });
+  } else {
+    if (checked) selectedSkus[tab].add(sku); else selectedSkus[tab].delete(sku);
+    const allCb = document.getElementById(`${tab}-cb-all`);
+    if (allCb) allCb.checked = selectedSkus[tab].size === DATA.skus.length;
+  }
+  if (tab === "sales" && salesMapInit) renderSalesMap();
+  if (tab === "oos"   && oosMapInit)   renderOosMap();
+}
+
+// ══ Tab 2: Sales Map ══════════════════════════════════════════════════════════
+let salesWeekIdx = DATA.store_weeks.length - 1;
+let salesPlayTimer = null;
+
+function initSalesMap() {
+  Plotly.newPlot("sales-map", [], geoLayout(), {responsive:true, displayModeBar:false});
+  renderSalesMap();
+}
+
+function renderSalesMap() {
+  const week  = DATA.store_weeks[salesWeekIdx];
+  if (!week) return;
+  document.getElementById("sales-week-label").textContent = weekLabel(week);
+
+  const skuSet = selectedSkus.sales;
+  const wData  = DATA.weekly_stores[week] || {};
+
+  const filteredStateSales = {};
+  Object.entries(wData).forEach(([sn, sdata]) => {
+    const info = DATA.stores[sn]; if (!info) return;
+    const stName = ABBR_TO_STATE[info.state] || info.state;
+    let qty = 0;
+    Object.entries(sdata.skus||{}).forEach(([sku,sv]) => { if(skuSet.has(sku)) qty += sv.qty||0; });
+    filteredStateSales[stName] = (filteredStateSales[stName]||0) + qty;
+  });
+
+  // Choropleth — no colorbar (avoid double scale)
+  const choro = {
+    type:"choropleth", locationmode:"USA-states",
+    locations: Object.keys(filteredStateSales).map(n => STATE_NAME_TO_ABBR[n]||n),
+    z: Object.values(filteredStateSales),
+    colorscale:[[0,"#dceeff"],[0.5,"#5ca3e6"],[1,"#003580"]],
+    showscale: false,
+    hovertemplate:"%{location}: %{z} units<extra></extra>", zmin:0,
+  };
+
+  const dotLats=[], dotLons=[], dotText=[], dotColors=[], dotSqrt=[];
+  Object.entries(wData).forEach(([sn, sdata]) => {
+    const info = DATA.stores[sn]; if (!info||!info.lat||!info.lon) return;
+    let qty=0; const lines=[];
+    Object.entries(sdata.skus||{}).forEach(([sku,sv]) => { if(skuSet.has(sku)){qty+=sv.qty||0; lines.push(`${sku}: ${sv.qty} units`);} });
+    if (!qty) return;
+    dotLats.push(info.lat); dotLons.push(info.lon);
+    dotText.push(`Store #${sn}<br>${info.street}<br>${info.city}, ${info.state}<br>${lines.join("<br>")}`);
+    dotColors.push(qty);
+    dotSqrt.push(Math.sqrt(qty));
+  });
+
+  const sqrtMax = Math.max(...dotSqrt, 1);
+  // Build custom tick labels mapping sqrt scale back to real units
+  const tickSqrts = [0, 0.25, 0.5, 0.75, 1].map(t => t * sqrtMax);
+  const tickUnits  = tickSqrts.map(s => Math.round(s * s));
+
+  Plotly.react("sales-map", [choro, {
+    type:"scattergeo", lat:dotLats, lon:dotLons, text:dotText, hoverinfo:"text",
+    marker:{
+      size: 8,
+      color: dotSqrt,
+      colorscale: [[0,"#fff7bc"],[0.25,"#fec44f"],[0.6,"#d95f0e"],[1,"#7f0000"]],
+      cmin: 0, cmax: sqrtMax,
+      showscale: true,
+      colorbar: {
+        title:{text:"Units",side:"right"}, len:0.5, thickness:12, x:1.01,
+        tickmode:"array", tickvals: tickSqrts, ticktext: tickUnits.map(String),
+      },
+      line: {width:0.8, color:"#fff"},
+      opacity: 0.92,
+    },
+  }], geoLayout());
+}
+
+function salesNav(dir) { salesWeekIdx=(salesWeekIdx+dir+DATA.store_weeks.length)%DATA.store_weeks.length; renderSalesMap(); }
+
+// ══ Tab 3: OOS Map ════════════════════════════════════════════════════════════
+let oosWeekIdx = DATA.store_weeks.length - 1;
+let oosPlayTimer = null;
+
+function initOosMap() {
+  Plotly.newPlot("oos-map", [], geoLayout(), {responsive:true, displayModeBar:false});
+  renderOosMap();
+}
+
+function renderOosMap() {
+  const week  = DATA.store_weeks[oosWeekIdx];
+  if (!week) return;
+  document.getElementById("oos-week-label").textContent = weekLabel(week);
+
+  const skuSet = selectedSkus.oos;
+  const wData  = DATA.weekly_stores[week] || {};
+  const consec = DATA.consecutive_oos_by_week[week] || {};
+
+  // State choropleth
+  const stOosNum={}, stOosDen={};
+  Object.entries(wData).forEach(([sn,sdata]) => {
+    const info=DATA.stores[sn]; if(!info) return;
+    const stName=ABBR_TO_STATE[info.state]||info.state;
+    Object.entries(sdata.skus||{}).forEach(([sku,sv]) => {
+      if(!skuSet.has(sku)) return;
+      stOosDen[stName]=(stOosDen[stName]||0)+1;
+      if(sv.on_hand===0) stOosNum[stName]=(stOosNum[stName]||0)+1;
+    });
+  });
+  const stNames=Object.keys(stOosDen);
+  Plotly.react("oos-map", [
+    { type:"choropleth", locationmode:"USA-states",
+      locations:stNames.map(n=>STATE_NAME_TO_ABBR[n]||n),
+      z:stNames.map(n=>stOosDen[n]>0?Math.round((stOosNum[n]||0)/stOosDen[n]*100):0),
+      zmin:0, zmax:100, colorscale:[[0,"#c8f5d8"],[0.5,"#ffe082"],[1,"#ffcdd2"]],
+      showscale: false,
+      hovertemplate:"%{location}: %{z}% OOS<extra></extra>" },
+    ...buildOosDots(wData, skuSet, consec),
+  ], geoLayout());
+
+  updateOosTable(wData, skuSet, consec);
+}
+
+function buildOosDots(wData, skuSet, consec) {
+  const gL=[],gLo=[],gT=[];
+  const rL=[],rLo=[],rT=[],rCw=[];
+
+  Object.entries(wData).forEach(([sn,sdata]) => {
+    const info=DATA.stores[sn]; if(!info||!info.lat||!info.lon) return;
+    let anyOos=false, maxCw=0; const lines=[];
+    Object.entries(sdata.skus||{}).forEach(([sku,sv]) => {
+      if(!skuSet.has(sku)) return;
+      const isOos=sv.on_hand===0; if(isOos) anyOos=true;
+      const cw=(consec[sku]||{})[sn]||0;
+      if(isOos && cw>maxCw) maxCw=cw;
+      lines.push(`${SKU_SHORT[sku]||sku}: ${isOos?"❌ OOS":"✅ In Stock"}${cw>0?` (${cw}wk consec)`:""}`);
+    });
+    if(!lines.length) return;
+    const tip=`Store #${sn}<br>${info.street}<br>${info.city}, ${info.state}<br>${lines.join("<br>")}`;
+    if(anyOos){ rL.push(info.lat); rLo.push(info.lon); rT.push(tip); rCw.push(Math.max(1,maxCw)); }
+    else       { gL.push(info.lat); gLo.push(info.lon); gT.push(tip); }
+  });
+
+  return [
+    { type:"scattergeo", lat:gL, lon:gLo, text:gT, hoverinfo:"text", name:"In Stock",
+      marker:{ size:6, color:"#00c853", opacity:0.75, line:{width:0.5,color:"#fff"} } },
+    { type:"scattergeo", lat:rL, lon:rLo, text:rT, hoverinfo:"text", name:"OOS",
+      marker:{
+        size: 8,
+        color: rCw,
+        colorscale: [[0,"#ffd600"],[0.4,"#ff6d00"],[0.7,"#d50000"],[1,"#4a0000"]],
+        cmin: 1, cmax: MAX_CONSEC_WEEKS,
+        showscale: true,
+        colorbar: { title:{text:"Consec. Wks OOS",side:"right"}, len:0.45, thickness:12, x:1.01 },
+        line: {width:0.8, color:"#fff"},
+      }
+    },
+  ];
+}
+
+function updateOosTable(wData, skuSet, consec) {
+  // Build per-store rows
+  const storeRows = [];
+  Object.entries(wData).forEach(([sn, sdata]) => {
+    const info = DATA.stores[sn] || {};
+    const oosSkus = [];
+    Object.entries(sdata.skus||{}).forEach(([sku,sv]) => {
+      if(!skuSet.has(sku)) return;
+      if(sv.on_hand===0) {
+        const cw=(consec[sku]||{})[sn]||1;
+        oosSkus.push({ short: SKU_SHORT[sku]||sku, cw });
+      }
+    });
+    if(!oosSkus.length) return;
+    const maxCw = Math.max(...oosSkus.map(x=>x.cw));
+    storeRows.push({ sn, city:info.city||"", state:info.state||"", oosSkus, maxCw, count:oosSkus.length });
+  });
+
+  // Sort: maxCw DESC, count DESC, city ASC
+  storeRows.sort((a,b) => b.maxCw!==a.maxCw ? b.maxCw-a.maxCw : b.count!==a.count ? b.count-a.count : a.city.localeCompare(b.city));
+
+  const tbody = document.getElementById("oos-tbody");
+  tbody.innerHTML = "";
+  storeRows.forEach(r => {
+    const tr = document.createElement("tr");
+    const skuHtml = r.oosSkus.map(s=>`<span class="oos-sku-tag">${s.short}${s.cw>1?` (${s.cw}wk)`:""}</span>`).join("");
+    tr.innerHTML = `<td>#${r.sn}</td>
+      <td style="white-space:nowrap">${r.city}, ${r.state}</td>
+      <td><div class="oos-sku-list">${skuHtml}</div></td>
+      <td><span class="badge-oos">${r.maxCw} wk${r.maxCw>1?"s":""}</span></td>`;
+    tbody.appendChild(tr);
+  });
+  if(!storeRows.length)
+    tbody.innerHTML=`<tr><td colspan="4" style="color:#999;text-align:center;padding:20px">No OOS stores for selected SKUs</td></tr>`;
+
+  // ── OOS Duration Summary
+  const weekCounts = {};
+  storeRows.forEach(r => { weekCounts[r.maxCw] = (weekCounts[r.maxCw]||0) + 1; });
+  const summaryTbody = document.getElementById("oos-summary-tbody");
+  summaryTbody.innerHTML = "";
+  Object.entries(weekCounts).sort((a,b) => b[0]-a[0]).forEach(([wks, count]) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td><span class="badge-oos">${wks} week${wks>1?"s":""} OOS</span></td>
+      <td style="font-weight:700">${count} store${count>1?"s":""}</td>`;
+    summaryTbody.appendChild(tr);
+  });
+  if(!Object.keys(weekCounts).length)
+    summaryTbody.innerHTML=`<tr><td colspan="2" style="color:#999;text-align:center;padding:12px">No OOS stores</td></tr>`;
+}
+
+function oosNav(dir) { oosWeekIdx=(oosWeekIdx+dir+DATA.store_weeks.length)%DATA.store_weeks.length; renderOosMap(); }
+
+// ══ Tab 4: State Stats ════════════════════════════════════════════════════════
+let stateStatsWeekIdx = DATA.store_weeks.length - 1;
+let statePlayTimer = null;
+
+function getStateUSW(week) {
+  const wData = DATA.weekly_stores[week]||{};
+  const stQty={}, stStores={};
+  Object.entries(wData).forEach(([sn,sdata]) => {
+    const info=DATA.stores[sn]; if(!info) return;
+    const st=ABBR_TO_STATE[info.state]||info.state;
+    stQty[st]=(stQty[st]||0)+(sdata.total_qty||0);
+    if(!stStores[st]) stStores[st]=new Set();
+    stStores[st].add(sn);
+  });
+  const result={};
+  Object.entries(stQty).forEach(([st,qty])=>{ result[st]=stStores[st].size>0?qty/stStores[st].size:0; });
+  return result;
+}
+
+function getStateInstock(week) {
+  const stOos=DATA.state_oos[week]||{};
+  return Object.fromEntries(Object.entries(stOos).map(([st,oos])=>[st,Math.round((1-oos)*10000)/100]));
+}
+
+function getStateOosStores(week) {
+  const wData=DATA.weekly_stores[week]||{};
+  const oosSt={}, totalSt={};
+  Object.entries(wData).forEach(([sn,sdata]) => {
+    const info=DATA.stores[sn]; if(!info) return;
+    const stAbbr=info.state;
+    const stName=ABBR_TO_STATE[stAbbr]||stAbbr;
+    if(!totalSt[stName]) totalSt[stName]=new Set();
+    totalSt[stName].add(sn);
+    let anyOos=false;
+    Object.values(sdata.skus||{}).forEach(sv=>{ if(sv.on_hand===0) anyOos=true; });
+    if(anyOos){
+      if(!oosSt[stName]) oosSt[stName]=new Set();
+      oosSt[stName].add(sn);
+    }
+  });
+  return {oosSt, totalSt};
+}
+
+// Returns a fresh copy of geoLayout() to prevent Plotly from mutating the shared object
+// Converts any state name/abbreviation variant to a 2-letter abbreviation for Plotly
+function toStateAbbr(name) {
+  if (!name) return null;
+  const s = String(name).trim();
+  // Already a valid 2-letter abbreviation (case-insensitive)
+  const up = s.toUpperCase();
+  if (up.length === 2 && ABBR_TO_STATE[up]) return up;
+  // Exact full-name match
+  if (STATE_NAME_TO_ABBR[s]) return STATE_NAME_TO_ABBR[s];
+  // Case-insensitive full-name match
+  const lo = s.toLowerCase();
+  for (const [fullName, abbr] of Object.entries(STATE_NAME_TO_ABBR)) {
+    if (fullName.toLowerCase() === lo) return abbr;
+  }
+  return null;
+}
+
+function geoLayout() {
+  return { geo: { scope:"usa", projection:{type:"albers usa"}, showlakes:true, lakecolor:"#cce5ff",
+                  bgcolor:"rgba(0,0,0,0)", landcolor:"#f8f9fa", subunitcolor:"#ccc" },
+           margin:{t:10,b:10,l:0,r:0}, paper_bgcolor:"rgba(0,0,0,0)",
+           font:{family:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",size:11},
+           showlegend:false };
+}
+
+function initStateStats() {
+  Plotly.newPlot("ss-sales-map", [], geoLayout(), {responsive:true,displayModeBar:false});
+  Plotly.newPlot("ss-oos-map",   [], geoLayout(), {responsive:true,displayModeBar:false});
+  renderStateStats();
+}
+
+function renderStateStats() {
+  const week = DATA.store_weeks[stateStatsWeekIdx];
+  if (!week) return;
+  document.getElementById("ss-week-label").textContent = weekLabel(week);
+
+  // Sales choropleth
+  const stateSales = DATA.state_sales[week] || {};
+  const salesLocs = [], salesVals = [];
+  Object.entries(stateSales).forEach(([name, qty]) => {
+    const abbr = toStateAbbr(name);
+    if (abbr) { salesLocs.push(abbr); salesVals.push(qty); }
+  });
+  Plotly.react("ss-sales-map", [{
+    type:"choropleth", locationmode:"USA-states",
+    locations: salesLocs, z: salesVals,
+    colorscale:[[0,"#e8f4f8"],[0.5,"#4e9af1"],[1,"#003580"]],
+    showscale:true, colorbar:{title:{text:"Units",side:"right"},len:0.7,thickness:12},
+    hovertemplate:"%{location}: %{z} units<extra></extra>", zmin:0,
+  }], geoLayout());
+
+  // OOS % choropleth
+  const stateOos = DATA.state_oos[week] || {};
+  const oosLocs = [], oosVals = [];
+  Object.entries(stateOos).forEach(([name, frac]) => {
+    const abbr = toStateAbbr(name);
+    if (abbr) { oosLocs.push(abbr); oosVals.push(Math.round(frac * 100)); }
+  });
+  Plotly.react("ss-oos-map", [{
+    type:"choropleth", locationmode:"USA-states",
+    locations: oosLocs, z: oosVals,
+    zmin:0, zmax:100,
+    colorscale:[[0,"#00c853"],[0.5,"#ffd600"],[1,"#d50000"]],
+    showscale:true, colorbar:{title:{text:"OOS %",side:"right"},len:0.7,thickness:12,ticksuffix:"%"},
+    hovertemplate:"%{location}: %{z}% OOS<extra></extra>",
+  }], geoLayout());
+
+  // OOS stores table
+  const {oosSt, totalSt} = getStateOosStores(week);
+  const allStates = Object.keys(totalSt);
+  const tableRows = allStates.map(st => ({
+    st,
+    oos:   (oosSt[st]||{size:0}).size,
+    total: totalSt[st].size,
+  })).filter(r=>r.oos>0);
+  tableRows.sort((a,b)=>b.oos-a.oos);
+
+  const tbody=document.getElementById("state-oos-tbody");
+  tbody.innerHTML="";
+  tableRows.forEach(r => {
+    const pct=r.total>0?Math.round(r.oos/r.total*100):0;
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${r.st}</td><td>${r.oos}</td><td>${r.total}</td>
+      <td><span style="color:${pct>50?"#d32f2f":pct>25?"#e65100":"#2e7d32"};font-weight:700">${pct}%</span></td>`;
+    tbody.appendChild(tr);
+  });
+  if(!tableRows.length)
+    tbody.innerHTML=`<tr><td colspan="4" style="color:#999;text-align:center;padding:16px">No OOS data</td></tr>`;
+}
+
+function stateStatsNav(dir) {
+  stateStatsWeekIdx=(stateStatsWeekIdx+dir+DATA.store_weeks.length)%DATA.store_weeks.length;
+  renderStateStats();
+}
+
+// ══ Tab 5: State Charts ═══════════════════════════════════════════════════════
+let stateChartsWeekIdx = DATA.store_weeks.length - 1;
+let stateChartsPlayTimer = null;
+
+function initStateCharts() {
+  renderStateCharts();
+}
+
+function renderStateCharts() {
+  const week = DATA.store_weeks[stateChartsWeekIdx];
+  if (!week) return;
+  document.getElementById("sc-week-label").textContent = weekLabel(week);
+
+  const cfg = { responsive:true, displayModeBar:false };
+
+  // ── U/S/W by state
+  const uswData = getStateUSW(week);
+  const uswEntries = Object.entries(uswData).sort((a,b)=>b[1]-a[1]);
+  const uswStates = uswEntries.map(e=>e[0]);
+  const uswVals   = uswEntries.map(e=>Math.round(e[1]*100)/100);
+  const uswH = Math.max(400, uswStates.length * 22 + 80);
+  document.getElementById("chart-state-usw").style.height = uswH + "px";
+  Plotly.react("chart-state-usw", [{
+    type:"bar", orientation:"h",
+    y: uswStates, x: uswVals,
+    text: uswVals.map(v=>v.toFixed(2)), textposition:"outside",
+    marker:{ color:uswVals, colorscale:[[0,"#e8f4f8"],[0.5,"#4e9af1"],[1,"#003580"]], showscale:false },
+    hovertemplate:"%{y}: %{x:.2f} U/S/W<extra></extra>",
+  }], {
+    margin:{t:10,b:40,l:140,r:60},
+    paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
+    font:{family:"-apple-system,sans-serif",size:11},
+    xaxis:{title:"Units/Store/Week", gridcolor:"#e8e8e8"},
+    yaxis:{autorange:"reversed", tickfont:{size:10}},
+    height: uswH,
+  }, cfg);
+
+  // ── Instock % by state
+  const instockData = getStateInstock(week);
+  const instockEntries = Object.entries(instockData).sort((a,b)=>b[1]-a[1]);
+  const instockStates = instockEntries.map(e=>e[0]);
+  const instockVals   = instockEntries.map(e=>Math.round(e[1]*100)/100);
+  const instockH = Math.max(400, instockStates.length * 22 + 80);
+  document.getElementById("chart-state-instock").style.height = instockH + "px";
+
+  // Color: green=high instock, red=low instock
+  const instockColors = instockVals.map(v => {
+    const t = v/100;
+    const r = Math.round(213*(1-t)+0*t);
+    const g = Math.round(0*(1-t)+200*t);
+    const b = Math.round(0*(1-t)+83*t);
+    return `rgb(${r},${g},${b})`;
+  });
+
+  Plotly.react("chart-state-instock", [{
+    type:"bar", orientation:"h",
+    y: instockStates, x: instockVals,
+    text: instockVals.map(v=>v.toFixed(2)+"%"), textposition:"outside",
+    marker:{ color:instockColors },
+    hovertemplate:"%{y}: %{x:.2f}% Instock<extra></extra>",
+  }], {
+    margin:{t:10,b:40,l:140,r:80},
+    paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
+    font:{family:"-apple-system,sans-serif",size:11},
+    xaxis:{title:"Instock %", range:[0,110], gridcolor:"#e8e8e8", ticksuffix:"%"},
+    yaxis:{autorange:"reversed", tickfont:{size:10}},
+    height: instockH,
+  }, cfg);
+
+  // ── Chart 3: U/S/W sorted descending, bars colored by Instock %
+  // Re-use uswEntries (sorted by U/S/W desc), color each bar by that state's instock %
+  const uswInstockColors = uswStates.map(st => {
+    const pct = instockData[st] || 0;
+    const t = pct / 100;
+    const r = Math.round(213*(1-t));
+    const g = Math.round(200*t);
+    const b = Math.round(83*t);
+    return `rgb(${r},${g},${b})`;
+  });
+  const uswInstockAnnotations = uswStates.map((st, i) => {
+    const pct = instockData[st];
+    return pct != null ? pct.toFixed(1) + "%" : "";
+  });
+  const uiH = Math.max(400, uswStates.length * 22 + 80);
+  document.getElementById("chart-state-usw-instock").style.height = uiH + "px";
+
+  Plotly.react("chart-state-usw-instock", [{
+    type:"bar", orientation:"h",
+    y: uswStates, x: uswVals,
+    text: uswVals.map((v, i) => `${v.toFixed(2)} (${uswInstockAnnotations[i]})`),
+    textposition:"outside",
+    marker:{ color: uswInstockColors },
+    hovertemplate:"%{y}: %{x:.2f} U/S/W | Instock: %{text}<extra></extra>",
+    customdata: uswInstockAnnotations,
+  }], {
+    margin:{t:10,b:40,l:140,r:100},
+    paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
+    font:{family:"-apple-system,sans-serif",size:11},
+    xaxis:{title:"U/S/W", gridcolor:"#e8e8e8"},
+    yaxis:{autorange:"reversed", tickfont:{size:10}},
+    height: uiH,
+    annotations:[{
+      x:1.01, y:0.98, xref:"paper", yref:"paper", showarrow:false,
+      text:"🟢 Green = High Instock<br>🔴 Red = Low Instock",
+      font:{size:10, color:"#666"}, align:"left",
+    }],
+  }, cfg);
+}
+
+function stateChartsNav(dir) {
+  stateChartsWeekIdx=(stateChartsWeekIdx+dir+DATA.store_weeks.length)%DATA.store_weeks.length;
+  renderStateCharts();
+}
+
+// ══ Play ══════════════════════════════════════════════════════════════════════
+function togglePlay(tab) {
+  const timers = { sales:"salesPlayTimer", oos:"oosPlayTimer", statestats:"statePlayTimer", statecharts:"stateChartsPlayTimer" };
+  const navFns = { sales:()=>salesNav(1), oos:()=>oosNav(1), statestats:()=>stateStatsNav(1), statecharts:()=>stateChartsNav(1) };
+  const btnIds = { sales:"sales-play-btn", oos:"oos-play-btn", statestats:"ss-play-btn", statecharts:"sc-play-btn" };
+
+  const timerVar = timers[tab];
+  const btn = document.getElementById(btnIds[tab]);
+
+  if (window[timerVar]) {
+    clearInterval(window[timerVar]); window[timerVar]=null; btn.textContent="▶ Play";
+  } else {
+    btn.textContent="⏸ Pause";
+    window[timerVar]=setInterval(navFns[tab], 1200);
+  }
+}
+
+// ── Must be last ──────────────────────────────────────────────────────────────
+if (localStorage.getItem(AUTH_KEY) === "ok") showApp();
+</script>
+</body>
+</html>

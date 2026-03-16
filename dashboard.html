@@ -596,11 +596,18 @@ function buildMetricsTable() {
     if (type === "dollar") return "$" + Math.round(v).toLocaleString();
     return v;
   };
+  const fmtChg = (curr, prev) => {
+    if (curr == null || prev == null || prev === 0) return "";
+    const chg = (curr - prev) / Math.abs(prev) * 100;
+    const sign = chg >= 0 ? "+" : "";
+    const color = chg < 0 ? "#d32f2f" : "#2e7d32";
+    return `<span style="font-size:0.75em;color:${color};margin-left:4px">(${sign}${chg.toFixed(1)}%)</span>`;
+  };
 
   // 7 data columns: SKU | U/S/W | Adj U/S/W | Instock% | Units | Retail$ | Wholesale$
   const COL_COUNT = 7;
 
-  DATA.weeks.forEach(w => {
+  DATA.weeks.forEach((w, wIdx) => {
     // Week group header row — spans all columns
     const trHead = document.createElement("tr");
     trHead.className = "week-group-row";
@@ -610,24 +617,34 @@ function buildMetricsTable() {
     trHead.appendChild(tdHead);
     tbody.appendChild(trHead);
 
-    const wMet = DATA.metrics[w] || {};
+    const wMet   = DATA.metrics[w] || {};
+    const prevW  = wIdx > 0 ? DATA.weeks[wIdx - 1] : null;
+    const prevMet = prevW ? (DATA.metrics[prevW] || {}) : {};
+
     ALL_SERIES.forEach(series => {
-      const m  = wMet[series] || {};
+      const m  = wMet[series]  || {};
+      const pm = prevMet[series] || {};
+      const adjUSW  = calcAdjUSW(m);
+      const pAdjUSW = calcAdjUSW(pm);
       const tr = document.createElement("tr");
       if (series === "Total") tr.className = "total-row";
 
-      const cells = [
-        series,
-        fmt(m.usw, "usw"),
-        fmt(calcAdjUSW(m), "usw"),
-        fmt(m.instock_pct, "pct"),
-        fmt(m.pos_qty, "int"),
-        fmt(m.pos_dollars, "dollar"),
-        fmt(m.wholesale_dollars, "dollar"),
+      const cellDefs = [
+        { text: series,                          curr: null,              prev: null },
+        { text: fmt(m.usw, "usw"),               curr: m.usw,             prev: pm.usw },
+        { text: fmt(adjUSW, "usw"),              curr: adjUSW,            prev: pAdjUSW },
+        { text: fmt(m.instock_pct, "pct"),       curr: m.instock_pct,     prev: pm.instock_pct },
+        { text: fmt(m.pos_qty, "int"),           curr: m.pos_qty,         prev: pm.pos_qty },
+        { text: fmt(m.pos_dollars, "dollar"),    curr: m.pos_dollars,     prev: pm.pos_dollars },
+        { text: fmt(m.wholesale_dollars,"dollar"), curr: m.wholesale_dollars, prev: pm.wholesale_dollars },
       ];
-      cells.forEach(val => {
+      cellDefs.forEach(({ text, curr, prev }) => {
         const td = document.createElement("td");
-        td.textContent = val;
+        if (prevW && curr != null) {
+          td.innerHTML = text + fmtChg(curr, prev);
+        } else {
+          td.textContent = text;
+        }
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
@@ -921,6 +938,23 @@ function getStateOosStores(week) {
 }
 
 // Returns a fresh copy of geoLayout() to prevent Plotly from mutating the shared object
+// Converts any state name/abbreviation variant to a 2-letter abbreviation for Plotly
+function toStateAbbr(name) {
+  if (!name) return null;
+  const s = String(name).trim();
+  // Already a valid 2-letter abbreviation (case-insensitive)
+  const up = s.toUpperCase();
+  if (up.length === 2 && ABBR_TO_STATE[up]) return up;
+  // Exact full-name match
+  if (STATE_NAME_TO_ABBR[s]) return STATE_NAME_TO_ABBR[s];
+  // Case-insensitive full-name match
+  const lo = s.toLowerCase();
+  for (const [fullName, abbr] of Object.entries(STATE_NAME_TO_ABBR)) {
+    if (fullName.toLowerCase() === lo) return abbr;
+  }
+  return null;
+}
+
 function geoLayout() {
   return { geo: { scope:"usa", projection:{type:"albers usa"}, showlakes:true, lakecolor:"#cce5ff",
                   bgcolor:"rgba(0,0,0,0)", landcolor:"#f8f9fa", subunitcolor:"#ccc" },
@@ -944,7 +978,7 @@ function renderStateStats() {
   const stateSales = DATA.state_sales[week] || {};
   const salesLocs = [], salesVals = [];
   Object.entries(stateSales).forEach(([name, qty]) => {
-    const abbr = STATE_NAME_TO_ABBR[name];
+    const abbr = toStateAbbr(name);
     if (abbr) { salesLocs.push(abbr); salesVals.push(qty); }
   });
   Plotly.react("ss-sales-map", [{
@@ -959,7 +993,7 @@ function renderStateStats() {
   const stateOos = DATA.state_oos[week] || {};
   const oosLocs = [], oosVals = [];
   Object.entries(stateOos).forEach(([name, frac]) => {
-    const abbr = STATE_NAME_TO_ABBR[name];
+    const abbr = toStateAbbr(name);
     if (abbr) { oosLocs.push(abbr); oosVals.push(Math.round(frac * 100)); }
   });
   Plotly.react("ss-oos-map", [{

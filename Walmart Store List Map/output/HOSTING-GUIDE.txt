@@ -1,0 +1,115 @@
+═══════════════════════════════════════════════════════════════
+    FREE WEB HOSTING GUIDE - Catalyst Pet Store Map
+═══════════════════════════════════════════════════════════════
+
+You have a single HTML file ready to upload: index.html
+
+This file contains 3 tabs:
+  1. SKU Map (color-coded by product combination)
+  2. Simple Map (all stores same color)
+  3. Data Table (sortable state-by-state breakdown)
+
+
+═══════════════════════════════════════════════════════════════
+OPTION 1: Netlify (Easiest - Drag & Drop)
+═══════════════════════════════════════════════════════════════
+
+1. Go to: https://app.netlify.com/drop
+
+2. Drag and drop your "index.html" file onto the page
+
+3. Done! You'll get a free URL like:
+   https://random-name-12345.netlify.app
+
+4. (Optional) To change the URL:
+   - Click "Site settings"
+   - Click "Change site name"
+   - Choose your own name: catalyst-pet-stores.netlify.app
+
+
+═══════════════════════════════════════════════════════════════
+OPTION 2: GitHub Pages (Most Popular)
+═══════════════════════════════════════════════════════════════
+
+1. Create a free GitHub account at: https://github.com/signup
+
+2. Create a new repository:
+   - Click the "+" button (top right)
+   - Select "New repository"
+   - Name it: "catalyst-pet-map" (or anything you want)
+   - Make it Public
+   - Click "Create repository"
+
+3. Upload your file:
+   - Click "uploading an existing file"
+   - Drag and drop "index.html"
+   - Click "Commit changes"
+
+4. Enable GitHub Pages:
+   - Go to Settings
+   - Click "Pages" in the left sidebar
+   - Under "Source", select "main" branch
+   - Click "Save"
+
+5. Your site will be live at:
+   https://YOUR-USERNAME.github.io/catalyst-pet-map/
+
+
+═══════════════════════════════════════════════════════════════
+OPTION 3: Vercel (Similar to Netlify)
+═══════════════════════════════════════════════════════════════
+
+1. Go to: https://vercel.com/new
+
+2. Sign up (free)
+
+3. Drag and drop your "index.html" file
+
+4. You'll get a URL like:
+   https://catalyst-pet-map.vercel.app
+
+
+═══════════════════════════════════════════════════════════════
+COMPARISON
+═══════════════════════════════════════════════════════════════
+
+Netlify Drop:
+  ✓ Fastest (no account needed)
+  ✓ Just drag and drop
+  ✗ Harder to update later
+
+GitHub Pages:
+  ✓ Most reliable
+  ✓ Easy to update (just upload new file)
+  ✓ Custom domains available
+  ✗ Requires GitHub account
+
+Vercel:
+  ✓ Fast setup
+  ✓ Good performance
+  ✗ Requires account
+
+
+═══════════════════════════════════════════════════════════════
+RECOMMENDED: Start with Netlify Drop
+═══════════════════════════════════════════════════════════════
+
+For the quickest result:
+  1. Go to https://app.netlify.com/drop
+  2. Drag index.html onto the page
+  3. Share your link!
+
+No account, no setup, works in 30 seconds.
+
+
+═══════════════════════════════════════════════════════════════
+NEED HELP?
+═══════════════════════════════════════════════════════════════
+
+All of these services are:
+  ✓ Completely FREE (no credit card)
+  ✓ No time limits
+  ✓ Fast and reliable
+  ✓ Support mobile devices
+
+Your HTML file is self-contained - it has everything built-in!
