@@ -67,6 +67,15 @@
   .tab-panel { display: none; flex: 1; padding: 24px; overflow-y: auto; }
   .tab-panel.active { display: block; }
 
+  /* ── Metrics Filter ── */
+  .metrics-filter {
+    background: #fff; border-radius: 12px; padding: 14px 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .metrics-filter > span { font-weight: 600; font-size: 0.85rem; color: #444; margin-right: 4px; }
+
   /* ── Metric Cards (Tab 1) ── */
   .chart-grid {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
@@ -80,6 +89,16 @@
                    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; }
   .chart-div { width: 100%; height: 280px; }
 
+  /* ── Series toggle chips ── */
+  .series-chip {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 0.82rem; color: #333; cursor: pointer;
+    background: #f5f5f5; padding: 5px 10px; border-radius: 20px;
+    border: 2px solid transparent; transition: all 0.15s; user-select: none;
+  }
+  .series-chip input { accent-color: #0057e7; width: 14px; height: 14px; cursor: pointer; }
+  .series-chip:has(input:checked) { border-color: #0057e7; background: #e8f0fe; }
+
   /* ── Map Controls ── */
   .map-controls {
     background: #fff; border-radius: 12px; padding: 16px 20px;
@@ -90,7 +109,7 @@
   .map-controls label { font-weight: 600; font-size: 0.9rem; color: #444; }
   .week-display {
     font-size: 1rem; font-weight: 700; color: #0057e7;
-    min-width: 70px; text-align: center;
+    min-width: 120px; text-align: center;
   }
   .ctrl-btn {
     padding: 8px 18px; border: 2px solid #0057e7; border-radius: 8px;
@@ -119,7 +138,7 @@
   .sku-cb-label:has(input:checked) { border-color: #0057e7; background: #e8f0fe; }
 
   /* ── Map + Table layout ── */
-  .map-row { display: grid; grid-template-columns: 1fr 360px; gap: 16px; }
+  .map-row { display: grid; grid-template-columns: 1fr 400px; gap: 16px; }
   .map-card {
     background: #fff; border-radius: 12px; padding: 16px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
@@ -133,13 +152,13 @@
   }
   .oos-card h3 { font-size: 0.8rem; font-weight: 700; color: #666;
                  text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; }
-  #oos-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-  #oos-table th { background: #f5f5f5; padding: 8px 10px; text-align: left;
+  #oos-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+  #oos-table th { background: #f5f5f5; padding: 7px 8px; text-align: left;
                   font-weight: 700; color: #444; border-bottom: 2px solid #e0e0e0; }
-  #oos-table td { padding: 7px 10px; border-bottom: 1px solid #f0f0f0; }
+  #oos-table td { padding: 6px 8px; border-bottom: 1px solid #f0f0f0; }
   #oos-table tr:hover td { background: #f8f9ff; }
   .badge-oos { background: #ffebee; color: #c62828; padding: 2px 8px;
-               border-radius: 12px; font-weight: 700; font-size: 0.75rem; }
+               border-radius: 12px; font-weight: 700; font-size: 0.74rem; }
 
   @media (max-width: 900px) {
     .map-row { grid-template-columns: 1fr; }
@@ -175,6 +194,9 @@
 
   <!-- ── Tab 1: Metrics ─────────────────────────────────────────────────── -->
   <div id="tab-metrics" class="tab-panel active">
+    <div class="metrics-filter" id="metrics-filter">
+      <span>Show:</span>
+    </div>
     <div class="chart-grid">
       <div class="chart-card"><h3>Units Sold / Week (U/S/W)</h3><div id="chart-usw" class="chart-div"></div></div>
       <div class="chart-card"><h3>Instock %</h3><div id="chart-instock" class="chart-div"></div></div>
@@ -220,7 +242,7 @@
       <div class="oos-card">
         <h3>Top Consecutive OOS (current week)</h3>
         <table id="oos-table">
-          <thead><tr><th>Store</th><th>SKU</th><th>Consec. Wks</th></tr></thead>
+          <thead><tr><th>Store</th><th>Location</th><th>SKU</th><th>Consec. Wks</th></tr></thead>
           <tbody id="oos-tbody"></tbody>
         </table>
       </div>
@@ -255,10 +277,29 @@ function showApp() {
   initDashboard();
 }
 
-// Check auth on load
 if (localStorage.getItem(AUTH_KEY) === "ok") {
   showApp();
 }
+
+// ══ Constants ═════════════════════════════════════════════════════════════════
+
+// Fiscal week → human label (dates are the Saturday end of each Walmart fiscal week)
+const WEEK_LABELS = {
+  "202601": "Week 1 (2/6/26)",
+  "202602": "Week 2 (2/13/26)",
+  "202603": "Week 3 (2/20/26)",
+  "202604": "Week 4 (2/27/26)",
+  "202605": "Week 5 (3/6/26)",
+  "202606": "Week 6 (3/13/26)",
+};
+
+// Short display names for OOS map/table
+const SKU_SHORT = {
+  "CATALYST15ORIG":       "15O",
+  "CATALYST15UNSCEN":     "15U",
+  "CATALYST34LBORIGINAL": "34O",
+  "CATALYSTPET34LBUNSCE": "34U",
+};
 
 // ══ Tab Switching ═════════════════════════════════════════════════════════════
 let salesMapInit = false;
@@ -282,11 +323,11 @@ function switchTab(name, btn) {
 
 // ══ Init ══════════════════════════════════════════════════════════════════════
 function initDashboard() {
-  // Header range
   if (DATA.weeks && DATA.weeks.length) {
     document.getElementById("header-range").textContent =
       `Weeks ${DATA.weeks[0]} – ${DATA.weeks[DATA.weeks.length-1]}`;
   }
+  buildMetricFilter();
   buildMetricCharts();
   buildSkuFilters();
 }
@@ -300,35 +341,86 @@ const SKU_COLORS = {
   "Total":                "#333333",
 };
 
+// All series labels in chart order (indices 0-4)
+const ALL_SERIES = [...DATA.skus, "Total"];
+
+// Which series are currently shown (all by default)
+const visibleSeries = new Set(ALL_SERIES);
+
+const METRIC_CHART_IDS = ["chart-usw", "chart-instock", "chart-units", "chart-retail", "chart-wholesale"];
+
 const PLOTLY_LAYOUT_BASE = {
-  margin: { t: 10, b: 50, l: 60, r: 20 },
+  margin: { t: 10, b: 60, l: 70, r: 20 },
   paper_bgcolor: "rgba(0,0,0,0)",
   plot_bgcolor:  "rgba(0,0,0,0)",
   font: { family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", size: 11 },
-  legend: { orientation: "h", y: -0.25, font: { size: 10 } },
-  xaxis: { showgrid: false, tickangle: -30 },
+  legend: { orientation: "h", y: -0.28, font: { size: 10 } },
+  xaxis: { showgrid: false, tickangle: -30, type: "category" },
   yaxis: { gridcolor: "#e8e8e8" },
   hovermode: "x unified",
 };
 
-function makeTrace(label, weeks, values, dash) {
+function weekLabel(w) {
+  return WEEK_LABELS[w] || w;
+}
+
+function makeTrace(label, xLabels, values, isTotal, hoverFmt) {
   return {
-    x: weeks,
+    x: xLabels,
     y: values,
     name: label,
     type: "scatter",
     mode: "lines+markers",
     connectgaps: false,
-    line:   { color: SKU_COLORS[label] || "#999", width: 2, dash: dash || "solid" },
-    marker: { size: 6, color: SKU_COLORS[label] || "#999" },
+    line: {
+      color: SKU_COLORS[label] || "#999",
+      width: isTotal ? 3 : 2,
+      dash:  isTotal ? "dash" : "solid",
+    },
+    marker: {
+      size:   isTotal ? 8 : 6,
+      color:  SKU_COLORS[label] || "#999",
+      symbol: isTotal ? "diamond" : "circle",
+    },
+    hovertemplate: hoverFmt + "<extra></extra>",
   };
+}
+
+// ══ Metrics Series Filter ═════════════════════════════════════════════════════
+function buildMetricFilter() {
+  const container = document.getElementById("metrics-filter");
+  ALL_SERIES.forEach((series, idx) => {
+    const lbl = document.createElement("label");
+    lbl.className = "series-chip";
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.checked = true;
+    cb.addEventListener("change", () => {
+      if (cb.checked) visibleSeries.add(series);
+      else visibleSeries.delete(series);
+      // Toggle visibility on all metric charts by trace index
+      METRIC_CHART_IDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.data) {
+          Plotly.restyle(el, { visible: cb.checked ? true : "legendonly" }, [idx]);
+        }
+      });
+    });
+    lbl.appendChild(cb);
+    // Color swatch
+    const swatch = document.createElement("span");
+    swatch.style.cssText = `display:inline-block;width:10px;height:10px;border-radius:50%;
+      background:${SKU_COLORS[series]};${series === "Total" ? "border-radius:2px;" : ""}`;
+    lbl.appendChild(swatch);
+    lbl.appendChild(document.createTextNode(" " + series));
+    container.appendChild(lbl);
+  });
 }
 
 // ══ Tab 1: Metric Charts ══════════════════════════════════════════════════════
 function buildMetricCharts() {
-  const weeks = DATA.weeks;
-  const skus  = DATA.skus;
-  const met   = DATA.metrics;
+  const weeks  = DATA.weeks;
+  const xLabels = weeks.map(weekLabel);
+  const met    = DATA.metrics;
 
   function getVals(key, label) {
     return weeks.map(w => (met[w] && met[w][label] != null) ? met[w][label][key] : null);
@@ -336,41 +428,42 @@ function buildMetricCharts() {
 
   const cfg = { responsive: true, displayModeBar: false };
 
-  // ── U/S/W
+  // ── U/S/W (2 decimal places)
   Plotly.newPlot("chart-usw",
-    [...skus, "Total"].map(s => makeTrace(s, weeks, getVals("usw", s))),
+    ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("usw", s), s === "Total", "%{y:.2f}")),
     { ...PLOTLY_LAYOUT_BASE, yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: "Units/Store/Week" } }, cfg);
 
-  // ── Instock % (all rows including Total)
+  // ── Instock % (2 decimal places, y-axis starts at 50)
   Plotly.newPlot("chart-instock",
-    [...skus, "Total"].map(s => makeTrace(s, weeks, getVals("instock_pct", s))),
-    { ...PLOTLY_LAYOUT_BASE, yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: "%", range: [0, 105] } }, cfg);
+    ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("instock_pct", s), s === "Total", "%{y:.2f}%")),
+    { ...PLOTLY_LAYOUT_BASE,
+      yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: "%", range: [50, 105], ticksuffix: "%" } }, cfg);
 
-  // ── Units Sold
+  // ── Units Sold (whole numbers)
   Plotly.newPlot("chart-units",
-    [...skus, "Total"].map(s => makeTrace(s, weeks, getVals("pos_qty", s))),
+    ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("pos_qty", s), s === "Total", "%{y:,.0f}")),
     { ...PLOTLY_LAYOUT_BASE, yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: "Units" } }, cfg);
 
-  // ── Retail $
+  // ── Retail $ (whole dollars)
   Plotly.newPlot("chart-retail",
-    [...skus, "Total"].map(s => makeTrace(s, weeks, getVals("pos_dollars", s))),
-    { ...PLOTLY_LAYOUT_BASE, yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: "$", tickprefix: "$" } }, cfg);
+    ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("pos_dollars", s), s === "Total", "$%{y:,.0f}")),
+    { ...PLOTLY_LAYOUT_BASE,
+      yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: "$", tickprefix: "$", tickformat: ",.0f" } }, cfg);
 
-  // ── Wholesale $
+  // ── Wholesale $ (whole dollars)
   Plotly.newPlot("chart-wholesale",
-    [...skus, "Total"].map(s => makeTrace(s, weeks, getVals("wholesale_dollars", s))),
-    { ...PLOTLY_LAYOUT_BASE, yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: "$", tickprefix: "$" } }, cfg);
+    ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("wholesale_dollars", s), s === "Total", "$%{y:,.0f}")),
+    { ...PLOTLY_LAYOUT_BASE,
+      yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: "$", tickprefix: "$", tickformat: ",.0f" } }, cfg);
 }
 
-// ══ SKU Filters ═══════════════════════════════════════════════════════════════
-// selectedSkus["sales"] and selectedSkus["oos"] store Set of active SKU strings
-// "All" means all 4 skus are active
+// ══ SKU Filters (Maps) ════════════════════════════════════════════════════════
 const selectedSkus = { sales: new Set(DATA.skus), oos: new Set(DATA.skus) };
 
 function buildSkuFilters() {
   ["sales", "oos"].forEach(tab => {
     const container = document.getElementById(`${tab}-sku-filter`);
-    // All checkbox
+
     const allLabel = document.createElement("label");
     allLabel.className = "sku-cb-label";
     const allCb = document.createElement("input");
@@ -397,11 +490,7 @@ function buildSkuFilters() {
 
 function handleSkuFilter(tab, sku, checked) {
   if (sku === "all") {
-    if (checked) {
-      selectedSkus[tab] = new Set(DATA.skus);
-    } else {
-      selectedSkus[tab] = new Set();
-    }
+    selectedSkus[tab] = checked ? new Set(DATA.skus) : new Set();
     DATA.skus.forEach(s => {
       const cb = document.getElementById(`${tab}-cb-${s}`);
       if (cb) cb.checked = checked;
@@ -409,7 +498,6 @@ function handleSkuFilter(tab, sku, checked) {
   } else {
     if (checked) selectedSkus[tab].add(sku);
     else selectedSkus[tab].delete(sku);
-    // Sync "All" checkbox
     const allCb = document.getElementById(`${tab}-cb-all`);
     if (allCb) allCb.checked = selectedSkus[tab].size === DATA.skus.length;
   }
@@ -433,6 +521,9 @@ const STATE_NAME_TO_ABBR = {
   "Wisconsin":"WI","Wyoming":"WY","District of Columbia":"DC",
 };
 
+// Reverse lookup: abbr → full name
+const ABBR_TO_STATE = Object.fromEntries(Object.entries(STATE_NAME_TO_ABBR).map(([n,a]) => [a,n]));
+
 const GEO_LAYOUT_BASE = {
   geo: {
     scope: "usa",
@@ -448,12 +539,13 @@ const GEO_LAYOUT_BASE = {
 };
 
 // ══ Tab 2: Sales Map ══════════════════════════════════════════════════════════
-let salesWeekIdx = 0;
+// Default to most recent week
+let salesWeekIdx = DATA.store_weeks.length - 1;
 let salesPlayTimer = null;
 
 function initSalesMap() {
-  salesWeekIdx = 0;
-  document.getElementById("sales-week-label").textContent = DATA.store_weeks[0] || "—";
+  const label = weekLabel(DATA.store_weeks[salesWeekIdx]);
+  document.getElementById("sales-week-label").textContent = label;
   Plotly.newPlot("sales-map", [], GEO_LAYOUT_BASE, { responsive: true, displayModeBar: false });
   renderSalesMap();
 }
@@ -461,23 +553,17 @@ function initSalesMap() {
 function renderSalesMap() {
   const week = DATA.store_weeks[salesWeekIdx];
   if (!week) return;
-  document.getElementById("sales-week-label").textContent = week;
+  document.getElementById("sales-week-label").textContent = weekLabel(week);
 
   const skuSet = selectedSkus.sales;
   const wData  = DATA.weekly_stores[week] || {};
-  const stSales = DATA.state_sales[week] || {};
-
-  // ── State choropleth
-  const stateNames = Object.keys(stSales);
-  const stateAbbr  = stateNames.map(n => STATE_NAME_TO_ABBR[n] || n);
 
   // Compute per-state qty filtered by SKU
   const filteredStateSales = {};
-  Object.entries(DATA.weekly_stores[week] || {}).forEach(([sn, sdata]) => {
+  Object.entries(wData).forEach(([sn, sdata]) => {
     const storeInfo = DATA.stores[sn];
     if (!storeInfo) return;
-    const stAbr = storeInfo.state;
-    const stName = Object.entries(STATE_NAME_TO_ABBR).find(([n, a]) => a === stAbr)?.[0] || stAbr;
+    const stName = ABBR_TO_STATE[storeInfo.state] || storeInfo.state;
     let qty = 0;
     Object.entries(sdata.skus || {}).forEach(([sku, sv]) => {
       if (skuSet.has(sku)) qty += sv.qty || 0;
@@ -497,7 +583,6 @@ function renderSalesMap() {
     zmin: 0,
   };
 
-  // ── Store dots
   const dotLats=[], dotLons=[], dotText=[], dotColors=[], dotSizes=[];
   Object.entries(wData).forEach(([sn, sdata]) => {
     const info = DATA.stores[sn];
@@ -544,12 +629,13 @@ function salesNav(dir) {
 }
 
 // ══ Tab 3: OOS Map ════════════════════════════════════════════════════════════
-let oosWeekIdx = 0;
+// Default to most recent week
+let oosWeekIdx = DATA.store_weeks.length - 1;
 let oosPlayTimer = null;
 
 function initOosMap() {
-  oosWeekIdx = 0;
-  document.getElementById("oos-week-label").textContent = DATA.store_weeks[0] || "—";
+  const label = weekLabel(DATA.store_weeks[oosWeekIdx]);
+  document.getElementById("oos-week-label").textContent = label;
   Plotly.newPlot("oos-map", [], GEO_LAYOUT_BASE, { responsive: true, displayModeBar: false });
   renderOosMap();
 }
@@ -557,19 +643,18 @@ function initOosMap() {
 function renderOosMap() {
   const week = DATA.store_weeks[oosWeekIdx];
   if (!week) return;
-  document.getElementById("oos-week-label").textContent = week;
+  document.getElementById("oos-week-label").textContent = weekLabel(week);
 
-  const skuSet   = selectedSkus.oos;
-  const wData    = DATA.weekly_stores[week] || {};
-  const consec   = DATA.consecutive_oos_by_week[week] || {};
+  const skuSet = selectedSkus.oos;
+  const wData  = DATA.weekly_stores[week] || {};
+  const consec = DATA.consecutive_oos_by_week[week] || {};
 
-  // ── State OOS choropleth — recompute filtered
+  // State OOS choropleth
   const stateOosNumer = {}, stateOosDenom = {};
   Object.entries(wData).forEach(([sn, sdata]) => {
     const info = DATA.stores[sn];
     if (!info) return;
-    const stAbr  = info.state;
-    const stName = Object.entries(STATE_NAME_TO_ABBR).find(([n, a]) => a === stAbr)?.[0] || stAbr;
+    const stName = ABBR_TO_STATE[info.state] || info.state;
     Object.entries(sdata.skus || {}).forEach(([sku, sv]) => {
       if (!skuSet.has(sku)) return;
       stateOosDenom[stName] = (stateOosDenom[stName] || 0) + 1;
@@ -590,12 +675,11 @@ function renderOosMap() {
     zmin: 0, zmax: 100,
     colorscale: [[0,"#00c853"],[0.5,"#ffd600"],[1,"#d50000"]],
     showscale: true,
-    colorbar: { title: { text: "OOS %", side: "right" }, len: 0.6, thickness: 14,
-                ticksuffix: "%" },
+    colorbar: { title: { text: "OOS %", side: "right" }, len: 0.6, thickness: 14, ticksuffix: "%" },
     hovertemplate: "%{location}: %{z}% OOS<extra></extra>",
   };
 
-  // ── Store dots (red = any selected SKU OOS, green = all in stock)
+  // Store dots — use SKU_SHORT for hover labels
   const gLats=[], gLons=[], gText=[];
   const rLats=[], rLons=[], rText=[];
 
@@ -609,9 +693,9 @@ function renderOosMap() {
       if (!skuSet.has(sku)) return;
       const isOos = sv.on_hand === 0;
       if (isOos) anyOos = true;
-      // Consecutive weeks
       const cw = (consec[sku] || {})[sn] || 0;
-      skuLines.push(`${sku}: ${isOos ? "❌ OOS" : "✅ In Stock"}${cw > 0 ? ` (${cw}wk consec)` : ""}`);
+      const short = SKU_SHORT[sku] || sku;
+      skuLines.push(`${short}: ${isOos ? "❌ OOS" : "✅ In Stock"}${cw > 0 ? ` (${cw}wk consec)` : ""}`);
     });
 
     if (skuLines.length === 0) return;
@@ -633,8 +717,6 @@ function renderOosMap() {
   };
 
   Plotly.react("oos-map", [oosChoro, greenDots, redDots], GEO_LAYOUT_BASE);
-
-  // ── Update OOS table
   updateOosTable(week, skuSet, consec);
 }
 
@@ -643,7 +725,8 @@ function updateOosTable(week, skuSet, consec) {
   skuSet.forEach(sku => {
     const skuConsec = consec[sku] || {};
     Object.entries(skuConsec).forEach(([sn, cnt]) => {
-      rows.push({ store: sn, sku, cnt });
+      const info = DATA.stores[sn] || {};
+      rows.push({ store: sn, sku, cnt, city: info.city || "", state: info.state || "" });
     });
   });
   rows.sort((a, b) => b.cnt - a.cnt);
@@ -653,12 +736,15 @@ function updateOosTable(week, skuSet, consec) {
   tbody.innerHTML = "";
   top20.forEach(r => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>#${r.store}</td><td style="font-size:0.75rem">${r.sku}</td>
+    const short = SKU_SHORT[r.sku] || r.sku;
+    tr.innerHTML = `<td>#${r.store}</td>
+      <td style="white-space:nowrap">${r.city}, ${r.state}</td>
+      <td style="font-weight:600">${short}</td>
       <td><span class="badge-oos">${r.cnt} wk${r.cnt > 1 ? "s" : ""}</span></td>`;
     tbody.appendChild(tr);
   });
   if (!top20.length) {
-    tbody.innerHTML = `<tr><td colspan="3" style="color:#999;text-align:center;padding:20px">No consecutive OOS</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" style="color:#999;text-align:center;padding:20px">No consecutive OOS</td></tr>`;
   }
 }
 
