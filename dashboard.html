@@ -596,6 +596,13 @@ function buildMetricsTable() {
     if (type === "dollar") return "$" + Math.round(v).toLocaleString();
     return v;
   };
+  // Round raw value to the same precision as displayed, so % change matches manual calculation
+  const toDisplayVal = (v, type) => {
+    if (v == null) return null;
+    if (type === "pct" || type === "usw") return parseFloat(v.toFixed(2));
+    if (type === "dollar") return Math.round(v);
+    return v; // "int" is already integer
+  };
   const fmtChg = (curr, prev) => {
     if (curr == null || prev == null || prev === 0) return "";
     const chg = (curr - prev) / Math.abs(prev) * 100;
@@ -630,13 +637,13 @@ function buildMetricsTable() {
       if (series === "Total") tr.className = "total-row";
 
       const cellDefs = [
-        { text: series,                          curr: null,              prev: null },
-        { text: fmt(m.usw, "usw"),               curr: m.usw,             prev: pm.usw },
-        { text: fmt(adjUSW, "usw"),              curr: adjUSW,            prev: pAdjUSW },
-        { text: fmt(m.instock_pct, "pct"),       curr: m.instock_pct,     prev: pm.instock_pct },
-        { text: fmt(m.pos_qty, "int"),           curr: m.pos_qty,         prev: pm.pos_qty },
-        { text: fmt(m.pos_dollars, "dollar"),    curr: m.pos_dollars,     prev: pm.pos_dollars },
-        { text: fmt(m.wholesale_dollars,"dollar"), curr: m.wholesale_dollars, prev: pm.wholesale_dollars },
+        { text: series,                            curr: null,                                  prev: null },
+        { text: fmt(m.usw, "usw"),                 curr: toDisplayVal(m.usw, "usw"),            prev: toDisplayVal(pm.usw, "usw") },
+        { text: fmt(adjUSW, "usw"),                curr: toDisplayVal(adjUSW, "usw"),           prev: toDisplayVal(pAdjUSW, "usw") },
+        { text: fmt(m.instock_pct, "pct"),         curr: toDisplayVal(m.instock_pct, "pct"),   prev: toDisplayVal(pm.instock_pct, "pct") },
+        { text: fmt(m.pos_qty, "int"),             curr: toDisplayVal(m.pos_qty, "int"),        prev: toDisplayVal(pm.pos_qty, "int") },
+        { text: fmt(m.pos_dollars, "dollar"),      curr: toDisplayVal(m.pos_dollars, "dollar"), prev: toDisplayVal(pm.pos_dollars, "dollar") },
+        { text: fmt(m.wholesale_dollars, "dollar"), curr: toDisplayVal(m.wholesale_dollars, "dollar"), prev: toDisplayVal(pm.wholesale_dollars, "dollar") },
       ];
       cellDefs.forEach(({ text, curr, prev }) => {
         const td = document.createElement("td");
