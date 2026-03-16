@@ -1349,16 +1349,16 @@ let statePlayTimer = null;
 
 function getStateUSW(week) {
   const wData = DATA.weekly_stores[week]||{};
-  const stQty={}, stStores={};
+  const stQty={}, stPlacements={};
   Object.entries(wData).forEach(([sn,sdata]) => {
     const info=DATA.stores[sn]; if(!info) return;
     const st=ABBR_TO_STATE[info.state]||info.state;
     stQty[st]=(stQty[st]||0)+(sdata.total_qty||0);
-    if(!stStores[st]) stStores[st]=new Set();
-    stStores[st].add(sn);
+    // Placements = number of SKUs carried by this store (not just unique stores)
+    stPlacements[st]=(stPlacements[st]||0)+Object.keys(sdata.skus||{}).length;
   });
   const result={};
-  Object.entries(stQty).forEach(([st,qty])=>{ result[st]=stStores[st].size>0?qty/stStores[st].size:0; });
+  Object.entries(stQty).forEach(([st,qty])=>{ result[st]=stPlacements[st]>0?qty/stPlacements[st]:0; });
   return result;
 }
 
