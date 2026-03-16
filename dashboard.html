@@ -45,7 +45,7 @@
   .tab-panel.active { display: block; }
 
   /* ── KPI Cards ── */
-  .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 16px; }
+  .kpi-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; margin-bottom: 16px; }
   .kpi-card { background: #fff; border-radius: 12px; padding: 18px 20px;
               box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #0057e7; }
   .kpi-label { font-size: 0.75rem; font-weight: 700; color: #888; text-transform: uppercase;
@@ -80,10 +80,11 @@
   #metrics-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
   #metrics-table th { background: #f5f5f5; padding: 8px 12px; text-align: right; font-weight: 700;
                       color: #444; border-bottom: 2px solid #e0e0e0; white-space: nowrap; }
-  #metrics-table th:nth-child(1), #metrics-table th:nth-child(2) { text-align: left; }
+  #metrics-table th:nth-child(1) { text-align: left; }
   #metrics-table td { padding: 6px 12px; border-bottom: 1px solid #f0f0f0; text-align: right; vertical-align: middle; }
-  #metrics-table td:nth-child(1), #metrics-table td:nth-child(2) { text-align: left; }
-  #metrics-table .week-cell { font-weight: 700; font-size: 0.78rem; white-space: nowrap; color: #0057e7; }
+  #metrics-table td:nth-child(1) { text-align: left; }
+  #metrics-table .week-group-row td { background: #f0f4ff; color: #0057e7; font-weight: 700;
+    font-size: 0.8rem; padding: 8px 12px; border-top: 2px solid #d0d8f0; }
   #metrics-table .total-row td { font-weight: 700; background: #fafafa; }
   #metrics-table tbody tr:hover td { background: #f8f9ff; }
 
@@ -197,6 +198,11 @@
         <div class="kpi-value" id="kpi-usw">—</div>
         <div class="kpi-sub" id="kpi-week-sub">Latest Week</div>
       </div>
+      <div class="kpi-card" style="border-left-color:#1565c0">
+        <div class="kpi-label">Adj. U/S/W</div>
+        <div class="kpi-value" id="kpi-adj-usw">—</div>
+        <div class="kpi-sub">At 100% instock</div>
+      </div>
       <div class="kpi-card" style="border-left-color:#00a86b">
         <div class="kpi-label">Instock %</div>
         <div class="kpi-value" id="kpi-instock">—</div>
@@ -238,8 +244,8 @@
       <table id="metrics-table">
         <thead>
           <tr>
-            <th>Week</th><th>SKU</th>
-            <th>U/S/W</th><th>Instock %</th><th>Units Sold</th><th>Retail $</th><th>Wholesale $</th>
+            <th>SKU</th>
+            <th>U/S/W</th><th>Adj U/S/W</th><th>Instock %</th><th>Units Sold</th><th>Retail $</th><th>Wholesale $</th>
           </tr>
         </thead>
         <tbody id="metrics-tbody"></tbody>
@@ -413,14 +419,6 @@ const PLOTLY_LAYOUT_BASE = {
   hovermode: "x unified",
 };
 
-const GEO_LAYOUT_BASE = {
-  geo: { scope:"usa", projection:{type:"albers usa"}, showlakes:true, lakecolor:"#cce5ff",
-         bgcolor:"rgba(0,0,0,0)", landcolor:"#f8f9fa", subunitcolor:"#ccc" },
-  margin: {t:10,b:10,l:0,r:0},
-  paper_bgcolor: "rgba(0,0,0,0)",
-  font: { family:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif", size:11 },
-  showlegend: false,
-};
 
 function weekLabel(w) { return WEEK_LABELS[w] || w; }
 
@@ -477,14 +475,21 @@ function initDashboard() {
 }
 
 // ══ KPI Cards ═════════════════════════════════════════════════════════════════
+function calcAdjUSW(m) {
+  if (!m || m.usw == null || !m.instock_pct) return null;
+  return Math.round(m.usw / (m.instock_pct / 100) * 100) / 100;
+}
+
 function buildKPIs() {
   const latestWeek = DATA.weeks[DATA.weeks.length - 1];
   const total = ((DATA.metrics[latestWeek] || {})["Total"]) || {};
-  document.getElementById("kpi-week-sub").textContent = weekLabel(latestWeek);
-  document.getElementById("kpi-usw").textContent      = total.usw != null ? total.usw.toFixed(2) : "—";
-  document.getElementById("kpi-instock").textContent  = total.instock_pct != null ? total.instock_pct.toFixed(2) + "%" : "—";
-  document.getElementById("kpi-units").textContent    = total.pos_qty != null ? total.pos_qty.toLocaleString() : "—";
-  document.getElementById("kpi-retail").textContent   = total.pos_dollars != null ? "$" + Math.round(total.pos_dollars).toLocaleString() : "—";
+  const adjUSW = calcAdjUSW(total);
+  document.getElementById("kpi-week-sub").textContent  = weekLabel(latestWeek);
+  document.getElementById("kpi-usw").textContent       = total.usw != null ? total.usw.toFixed(2) : "—";
+  document.getElementById("kpi-adj-usw").textContent   = adjUSW != null ? adjUSW.toFixed(2) : "—";
+  document.getElementById("kpi-instock").textContent   = total.instock_pct != null ? total.instock_pct.toFixed(2) + "%" : "—";
+  document.getElementById("kpi-units").textContent     = total.pos_qty != null ? total.pos_qty.toLocaleString() : "—";
+  document.getElementById("kpi-retail").textContent    = total.pos_dollars != null ? "$" + Math.round(total.pos_dollars).toLocaleString() : "—";
   document.getElementById("kpi-wholesale").textContent = total.wholesale_dollars != null ? "$" + Math.round(total.wholesale_dollars).toLocaleString() : "—";
 }
 
@@ -574,27 +579,37 @@ function buildMetricsTable() {
     return v;
   };
 
+  // 7 data columns: SKU | U/S/W | Adj U/S/W | Instock% | Units | Retail$ | Wholesale$
+  const COL_COUNT = 7;
+
   DATA.weeks.forEach(w => {
-    const wLabel = weekLabel(w);
-    const wMet   = DATA.metrics[w] || {};
-    ALL_SERIES.forEach((series, si) => {
+    // Week group header row — spans all columns
+    const trHead = document.createElement("tr");
+    trHead.className = "week-group-row";
+    const tdHead = document.createElement("td");
+    tdHead.colSpan = COL_COUNT;
+    tdHead.textContent = weekLabel(w);
+    trHead.appendChild(tdHead);
+    tbody.appendChild(trHead);
+
+    const wMet = DATA.metrics[w] || {};
+    ALL_SERIES.forEach(series => {
       const m  = wMet[series] || {};
       const tr = document.createElement("tr");
       if (series === "Total") tr.className = "total-row";
-      if (si === 0) {
-        const tdW = document.createElement("td");
-        tdW.rowSpan = ALL_SERIES.length;
-        tdW.className = "week-cell";
-        tdW.textContent = wLabel;
-        tr.appendChild(tdW);
-      }
-      const tdSku = document.createElement("td");
-      tdSku.textContent = series;
-      tr.appendChild(tdSku);
-      ["usw","instock_pct","pos_qty","pos_dollars","wholesale_dollars"].forEach((key, ki) => {
+
+      const cells = [
+        series,
+        fmt(m.usw, "usw"),
+        fmt(calcAdjUSW(m), "usw"),
+        fmt(m.instock_pct, "pct"),
+        fmt(m.pos_qty, "int"),
+        fmt(m.pos_dollars, "dollar"),
+        fmt(m.wholesale_dollars, "dollar"),
+      ];
+      cells.forEach(val => {
         const td = document.createElement("td");
-        const types = ["usw","pct","int","dollar","dollar"];
-        td.textContent = fmt(m[key], types[ki]);
+        td.textContent = val;
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
@@ -644,7 +659,7 @@ let salesWeekIdx = DATA.store_weeks.length - 1;
 let salesPlayTimer = null;
 
 function initSalesMap() {
-  Plotly.newPlot("sales-map", [], GEO_LAYOUT_BASE, {responsive:true, displayModeBar:false});
+  Plotly.newPlot("sales-map", [], geoLayout(), {responsive:true, displayModeBar:false});
   renderSalesMap();
 }
 
@@ -697,7 +712,7 @@ function renderSalesMap() {
       line: {width:0.8, color:"#fff"},
       opacity: 0.9,
     },
-  }], GEO_LAYOUT_BASE);
+  }], geoLayout());
 }
 
 function salesNav(dir) { salesWeekIdx=(salesWeekIdx+dir+DATA.store_weeks.length)%DATA.store_weeks.length; renderSalesMap(); }
@@ -707,7 +722,7 @@ let oosWeekIdx = DATA.store_weeks.length - 1;
 let oosPlayTimer = null;
 
 function initOosMap() {
-  Plotly.newPlot("oos-map", [], GEO_LAYOUT_BASE, {responsive:true, displayModeBar:false});
+  Plotly.newPlot("oos-map", [], geoLayout(), {responsive:true, displayModeBar:false});
   renderOosMap();
 }
 
@@ -740,7 +755,7 @@ function renderOosMap() {
       showscale:true, colorbar:{title:{text:"OOS %",side:"right"},len:0.6,thickness:14,ticksuffix:"%"},
       hovertemplate:"%{location}: %{z}% OOS<extra></extra>" },
     ...buildOosDots(wData, skuSet, consec),
-  ], GEO_LAYOUT_BASE);
+  ], geoLayout());
 
   updateOosTable(wData, skuSet, consec);
 }
@@ -863,9 +878,18 @@ function getStateOosStores(week) {
   return {oosSt, totalSt};
 }
 
+// Returns a fresh copy of geoLayout() to prevent Plotly from mutating the shared object
+function geoLayout() {
+  return { geo: { scope:"usa", projection:{type:"albers usa"}, showlakes:true, lakecolor:"#cce5ff",
+                  bgcolor:"rgba(0,0,0,0)", landcolor:"#f8f9fa", subunitcolor:"#ccc" },
+           margin:{t:10,b:10,l:0,r:0}, paper_bgcolor:"rgba(0,0,0,0)",
+           font:{family:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",size:11},
+           showlegend:false };
+}
+
 function initStateStats() {
-  Plotly.newPlot("ss-sales-map", [], GEO_LAYOUT_BASE, {responsive:true,displayModeBar:false});
-  Plotly.newPlot("ss-oos-map",   [], GEO_LAYOUT_BASE, {responsive:true,displayModeBar:false});
+  Plotly.newPlot("ss-sales-map", [], geoLayout(), {responsive:true,displayModeBar:false});
+  Plotly.newPlot("ss-oos-map",   [], geoLayout(), {responsive:true,displayModeBar:false});
   renderStateStats();
 }
 
@@ -875,27 +899,35 @@ function renderStateStats() {
   document.getElementById("ss-week-label").textContent = weekLabel(week);
 
   // Sales choropleth
-  const stateSales = DATA.state_sales[week]||{};
+  const stateSales = DATA.state_sales[week] || {};
+  const salesLocs = [], salesVals = [];
+  Object.entries(stateSales).forEach(([name, qty]) => {
+    const abbr = STATE_NAME_TO_ABBR[name];
+    if (abbr) { salesLocs.push(abbr); salesVals.push(qty); }
+  });
   Plotly.react("ss-sales-map", [{
     type:"choropleth", locationmode:"USA-states",
-    locations:Object.keys(stateSales).map(n=>STATE_NAME_TO_ABBR[n]||n),
-    z:Object.values(stateSales),
+    locations: salesLocs, z: salesVals,
     colorscale:[[0,"#e8f4f8"],[0.5,"#4e9af1"],[1,"#003580"]],
     showscale:true, colorbar:{title:{text:"Units",side:"right"},len:0.7,thickness:12},
     hovertemplate:"%{location}: %{z} units<extra></extra>", zmin:0,
-  }], GEO_LAYOUT_BASE);
+  }], geoLayout());
 
   // OOS % choropleth
-  const stateOos = DATA.state_oos[week]||{};
+  const stateOos = DATA.state_oos[week] || {};
+  const oosLocs = [], oosVals = [];
+  Object.entries(stateOos).forEach(([name, frac]) => {
+    const abbr = STATE_NAME_TO_ABBR[name];
+    if (abbr) { oosLocs.push(abbr); oosVals.push(Math.round(frac * 100)); }
+  });
   Plotly.react("ss-oos-map", [{
     type:"choropleth", locationmode:"USA-states",
-    locations:Object.keys(stateOos).map(n=>STATE_NAME_TO_ABBR[n]||n),
-    z:Object.values(stateOos).map(v=>Math.round(v*100)),
+    locations: oosLocs, z: oosVals,
     zmin:0, zmax:100,
     colorscale:[[0,"#00c853"],[0.5,"#ffd600"],[1,"#d50000"]],
     showscale:true, colorbar:{title:{text:"OOS %",side:"right"},len:0.7,thickness:12,ticksuffix:"%"},
     hovertemplate:"%{location}: %{z}% OOS<extra></extra>",
-  }], GEO_LAYOUT_BASE);
+  }], geoLayout());
 
   // OOS stores table
   const {oosSt, totalSt} = getStateOosStores(week);
