@@ -127,6 +127,20 @@
   .map2-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
   .map2-div  { width: 100%; height: 380px; }
 
+  /* ── OOS Map Row (map + side panel) ── */
+  .oos-map-row { display: flex; gap: 14px; align-items: flex-start; }
+  .oos-map-row .map-card { flex: 1; min-width: 0; }
+  .oos-side-panel { width: 240px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
+  .oos-insight-card { background: #fff; border-radius: 12px; padding: 16px;
+                      box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .oos-insight-card h3 { font-size: 0.75rem; font-weight: 700; color: #666; text-transform: uppercase;
+                         letter-spacing: 0.06em; margin-bottom: 12px; }
+  .oos-insight-stat { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #f0f0f0; }
+  .oos-insight-stat:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+  .oos-insight-num { font-size: 1.6rem; font-weight: 800; color: #1a1a2e; line-height: 1; }
+  .oos-insight-pct { font-size: 0.78rem; color: #888; margin-top: 2px; }
+  .oos-insight-label { font-size: 0.76rem; color: #555; margin-top: 4px; }
+
   /* ── OOS Summary Card ── */
   .oos-summary-card { background: #fff; border-radius: 12px; padding: 16px;
                       box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-top: 14px; }
@@ -291,7 +305,7 @@
       <div class="kpi-card" style="border-left-color:#00a86b">
         <div class="kpi-label">Instock %</div>
         <div class="kpi-value" id="kpi-instock">—</div>
-        <div class="kpi-sub">Total (all SKUs)</div>
+        <div class="kpi-sub">Placement-level (all SKUs)</div>
       </div>
       <div class="kpi-card" style="border-left-color:#e67300">
         <div class="kpi-label">Units Sold</div>
@@ -376,7 +390,24 @@
       <button class="ctrl-btn play" id="oos-play-btn" onclick="togglePlay('oos')">▶ Play</button>
     </div>
     <div class="sku-filter" id="oos-sku-filter"><label>SKU Filter:</label></div>
-    <div class="map-card"><div id="oos-map" class="map-div"></div></div>
+    <div class="oos-map-row">
+      <div class="map-card"><div id="oos-map" class="map-div"></div></div>
+      <div class="oos-side-panel">
+        <div class="oos-insight-card">
+          <h3>Placement Diagnostics</h3>
+          <div class="oos-insight-stat">
+            <div class="oos-insight-num" id="oos-instock-nosales">—</div>
+            <div class="oos-insight-pct" id="oos-instock-nosales-pct"></div>
+            <div class="oos-insight-label">In stock, zero/negative sales</div>
+          </div>
+          <div class="oos-insight-stat">
+            <div class="oos-insight-num" id="oos-zero-inventory">—</div>
+            <div class="oos-insight-pct" id="oos-zero-inventory-pct"></div>
+            <div class="oos-insight-label">Zero on-hand inventory (OOS)</div>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="oos-summary-card">
       <h3>OOS Duration Summary</h3>
       <table class="oos-tbl" id="oos-summary-tbl">
@@ -1331,13 +1362,32 @@ function updateOosTable(wData, skuSet, consec) {
   totalsTbody.innerHTML = `
     <tr><td colspan="2" style="padding:0;border-bottom:2px solid #e0e0e0"></td></tr>
     <tr>
-      <td style="color:#555">Total unique stores OOS</td>
+      <td style="color:#555">Total unique stores OOS <span style="color:#aaa;font-weight:400;font-size:0.85em">(store-level)</span></td>
       <td style="font-weight:700">${totalOos.toLocaleString()}<span style="color:#888;font-weight:400;font-size:0.85em">${pct(totalOos)}</span></td>
     </tr>
     <tr>
-      <td style="color:#555">Unique stores OOS 2+ consecutive weeks</td>
+      <td style="color:#555">Unique stores OOS 2+ consecutive weeks <span style="color:#aaa;font-weight:400;font-size:0.85em">(store-level)</span></td>
       <td style="font-weight:700">${twoPlus.toLocaleString()}<span style="color:#888;font-weight:400;font-size:0.85em">${pct(twoPlus)}</span></td>
     </tr>`;
+
+  // ── Placement diagnostics (side panel)
+  let instockNoSales = 0, zeroInventory = 0, totalPlacements = 0;
+  Object.values(wData).forEach(sdata => {
+    Object.entries(sdata.skus||{}).forEach(([sku, sv]) => {
+      if (!skuSet.has(sku)) return;
+      totalPlacements++;
+      if (sv.on_hand === 0) {
+        zeroInventory++;
+      } else if ((sv.qty || 0) <= 0) {
+        instockNoSales++;
+      }
+    });
+  });
+  const pctOf = n => totalPlacements > 0 ? `${(n/totalPlacements*100).toFixed(1)}% of ${totalPlacements.toLocaleString()} placements` : "";
+  document.getElementById("oos-instock-nosales").textContent    = instockNoSales.toLocaleString();
+  document.getElementById("oos-instock-nosales-pct").textContent = pctOf(instockNoSales);
+  document.getElementById("oos-zero-inventory").textContent      = zeroInventory.toLocaleString();
+  document.getElementById("oos-zero-inventory-pct").textContent  = pctOf(zeroInventory);
 }
 
 function oosNav(dir) { oosWeekIdx=(oosWeekIdx+dir+DATA.store_weeks.length)%DATA.store_weeks.length; renderOosMap(); }
