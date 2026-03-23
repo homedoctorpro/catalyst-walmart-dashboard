@@ -149,9 +149,15 @@ def extract_store_data(week, df):
     """
     Parse Sales by Store sheet.
     Col 0: item_name | Col 1: store_number | Col 2: street | Col 3: state
-    Col 4: city | Col 5: zip | Col 7: POS Qty | Col 8: On Hand Qty
-    Returns list of dicts.
+    Col 4: city | Col 5: zip
+    POS Qty and On Hand Qty columns are detected by header name (column layout
+    varies by week — e.g. 202607 added a POS Sales $ column before POS Qty).
     """
+    # Detect POS Quantity and On Hand Quantity column indices from header row
+    header = [str(df.iloc[0, c]).replace("\n", " ") for c in range(df.shape[1])]
+    pos_qty_col = next((i for i, h in enumerate(header) if "POS Quantity" in h), 7)
+    on_hand_col = next((i for i, h in enumerate(header) if "On Hand Quantity" in h), 8)
+
     rows = []
     for i in range(len(df)):
         row = df.iloc[i]
@@ -165,8 +171,8 @@ def extract_store_data(week, df):
             state_raw = str(row.iloc[3]).strip()
             city      = str(row.iloc[4]).strip()
             zip_raw   = row.iloc[5]
-            pos_qty_raw  = row.iloc[7]
-            on_hand_raw  = row.iloc[8]
+            pos_qty_raw  = row.iloc[pos_qty_col]
+            on_hand_raw  = row.iloc[on_hand_col]
 
             zip5 = normalize_zip(zip_raw)
 
