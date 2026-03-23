@@ -4,7 +4,7 @@
 
 Two-part analytics system for tracking Catalyst Pet product performance at Walmart:
 
-1. **Weekly Sales Dashboard** (root) — Reads 6 weekly Excel reports, computes KPIs, and generates a single self-contained HTML dashboard with interactive charts and maps.
+1. **Weekly Sales Dashboard** (root) — Reads weekly Excel reports (currently 7 weeks: 202601–202607), computes KPIs, and generates a single self-contained HTML dashboard with interactive charts and maps.
 2. **Store Distribution Map** (`Walmart Store List Map/`) — Separate pipeline that maps 3,735+ Walmart stores carrying Catalyst Pet SKUs, color-coded by SKU combination.
 
 ---
@@ -17,7 +17,7 @@ Walmart Sales Map/
 ├── dashboard_template.html     # HTML/JS template (Plotly charts, Leaflet map, password gate)
 ├── dashboard.html              # Generated output (2.3 MB, do not edit manually)
 ├── stores_geo.json             # Geocoding cache: zip code → {lat, lon}
-├── 202601-202606 *.xlsx        # Weekly input reports (6 files)
+├── 202601-202607 *.xlsx        # Weekly input reports (7 files, do not commit to git)
 └── Walmart Store List Map/
     ├── scripts/
     │   ├── 01_data_preparation.py
@@ -46,9 +46,17 @@ python extract_data.py
 4. Embed JSON into `dashboard_template.html` (replacing `/*DATA_PLACEHOLDER*/`) → `dashboard.html`
 
 ### Adding a new week:
-- Add the new Excel file to the root directory
-- Add an entry to `SHEET_MAP` in `extract_data.py` with the correct sheet names
-- Run `python extract_data.py`
+1. Add the new Excel file to the root directory
+2. Check the sheet names: `python -c "import openpyxl; wb = openpyxl.load_workbook('<filename>.xlsx', read_only=True); print(wb.sheetnames)"`
+3. Add an entry to `SHEET_MAP` in `extract_data.py` with the correct sheet names
+4. Run `python extract_data.py`
+5. Commit and push to deploy: `git add dashboard.html extract_data.py stores_geo.json && git commit -m "Add week XXXXXX data" && git push origin master`
+
+### Hosting & Deployment
+- **Hosted on**: GitHub Pages via `https://github.com/homedoctorpro/catalyst-walmart-dashboard`
+- **Deployed branch**: `master` — GitHub Pages serves directly from this branch
+- **To deploy**: commit the updated `dashboard.html` (+ `extract_data.py`, `stores_geo.json`) and push to `master`; GitHub Pages rebuilds automatically within ~1–2 minutes
+- **Do not** push raw Excel files (`.xlsx`) to the repo
 
 ---
 
@@ -112,3 +120,24 @@ Output: self-contained Leaflet.js maps at `output/index.html` (tabs: SKU map, si
 | Maps | Leaflet.js 1.9.4 + markercluster |
 | Store map geocoding | Nominatim (OpenStreetMap, 1.1s rate limit) |
 | Output format | Self-contained HTML (data embedded inline) |
+
+---
+
+## gstack Skills
+
+**Web browsing:** Always use `/browse` for all web browsing tasks. Never use `mcp__claude-in-chrome__*` tools.
+
+**Available skills:**
+
+| Skill | Purpose |
+|-------|---------|
+| `/browse` | Browse the web using a headless Chromium browser |
+| `/plan-ceo-review` | Generate a CEO-level review plan |
+| `/plan-eng-review` | Generate an engineering review plan |
+| `/review` | Code/PR review |
+| `/ship` | Ship a feature end-to-end |
+| `/qa` | QA a feature or change |
+| `/qa-only` | Run QA checks only (no planning) |
+| `/setup-browser-cookies` | Configure browser session cookies |
+| `/retro` | Run a retrospective |
+| `/document-release` | Document a release |
