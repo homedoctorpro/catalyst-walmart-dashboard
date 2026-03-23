@@ -49,8 +49,9 @@ python extract_data.py
 1. Add the new Excel file to the root directory
 2. Check the sheet names: `python -c "import openpyxl; wb = openpyxl.load_workbook('<filename>.xlsx', read_only=True); print(wb.sheetnames)"`
 3. Add an entry to `SHEET_MAP` in `extract_data.py` with the correct sheet names
-4. Run `python extract_data.py`
-5. Commit and push to deploy: `git add dashboard.html extract_data.py stores_geo.json && git commit -m "Add week XXXXXX data" && git push origin master`
+4. Add an entry to `WEEK_LABELS` in `dashboard_template.html` (e.g. `"202608": "Week 8 (3/27/26)"`)
+5. Run `python extract_data.py`
+6. Commit and push to deploy: `git add dashboard.html dashboard_template.html extract_data.py stores_geo.json && git commit -m "Add week XXXXXX data" && git push origin master`
 
 ### Hosting & Deployment
 - **Hosted on**: GitHub Pages via `https://github.com/homedoctorpro/catalyst-walmart-dashboard`
