@@ -21,6 +21,7 @@ SHEET_MAP = {
     "202605": {"instore": "Catalyst LW Sales",              "bystore": "Catalyst Sales by Store"},
     "202606": {"instore": "Catalyst LW Sales Total",        "bystore": "Catalyst Sales by Stores"},
     "202607": {"instore": "Catalyst LW Instore Sales",      "bystore": "Catalyst Sales by Store"},
+    "202608": {"instore": "Catalyst LW Instore Sales",      "bystore": "Catalyst Sales by Store"},
 }
 
 SKUS = [
