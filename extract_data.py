@@ -109,6 +109,7 @@ def extract_instore_metrics(week, df):
         pos_qty = int(pos_qty_raw) if pos_qty_raw is not None else None
         instock_pct = safe_float(row.iloc[9], 100)   # stored as fraction → multiply × 100
         usw = safe_float(row.iloc[33])
+        markdown_pct = safe_float(row.iloc[41], 100)  # col 41: Markdown % Sales TY, fraction → %
 
         wholesale = None
         if pos_qty is not None:
@@ -120,6 +121,7 @@ def extract_instore_metrics(week, df):
             "instock_pct":      instock_pct,
             "usw":              usw,
             "wholesale_dollars": wholesale,
+            "markdown_pct":     markdown_pct,
         }
 
     # Total row (row 6)
@@ -129,6 +131,7 @@ def extract_instore_metrics(week, df):
     pos_qty_t = int(pos_qty_raw_t) if pos_qty_raw_t is not None else None
     instock_pct_t = safe_float(row.iloc[9], 100)
     usw_t = safe_float(row.iloc[33])
+    markdown_pct_t = safe_float(row.iloc[41], 100)
 
     # Wholesale Total = sum of 4 SKU values
     wholesale_t = sum(
@@ -142,6 +145,7 @@ def extract_instore_metrics(week, df):
         "instock_pct":       instock_pct_t,
         "usw":               usw_t,
         "wholesale_dollars": wholesale_t,
+        "markdown_pct":      markdown_pct_t,
     }
 
     return result

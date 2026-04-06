@@ -286,6 +286,7 @@
     <button class="tab-btn"        onclick="switchTab('statecharts',this)">📊 State Charts</button>
     <button class="tab-btn"        onclick="switchTab('storemap',this)">🏪 Store Map</button>
     <button class="tab-btn"        onclick="switchTab('storedata',this)">📋 Store Data</button>
+    <button class="tab-btn"        onclick="switchTab('markdowns',this)">🏷️ Markdowns</button>
   </div>
 
   <!-- ── Tab 1: Metrics ─────────────────────────────────────────────────── -->
@@ -490,6 +491,34 @@
     </div>
   </div>
 
+  <!-- ── Tab 8: Markdowns ─────────────────────────────────────────────────── -->
+  <div id="tab-markdowns" class="tab-panel">
+    <div class="kpi-row" id="md-kpi-row" style="grid-template-columns: repeat(5, 1fr)"></div>
+
+    <div class="chart-grid" style="grid-template-columns: 1fr; margin-top: 18px">
+      <div class="chart-card">
+        <h3>Markdown % Sales — by SKU, Week over Week</h3>
+        <div id="chart-md-pct" class="chart-div" style="height:320px"></div>
+      </div>
+    </div>
+
+    <div class="data-table-card" style="margin-top: 18px">
+      <h3>Markdown % by Week &amp; SKU</h3>
+      <div class="data-table-scroll">
+        <table class="data-tbl" id="md-table">
+          <thead>
+            <tr>
+              <th>Week</th>
+              <th>15O</th><th>15U</th><th>34O</th><th>34U</th>
+              <th>Overall</th>
+            </tr>
+          </thead>
+          <tbody id="md-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Tab 7: Store Data ─────────────────────────────────────────────────── -->
   <div id="tab-storedata" class="tab-panel">
     <div class="data-table-card">
@@ -565,7 +594,7 @@ const SKU_COLORS = {
 };
 
 const ALL_SERIES = [...DATA.skus, "Total"];
-const METRIC_CHART_IDS = ["chart-usw","chart-adj-usw","chart-instock","chart-units","chart-retail","chart-wholesale"];
+const METRIC_CHART_IDS = ["chart-usw","chart-adj-usw","chart-instock","chart-units","chart-retail","chart-wholesale","chart-md-pct"];
 
 // Global max consecutive OOS weeks — used to anchor OOS dot color scale across all weeks
 const MAX_CONSEC_WEEKS = Math.max(1, ...Object.values(DATA.consecutive_oos_by_week).flatMap(
@@ -607,6 +636,7 @@ let salesMapInit     = false;
 let oosMapInit       = false;
 let stateStatsInit   = false;
 let stateChartsInit  = false;
+let markdownsInit    = false;
 
 function switchTab(name, btn) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -647,6 +677,9 @@ function switchTab(name, btn) {
   }
   if (name === "storedata") {
     if (!storeDataInit) { initStoreDataTable(); storeDataInit = true; }
+  }
+  if (name === "markdowns") {
+    if (!markdownsInit) { initMarkdowns(); markdownsInit = true; }
   }
 }
 
@@ -1041,6 +1074,77 @@ function buildMetricsTable() {
       });
       tbody.appendChild(tr);
     });
+  });
+}
+
+// ══ Tab 8: Markdowns ══════════════════════════════════════════════════════════
+function initMarkdowns() {
+  const weeks    = DATA.weeks;
+  const xLabels  = weeks.map(weekLabel);
+  const met      = DATA.metrics;
+  const cfg      = { responsive: true, displayModeBar: false };
+  const latestW  = weeks[weeks.length - 1];
+  const prevW    = weeks.length >= 2 ? weeks[weeks.length - 2] : null;
+
+  // ── KPI Cards (Total + 4 SKUs) ────────────────────────────────────────────
+  const kpiContainer = document.getElementById("md-kpi-row");
+  kpiContainer.innerHTML = "";
+  const kpiSeries = ["Total", ...DATA.skus];
+  const kpiColors = { "Total": "#e53935" };
+  DATA.skus.forEach(s => { kpiColors[s] = SKU_COLORS[s]; });
+
+  kpiSeries.forEach(series => {
+    const m    = (met[latestW] || {})[series] || {};
+    const pm   = prevW ? ((met[prevW] || {})[series] || {}) : {};
+    const val  = m.markdown_pct;
+    const pval = pm.markdown_pct;
+    const label = series === "Total" ? "Overall" : (SKU_SHORT[series] || series);
+    let chgHtml = "";
+    if (val != null && pval != null && pval !== 0) {
+      const chg  = (val - pval) / Math.abs(pval) * 100;
+      const sign  = chg >= 0 ? "+" : "";
+      // Higher markdown % = worse → red; lower = better → green
+      const color = chg >= 0 ? "#d32f2f" : "#2e7d32";
+      chgHtml = `<span class="kpi-chg" style="color:${color}">${sign}${chg.toFixed(1)}%</span>`;
+    }
+    const card = document.createElement("div");
+    card.className = "kpi-card";
+    card.style.borderLeftColor = kpiColors[series] || "#999";
+    card.innerHTML = `<div class="kpi-label">Markdown % (${label})</div>
+      <div class="kpi-value">${val != null ? val.toFixed(2) + "%" : "—"}${chgHtml}</div>
+      <div class="kpi-sub">${weekLabel(latestW)}</div>`;
+    kpiContainer.appendChild(card);
+  });
+
+  // ── Line Chart ────────────────────────────────────────────────────────────
+  function getMdVals(label) {
+    return weeks.map(w => {
+      const m = (met[w] || {})[label];
+      return (m && m.markdown_pct != null) ? m.markdown_pct : null;
+    });
+  }
+
+  Plotly.newPlot("chart-md-pct",
+    ALL_SERIES.map(s => ({
+      ...makeTrace(s, xLabels, getMdVals(s), s === "Total", "%{y:.2f}%"),
+      visible: visibleSeries.has(s) ? true : "legendonly",
+    })),
+    { ...PLOTLY_LAYOUT_BASE,
+      yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: "Markdown %", ticksuffix: "%" } },
+    cfg);
+
+  // ── Data Table ────────────────────────────────────────────────────────────
+  const tbody = document.getElementById("md-tbody");
+  tbody.innerHTML = "";
+  const fmt = v => v != null ? v.toFixed(2) + "%" : "—";
+
+  weeks.forEach(w => {
+    const wMet = met[w] || {};
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${weekLabel(w)}</td>` +
+      DATA.skus.map(s => `<td>${fmt((wMet[s] || {}).markdown_pct)}</td>`).join("") +
+      `<td style="font-weight:700">${fmt((wMet["Total"] || {}).markdown_pct)}</td>`;
+    tbody.appendChild(tr);
   });
 }
 
