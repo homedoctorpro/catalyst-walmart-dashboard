@@ -14,15 +14,24 @@ import pgeocode
 # ─── Configuration ────────────────────────────────────────────────────────────
 
 SHEET_MAP = {
-    "202601": {"instore": "202601 In Store Total Catalyst", "bystore": None},
-    "202602": {"instore": "Catalyst LW Sales Total",        "bystore": "202602 Sales by Store"},
-    "202603": {"instore": "LW Instore Sales Total ",        "bystore": "Sales by Store"},
-    "202604": {"instore": "202604 InStore Sales",           "bystore": "202604 Sales by Store"},
-    "202605": {"instore": "Catalyst LW Sales",              "bystore": "Catalyst Sales by Store"},
-    "202606": {"instore": "Catalyst LW Sales Total",        "bystore": "Catalyst Sales by Stores"},
-    "202607": {"instore": "Catalyst LW Instore Sales",      "bystore": "Catalyst Sales by Store"},
-    "202608": {"instore": "Catalyst LW Instore Sales",      "bystore": "Catalyst Sales by Store"},
-    "202609": {"instore": "Catalyst LW Sales ",             "bystore": "Sales by Store"},
+    "202601": {"instore": "202601 In Store Total Catalyst", "bystore": None,
+               "ecomm_l52": "L52Wk Ecomm",                 "ecomm_lw": None},
+    "202602": {"instore": "Catalyst LW Sales Total",        "bystore": "202602 Sales by Store",
+               "ecomm_l52": None,                          "ecomm_lw": None},
+    "202603": {"instore": "LW Instore Sales Total ",        "bystore": "Sales by Store",
+               "ecomm_l52": None,                          "ecomm_lw": None},
+    "202604": {"instore": "202604 InStore Sales",           "bystore": "202604 Sales by Store",
+               "ecomm_l52": None,                          "ecomm_lw": None},
+    "202605": {"instore": "Catalyst LW Sales",              "bystore": "Catalyst Sales by Store",
+               "ecomm_l52": None,                          "ecomm_lw": "LW Ecomm Sales Total"},
+    "202606": {"instore": "Catalyst LW Sales Total",        "bystore": "Catalyst Sales by Stores",
+               "ecomm_l52": "LIGNETICS Ecomm L52WK",       "ecomm_lw": None},
+    "202607": {"instore": "Catalyst LW Instore Sales",      "bystore": "Catalyst Sales by Store",
+               "ecomm_l52": "Lignetics Ecomm L52WK",       "ecomm_lw": None},
+    "202608": {"instore": "Catalyst LW Instore Sales",      "bystore": "Catalyst Sales by Store",
+               "ecomm_l52": "LIGNETICS L52WK Ecomm",       "ecomm_lw": None},
+    "202609": {"instore": "Catalyst LW Sales ",             "bystore": "Sales by Store",
+               "ecomm_l52": "Lignetics Total L52Wk Ecomm ", "ecomm_lw": None},
 }
 
 SKUS = [
@@ -37,6 +46,33 @@ WHOLESALE_PRICE = {
     "CATALYST15UNSCEN":      9.18,
     "CATALYST34LBORIGINAL":  12.98,
     "CATALYSTPET34LBUNSCE":  12.98,
+}
+
+# ── Ecomm product name → (short display name, brand) ─────────────────────────
+# Keys are lowercased + "non- clumping" normalized to "non-clumping"
+ECOMM_PRODUCT_MAP = {
+    "feline fresh non-clumping natural pine pellet cat litter, unscented, 20 lb bag":
+        ("FF NonClump 20lb", "Feline Fresh"),
+    "feline fresh non-clumping natural pine pellet cat litter, unscented, 40 lb bag":
+        ("FF NonClump 40lb", "Feline Fresh"),
+    "feline fresh non-clumping natural pine pellet cat litter, unscented, 10 lb bag":
+        ("FF NonClump 10lb", "Feline Fresh"),
+    "feline fresh natural clumping softwood cat litter, unscented, 10 lb bag":
+        ("FF Clump SW 10lb", "Feline Fresh"),
+    "feline fresh natural pine cat litter, 7-lb":
+        ("FF Pine 7lb", "Feline Fresh"),
+    "feline fresh natural pine cat litter, 20 lb.":
+        ("FF Pine 20lb", "Feline Fresh"),
+    "feline fresh pine pellet cat litter, 20lb":
+        ("FF Pellet 20lb", "Feline Fresh"),
+    "catalyst pet softwood natural clumping cat litter, original formula, 34lb":
+        ("Catalyst 34lb Orig", "Catalyst"),
+    "catalyst pet softwood natural clumping cat litter unscented formula, 34 lb":
+        ("Catalyst 34lb Unsc", "Catalyst"),
+    "catalyst pet softwood natural clumping cat litter original formula, 15 lb.":
+        ("Catalyst 15lb Orig", "Catalyst"),
+    "catalyst pet softwood natural clumping cat litter unscented formula, 15 lb.":
+        ("Catalyst 15lb Unsc", "Catalyst"),
 }
 
 GEO_CACHE_FILE = "stores_geo.json"
@@ -202,6 +238,94 @@ def extract_store_data(week, df):
         except Exception:
             continue
     return rows
+
+
+# ─── Ecomm Extraction ─────────────────────────────────────────────────────────
+
+def _safe_num(val):
+    """Return float or None; convert int-like floats."""
+    try:
+        v = float(val)
+        return None if math.isnan(v) else v
+    except (ValueError, TypeError):
+        return None
+
+
+def extract_ecomm_data(df):
+    """
+    Parse a Lignetics L52WK Ecomm (or LW Ecomm) sheet.
+    Row 0: headers; Rows 1+: products (skip 'Total' rows and unknowns).
+    Cols: 0=Product Name, 1=Net Retail Sales, 3=Net Unit Sales.
+    Returns {short_name: {"brand": str, "r": float|None, "u": int|None}}
+    """
+    result = {}
+    for i in range(1, len(df)):
+        row = df.iloc[i]
+        try:
+            name_raw = str(row.iloc[0]).strip()
+            if not name_raw or name_raw.lower() in ("total", "nan", "product name", ""):
+                continue
+            # Normalize spacing around hyphens for matching
+            key = name_raw.lower().strip().replace("non- clumping", "non-clumping")
+            mapping = ECOMM_PRODUCT_MAP.get(key)
+            if not mapping:
+                continue  # skip unmapped / misc products
+            short, brand = mapping
+            retail = _safe_num(row.iloc[1])
+            units  = _safe_num(row.iloc[3])
+            result[short] = {
+                "brand": brand,
+                "r": round(retail, 2) if retail is not None else None,
+                "u": int(units) if units is not None else None,
+            }
+        except Exception:
+            continue
+    return result
+
+
+def compute_ecomm_weekly(ecomm_l52_raw, ecomm_lw_raw):
+    """
+    Build weekly ecomm data:
+      - For L52WK sheets: week-over-week delta vs the immediately preceding
+        L52WK week.  The 'span' field records how many calendar weeks the
+        delta covers (>1 when there's a gap in the data).
+      - For LW sheets: use directly (span=1).
+
+    Returns {week: {short_name: {"brand", "r", "u", "span"}}}
+    """
+    weekly = {}
+
+    # Direct LW observations first
+    for week, prods in ecomm_lw_raw.items():
+        week_out = {}
+        for short, d in prods.items():
+            week_out[short] = {**d, "span": 1}
+        weekly[week] = week_out
+
+    # L52WK deltas
+    l52_weeks = sorted(ecomm_l52_raw.keys())
+    for i in range(1, len(l52_weeks)):
+        week     = l52_weeks[i]
+        prev_wk  = l52_weeks[i - 1]
+        span     = int(week) - int(prev_wk)   # e.g. 202606-202601 = 5
+
+        cur  = ecomm_l52_raw[week]
+        prev = ecomm_l52_raw[prev_wk]
+
+        all_prods = set(cur) | set(prev)
+        week_out = {}
+        for short in all_prods:
+            c = cur.get(short, {})
+            p = prev.get(short, {})
+            brand = c.get("brand") or p.get("brand")
+            r_c, r_p = c.get("r"), p.get("r")
+            u_c, u_p = c.get("u"), p.get("u")
+            r_delta = round(r_c - r_p, 2) if (r_c is not None and r_p is not None) else r_c
+            u_delta = (u_c - u_p) if (u_c is not None and u_p is not None) else u_c
+            week_out[short] = {"brand": brand, "r": r_delta, "u": u_delta, "span": span}
+        weekly[week] = week_out
+
+    return weekly
 
 
 # ─── Geocoding ────────────────────────────────────────────────────────────────
@@ -391,6 +515,8 @@ def main():
     metrics = {}
     raw_store_rows_by_week = {}
     store_weeks_list = []
+    ecomm_l52_raw = {}   # {week: {short: {brand,r,u}}}
+    ecomm_lw_raw  = {}   # {week: {short: {brand,r,u}}}
 
     for week in sorted(files.keys()):
         filepath = files[week]
@@ -422,6 +548,28 @@ def main():
             except Exception as e:
                 print(f"  [ERROR] ByStore sheet '{bystore_sheet}': {e}")
 
+        # L52WK Ecomm
+        l52_sheet = sheet_info.get("ecomm_l52")
+        if l52_sheet:
+            try:
+                df_e = pd.read_excel(filepath, sheet_name=l52_sheet, header=None)
+                prods = extract_ecomm_data(df_e)
+                ecomm_l52_raw[week] = prods
+                print(f"  L52WK Ecomm: {len(prods)} products")
+            except Exception as e:
+                print(f"  [ERROR] L52WK Ecomm sheet '{l52_sheet}': {e}")
+
+        # LW Ecomm (direct weekly)
+        lw_sheet = sheet_info.get("ecomm_lw")
+        if lw_sheet:
+            try:
+                df_e = pd.read_excel(filepath, sheet_name=lw_sheet, header=None)
+                prods = extract_ecomm_data(df_e)
+                ecomm_lw_raw[week] = prods
+                print(f"  LW Ecomm: {len(prods)} products")
+            except Exception as e:
+                print(f"  [ERROR] LW Ecomm sheet '{lw_sheet}': {e}")
+
     # 4. Geocode
     print("\nGeocoding store zip codes...")
     # Collect all store meta from raw rows
@@ -445,6 +593,12 @@ def main():
     print(f"  Stores: {len(stores)}")
     print(f"  Store-weeks: {sorted(all_store_weeks.keys())}")
 
+    # 5b. Ecomm weekly deltas
+    print("\nComputing ecomm weekly data...")
+    ecomm_weekly = compute_ecomm_weekly(ecomm_l52_raw, ecomm_lw_raw)
+    print(f"  L52WK weeks: {sorted(ecomm_l52_raw.keys())}")
+    print(f"  Weekly ecomm weeks: {sorted(ecomm_weekly.keys())}")
+
     # 6. Assemble JSON
     data = {
         "weeks":       sorted(files.keys()),
@@ -456,6 +610,8 @@ def main():
         "state_sales": state_sales,
         "state_oos":   state_oos,
         "consecutive_oos_by_week": consecutive_oos,
+        "ecomm_l52":   ecomm_l52_raw,
+        "ecomm_weekly": ecomm_weekly,
     }
 
     # 7. Read template and embed JSON
