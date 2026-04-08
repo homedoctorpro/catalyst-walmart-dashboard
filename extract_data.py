@@ -195,10 +195,20 @@ def extract_store_data(week, df):
     POS Qty and On Hand Qty columns are detected by header name (column layout
     varies by week — e.g. 202607 added a POS Sales $ column before POS Qty).
     """
-    # Detect POS Quantity and On Hand Quantity column indices from header row
+    # Detect inventory column indices from header row
     header = [str(df.iloc[0, c]).replace("\n", " ") for c in range(df.shape[1])]
-    pos_qty_col = next((i for i, h in enumerate(header) if "POS Quantity" in h), 7)
-    on_hand_col = next((i for i, h in enumerate(header) if "On Hand Quantity" in h), 8)
+    pos_qty_col    = next((i for i, h in enumerate(header) if "POS Quantity" in h), 7)
+    on_hand_col    = next((i for i, h in enumerate(header) if "On Hand Quantity" in h), 8)
+    in_transit_col = next((i for i, h in enumerate(header) if "In Transit Quantity" in h), None)
+    on_order_col   = next((i for i, h in enumerate(header) if "On Order Quantity" in h), None)
+    pipeline_col   = next((i for i, h in enumerate(header) if "Total Pipeline Quantity" in h), None)
+
+    def to_int(v):
+        try:
+            f = float(v)
+            return int(f) if not math.isnan(f) else 0
+        except (ValueError, TypeError):
+            return 0
 
     rows = []
     for i in range(len(df)):
@@ -213,27 +223,20 @@ def extract_store_data(week, df):
             state_raw = str(row.iloc[3]).strip()
             city      = str(row.iloc[4]).strip()
             zip_raw   = row.iloc[5]
-            pos_qty_raw  = row.iloc[pos_qty_col]
-            on_hand_raw  = row.iloc[on_hand_col]
-
             zip5 = normalize_zip(zip_raw)
 
-            def to_int(v):
-                try:
-                    f = float(v)
-                    return int(f) if not math.isnan(f) else 0
-                except (ValueError, TypeError):
-                    return 0
-
             rows.append({
-                "item_name":  item_name,
-                "store_num":  store_num,
-                "street":     street,
-                "state":      state_raw,
-                "city":       city,
-                "zip5":       zip5,
-                "pos_qty":    to_int(pos_qty_raw),
-                "on_hand":    to_int(on_hand_raw),
+                "item_name":    item_name,
+                "store_num":    store_num,
+                "street":       street,
+                "state":        state_raw,
+                "city":         city,
+                "zip5":         zip5,
+                "pos_qty":      to_int(row.iloc[pos_qty_col]),
+                "on_hand":      to_int(row.iloc[on_hand_col]),
+                "in_transit":   to_int(row.iloc[in_transit_col]) if in_transit_col is not None else 0,
+                "on_order":     to_int(row.iloc[on_order_col])   if on_order_col   is not None else 0,
+                "total_pipeline": to_int(row.iloc[pipeline_col]) if pipeline_col   is not None else 0,
             })
         except Exception:
             continue
@@ -469,8 +472,11 @@ def build_weekly_store_summary(raw_store_rows_by_week):
             if sn not in week_stores:
                 week_stores[sn] = {"total_qty": 0, "skus": {}}
             week_stores[sn]["skus"][sku] = {
-                "qty":     r["pos_qty"],
-                "on_hand": r["on_hand"],
+                "qty":          r["pos_qty"],
+                "on_hand":      r["on_hand"],
+                "in_transit":   r["in_transit"],
+                "on_order":     r["on_order"],
+                "total_pipeline": r["total_pipeline"],
             }
             week_stores[sn]["total_qty"] += r["pos_qty"]
         out[week] = week_stores
@@ -498,6 +504,48 @@ def build_stores_dict(raw_store_rows_by_week, geo_cache):
                     "lon":    geo.get("lon"),
                 }
     return stores
+
+
+def compute_weekly_inventory(all_store_weeks):
+    """
+    Aggregate on_hand, in_transit, on_order, total_pipeline by week and SKU.
+    Returns {week: {sku: {on_hand, in_transit, on_order, total_pipeline}, "Total": {...}}}
+    """
+    out = {}
+    inv_keys = ("on_hand", "in_transit", "on_order", "total_pipeline")
+    for week, week_data in all_store_weeks.items():
+        sku_totals = {}  # sku -> {key: sum}
+        for store_num, sdata in week_data.items():
+            for sku, skudata in sdata.get("skus", {}).items():
+                if sku not in sku_totals:
+                    sku_totals[sku] = {k: 0 for k in inv_keys}
+                for k in inv_keys:
+                    sku_totals[sku][k] += skudata.get(k, 0)
+        # Compute Total across all SKUs
+        total = {k: sum(sku_totals[s][k] for s in sku_totals) for k in inv_keys}
+        out[week] = {**sku_totals, "Total": total}
+    return out
+
+
+def compute_state_inventory(all_store_weeks, stores):
+    """
+    Aggregate on_hand, in_transit, on_order, total_pipeline by week and state.
+    Returns {week: {state_name: {on_hand, in_transit, on_order, total_pipeline}}}
+    """
+    out = {}
+    inv_keys = ("on_hand", "in_transit", "on_order", "total_pipeline")
+    for week, week_data in all_store_weeks.items():
+        state_totals = {}
+        for store_num, sdata in week_data.items():
+            state_abbr = stores.get(store_num, {}).get("state", "")
+            state_name = STATE_ABBR_TO_NAME.get(state_abbr, state_abbr)
+            if state_name not in state_totals:
+                state_totals[state_name] = {k: 0 for k in inv_keys}
+            for sku, skudata in sdata.get("skus", {}).items():
+                for k in inv_keys:
+                    state_totals[state_name][k] += skudata.get(k, 0)
+        out[week] = state_totals
+    return out
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
@@ -589,6 +637,8 @@ def main():
     state_sales = compute_state_sales(all_store_weeks, stores)
     state_oos   = compute_state_oos(all_store_weeks, stores)
     consecutive_oos = compute_consecutive_oos_by_week(all_store_weeks, store_weeks_list)
+    weekly_inventory = compute_weekly_inventory(all_store_weeks)
+    state_inventory  = compute_state_inventory(all_store_weeks, stores)
 
     print(f"  Stores: {len(stores)}")
     print(f"  Store-weeks: {sorted(all_store_weeks.keys())}")
@@ -612,6 +662,8 @@ def main():
         "consecutive_oos_by_week": consecutive_oos,
         "ecomm_l52":   ecomm_l52_raw,
         "ecomm_weekly": ecomm_weekly,
+        "weekly_inventory": weekly_inventory,
+        "state_inventory":  state_inventory,
     }
 
     # 7. Read template and embed JSON

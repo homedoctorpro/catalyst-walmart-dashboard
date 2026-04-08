@@ -288,6 +288,7 @@
     <button class="tab-btn"        onclick="switchTab('storedata',this)">📋 Store Data</button>
     <button class="tab-btn"        onclick="switchTab('markdowns',this)">🏷️ Markdowns</button>
     <button class="tab-btn"        onclick="switchTab('ecomm',this)">🛒 Ecomm</button>
+    <button class="tab-btn"        onclick="switchTab('inventory',this)">📦 Inventory</button>
   </div>
 
   <!-- ── Tab 1: Metrics ─────────────────────────────────────────────────── -->
@@ -559,6 +560,67 @@
     </div>
   </div>
 
+  <!-- ── Tab 10: Inventory ────────────────────────────────────────────────────── -->
+  <div id="tab-inventory" class="tab-panel">
+    <!-- KPI row: on_hand / in_transit / on_order / pipeline for latest week (Total) -->
+    <div class="kpi-row" id="inv-kpi-row" style="grid-template-columns: repeat(4, 1fr)"></div>
+
+    <!-- SKU selector (reuse existing chip UI pattern) -->
+    <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap" id="inv-sku-chips"></div>
+
+    <!-- Weekly trend: on_hand and pipeline side by side -->
+    <div class="chart-grid" style="grid-template-columns: 1fr 1fr; margin-top:18px">
+      <div class="chart-card">
+        <h3>On Hand Quantity — by SKU, Week over Week</h3>
+        <div id="chart-inv-onhand" class="chart-div" style="height:280px"></div>
+      </div>
+      <div class="chart-card">
+        <h3>Total Pipeline Quantity — by SKU, Week over Week</h3>
+        <div id="chart-inv-pipeline" class="chart-div" style="height:280px"></div>
+      </div>
+    </div>
+
+    <!-- In transit and on order -->
+    <div class="chart-grid" style="grid-template-columns: 1fr 1fr; margin-top:18px">
+      <div class="chart-card">
+        <h3>In Transit Quantity — by SKU, Week over Week</h3>
+        <div id="chart-inv-intransit" class="chart-div" style="height:280px"></div>
+      </div>
+      <div class="chart-card">
+        <h3>On Order Quantity — by SKU, Week over Week</h3>
+        <div id="chart-inv-onorder" class="chart-div" style="height:280px"></div>
+      </div>
+    </div>
+
+    <!-- State breakdown (latest week) -->
+    <div class="chart-grid" style="grid-template-columns: 1fr; margin-top:18px">
+      <div class="chart-card">
+        <h3>Inventory Position by State — Latest Week (On Hand + Pipeline)</h3>
+        <div id="chart-inv-state" class="chart-div" style="height:360px"></div>
+      </div>
+    </div>
+
+    <!-- Weekly summary data table -->
+    <div class="data-table-card" style="margin-top:18px">
+      <h3>Weekly Inventory Summary — All SKUs Combined</h3>
+      <div class="data-table-scroll">
+        <table class="data-tbl" id="inv-table">
+          <thead>
+            <tr>
+              <th>Week</th>
+              <th>SKU</th>
+              <th>On Hand</th>
+              <th>In Transit</th>
+              <th>On Order</th>
+              <th>Total Pipeline</th>
+            </tr>
+          </thead>
+          <tbody id="inv-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Tab 7: Store Data ─────────────────────────────────────────────────── -->
   <div id="tab-storedata" class="tab-panel">
     <div class="data-table-card">
@@ -678,6 +740,7 @@ let stateStatsInit   = false;
 let stateChartsInit  = false;
 let markdownsInit    = false;
 let ecommInit        = false;
+let inventoryInit    = false;
 
 function switchTab(name, btn) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -726,6 +789,14 @@ function switchTab(name, btn) {
     if (!ecommInit) { initEcomm(); ecommInit = true; }
     else setTimeout(() => {
       ["chart-ecomm-weekly","chart-ecomm-l52","chart-ecomm-catalyst-sku"].forEach(id => {
+        const el = document.getElementById(id); if (el) Plotly.Plots.resize(el);
+      });
+    }, 50);
+  }
+  if (name === "inventory") {
+    if (!inventoryInit) { initInventory(); inventoryInit = true; }
+    else setTimeout(() => {
+      ["chart-inv-onhand","chart-inv-pipeline","chart-inv-intransit","chart-inv-onorder","chart-inv-state"].forEach(id => {
         const el = document.getElementById(id); if (el) Plotly.Plots.resize(el);
       });
     }, 50);
@@ -1406,6 +1477,160 @@ function initEcomm() {
     tr.innerHTML = `<td>${brand} Total</td><td style="color:${BRAND_COLOR[brand]}">${brand}</td>` +
       vals.map(v => `<td style="color:${BRAND_COLOR[brand]}">$${Math.round(v).toLocaleString()}</td>`).join("");
     tbody.appendChild(tr);
+  });
+}
+
+// ══ Tab 10: Inventory ═════════════════════════════════════════════════════════
+function initInventory() {
+  const cfg       = { responsive: true, displayModeBar: false };
+  const storeWeeks = DATA.store_weeks;            // weeks that have by-store data
+  const invData   = DATA.weekly_inventory || {};
+  const stateInv  = DATA.state_inventory  || {};
+  const xLabels   = storeWeeks.map(weekLabel);
+  const latestW   = storeWeeks[storeWeeks.length - 1];
+  const prevW     = storeWeeks.length >= 2 ? storeWeeks[storeWeeks.length - 2] : null;
+
+  const INV_METRICS = [
+    { key: "on_hand",       label: "On Hand" },
+    { key: "in_transit",    label: "In Transit" },
+    { key: "on_order",      label: "On Order" },
+    { key: "total_pipeline",label: "Total Pipeline" },
+  ];
+
+  // ── KPI Cards (4 metrics, Total row) ────────────────────────────────────────
+  const kpiContainer = document.getElementById("inv-kpi-row");
+  kpiContainer.innerHTML = "";
+  const KPI_COLORS = { on_hand: "#0057e7", in_transit: "#e67300", on_order: "#8e24aa", total_pipeline: "#2e7d32" };
+
+  INV_METRICS.forEach(({ key, label }) => {
+    const cur  = ((invData[latestW] || {})["Total"] || {})[key];
+    const prev = prevW ? (((invData[prevW] || {})["Total"] || {})[key]) : null;
+    let chgHtml = "";
+    if (cur != null && prev != null && prev !== 0) {
+      const chg = (cur - prev) / prev * 100;
+      const sign = chg >= 0 ? "+" : "";
+      const color = key === "on_hand" || key === "total_pipeline"
+        ? (chg >= 0 ? "#2e7d32" : "#d32f2f")
+        : "#555";
+      chgHtml = `<span class="kpi-chg" style="color:${color}">${sign}${chg.toFixed(1)}%</span>`;
+    }
+    const card = document.createElement("div");
+    card.className = "kpi-card";
+    card.style.borderLeftColor = KPI_COLORS[key];
+    card.innerHTML = `<div class="kpi-label">${label} (All SKUs)</div>
+      <div class="kpi-value">${cur != null ? cur.toLocaleString() : "—"}${chgHtml}</div>
+      <div class="kpi-sub">${weekLabel(latestW)}</div>`;
+    kpiContainer.appendChild(card);
+  });
+
+  // ── SKU chip filter for inv charts ──────────────────────────────────────────
+  const invSkuSet = new Set(["Total", ...DATA.skus]);
+  const chipContainer = document.getElementById("inv-sku-chips");
+  chipContainer.innerHTML = "";
+  const ALL_INV_SERIES = ["Total", ...DATA.skus];
+
+  function rebuildInvCharts() {
+    const visible = ALL_INV_SERIES.filter(s => invSkuSet.has(s));
+    ["chart-inv-onhand","chart-inv-pipeline","chart-inv-intransit","chart-inv-onorder"].forEach((divId, idx) => {
+      const metric = ["on_hand","total_pipeline","in_transit","on_order"][idx];
+      const traces = visible.map(s => ({
+        x: xLabels,
+        y: storeWeeks.map(w => ((invData[w] || {})[s] || {})[metric] ?? null),
+        name: s === "Total" ? "All SKUs" : (SKU_SHORT[s] || s),
+        type: "scatter", mode: "lines+markers",
+        line: { width: s === "Total" ? 3 : 1.5, dash: s === "Total" ? "solid" : "solid" },
+        marker: { size: 5 },
+        connectgaps: true,
+        hovertemplate: "%{y:,.0f}<extra>" + (s === "Total" ? "All SKUs" : (SKU_SHORT[s] || s)) + "</extra>",
+        ...(s === "Total"
+          ? { line: { color: "#333", width: 3 }, marker: { color: "#333", size: 7 } }
+          : { line: { color: SKU_COLORS[s] }, marker: { color: SKU_COLORS[s] } }),
+      }));
+      Plotly.react(divId, traces, {
+        ...PLOTLY_LAYOUT_BASE,
+        yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: "Units", tickformat: "," },
+      }, cfg);
+    });
+  }
+
+  ALL_INV_SERIES.forEach(s => {
+    const lbl = document.createElement("label");
+    lbl.style.cssText = "display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:0.82rem;background:#f5f5f5;border-radius:16px;padding:4px 12px;border:2px solid transparent";
+    const color = s === "Total" ? "#333" : SKU_COLORS[s];
+    lbl.style.borderColor = color;
+    lbl.style.background = invSkuSet.has(s) ? color + "22" : "#f5f5f5";
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.checked = invSkuSet.has(s);
+    cb.addEventListener("change", () => {
+      if (cb.checked) invSkuSet.add(s); else invSkuSet.delete(s);
+      lbl.style.background = invSkuSet.has(s) ? color + "22" : "#f5f5f5";
+      rebuildInvCharts();
+    });
+    lbl.appendChild(cb);
+    lbl.appendChild(document.createTextNode(s === "Total" ? "All SKUs" : (SKU_SHORT[s] || s)));
+    chipContainer.appendChild(lbl);
+  });
+
+  rebuildInvCharts();
+
+  // ── State bar chart (latest week, on_hand + pipeline) ───────────────────────
+  const stateData = stateInv[latestW] || {};
+  const states    = Object.keys(stateData).sort((a,b) =>
+    (stateData[b].total_pipeline || 0) - (stateData[a].total_pipeline || 0)
+  );
+  // Use 2-letter abbreviations as x-axis labels; tooltip shows full name
+  const stateAbbrs = states.map(s => toStateAbbr(s) || s);
+  const stateFullNames = states.map(s => {
+    const abbr = toStateAbbr(s); return abbr ? (ABBR_TO_STATE[abbr] || s) : s;
+  });
+  const makeStateTrace = (key, label, color) => ({
+    x: stateAbbrs,
+    y: states.map(s => stateData[s][key] || 0),
+    name: label, type: "bar", marker: { color },
+    customdata: stateFullNames,
+    hovertemplate: "<b>%{customdata}</b><br>" + label + ": %{y:,.0f}<extra></extra>",
+  });
+  Plotly.newPlot("chart-inv-state",
+    [
+      makeStateTrace("on_hand",    "On Hand",    "#0057e7"),
+      makeStateTrace("in_transit", "In Transit", "#e67300"),
+      makeStateTrace("on_order",   "On Order",   "#8e24aa"),
+    ],
+    {
+      ...PLOTLY_LAYOUT_BASE,
+      barmode: "stack",
+      xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, tickangle: -45, automargin: true },
+      yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: "Units", tickformat: "," },
+      legend: { orientation: "h", y: 1.08 },
+    },
+    cfg
+  );
+
+  // ── Data Table ───────────────────────────────────────────────────────────────
+  const tbody = document.getElementById("inv-tbody");
+  tbody.innerHTML = "";
+  const fmtN = v => v != null ? v.toLocaleString() : "—";
+
+  storeWeeks.forEach(w => {
+    const wInv = invData[w] || {};
+    // Total row
+    const tot = wInv["Total"] || {};
+    const totTr = document.createElement("tr");
+    totTr.style.fontWeight = "700";
+    totTr.style.background = "#f0f4ff";
+    totTr.innerHTML = `<td>${weekLabel(w)}</td><td style="color:#0057e7">All SKUs</td>` +
+      `<td>${fmtN(tot.on_hand)}</td><td>${fmtN(tot.in_transit)}</td>` +
+      `<td>${fmtN(tot.on_order)}</td><td>${fmtN(tot.total_pipeline)}</td>`;
+    tbody.appendChild(totTr);
+    // Per-SKU rows
+    DATA.skus.forEach(sku => {
+      const d = wInv[sku] || {};
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td></td><td style="color:${SKU_COLORS[sku]}">${SKU_SHORT[sku] || sku}</td>` +
+        `<td>${fmtN(d.on_hand)}</td><td>${fmtN(d.in_transit)}</td>` +
+        `<td>${fmtN(d.on_order)}</td><td>${fmtN(d.total_pipeline)}</td>`;
+      tbody.appendChild(tr);
+    });
   });
 }
 
