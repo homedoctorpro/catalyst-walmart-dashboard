@@ -256,6 +256,25 @@
   @media (max-width: 600px) {
     .kpi-row { grid-template-columns: 1fr 1fr; }
   }
+
+  /* ── GeoLift Tab ── */
+  .geolift-groups-row { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:0; }
+  .gl-group-card { background:#fff; border-radius:12px; padding:18px 20px;
+                   box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+  .gl-group-title { font-size:0.95rem; font-weight:800; margin-bottom:12px; }
+  .gl-stat-row { display:flex; gap:24px; margin-bottom:10px; }
+  .gl-stat-label { font-size:0.7rem; font-weight:700; color:#888; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:2px; }
+  .gl-stat-value { font-size:1.4rem; font-weight:800; color:#1a1a2e; }
+  .gl-states { display:flex; flex-wrap:wrap; gap:4px; margin-top:10px; }
+  .gl-state-chip { font-size:0.72rem; padding:2px 8px; border-radius:10px; font-weight:600; }
+  .gl-state-chip.meta    { background:#e8f0fe; color:#0057e7; }
+  .gl-state-chip.youtube { background:#fce8e6; color:#c62828; }
+  .gl-state-chip.control { background:#f0f0f0; color:#444; }
+  .gl-badge { font-size:0.75rem; font-weight:700; padding:2px 10px; border-radius:12px; display:inline-block; }
+  .gl-badge-meta    { background:#e8f0fe; color:#0057e7; }
+  .gl-badge-youtube { background:#fce8e6; color:#c62828; }
+  .gl-badge-control { background:#f0f0f0; color:#444; }
+  @media (max-width: 900px) { .geolift-groups-row { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
@@ -289,6 +308,7 @@
     <button class="tab-btn"        onclick="switchTab('markdowns',this)">🏷️ Markdowns</button>
     <button class="tab-btn"        onclick="switchTab('ecomm',this)">🛒 Ecomm</button>
     <button class="tab-btn"        onclick="switchTab('inventory',this)">📦 Inventory</button>
+    <button class="tab-btn"        onclick="switchTab('geolift',this)">🧪 GeoLift</button>
   </div>
 
   <!-- ── Tab 1: Metrics ─────────────────────────────────────────────────── -->
@@ -621,6 +641,116 @@
     </div>
   </div>
 
+  <!-- ── Tab: GeoLift ──────────────────────────────────────────────────────── -->
+  <div id="tab-geolift" class="tab-panel">
+    <!-- Group assignment cards -->
+    <div class="geolift-groups-row">
+      <div class="gl-group-card" style="border-top:4px solid #0057e7">
+        <div class="gl-group-title" style="color:#0057e7">📘 Meta Group</div>
+        <div class="gl-stat-row">
+          <div class="gl-stat">
+            <div class="gl-stat-label">Stores (Wk 9)</div>
+            <div class="gl-stat-value" id="gl-stores-meta">—</div>
+          </div>
+          <div class="gl-stat">
+            <div class="gl-stat-label">Wtd U/S/W (Wk 9)</div>
+            <div class="gl-stat-value" id="gl-usw-meta">—</div>
+          </div>
+        </div>
+        <div class="gl-states">
+          <span class="gl-state-chip meta">Tennessee</span><span class="gl-state-chip meta">Kentucky</span>
+          <span class="gl-state-chip meta">Utah</span><span class="gl-state-chip meta">Oklahoma</span>
+          <span class="gl-state-chip meta">Washington</span><span class="gl-state-chip meta">Georgia</span>
+          <span class="gl-state-chip meta">Arkansas</span><span class="gl-state-chip meta">Louisiana</span>
+        </div>
+      </div>
+      <div class="gl-group-card" style="border-top:4px solid #e63221">
+        <div class="gl-group-title" style="color:#e63221">▶️ YouTube Group</div>
+        <div class="gl-stat-row">
+          <div class="gl-stat">
+            <div class="gl-stat-label">Stores (Wk 9)</div>
+            <div class="gl-stat-value" id="gl-stores-youtube">—</div>
+          </div>
+          <div class="gl-stat">
+            <div class="gl-stat-label">Wtd U/S/W (Wk 9)</div>
+            <div class="gl-stat-value" id="gl-usw-youtube">—</div>
+          </div>
+        </div>
+        <div class="gl-states">
+          <span class="gl-state-chip youtube">Nevada</span><span class="gl-state-chip youtube">Oregon</span>
+          <span class="gl-state-chip youtube">Missouri</span><span class="gl-state-chip youtube">Michigan</span>
+          <span class="gl-state-chip youtube">Arizona</span><span class="gl-state-chip youtube">Alabama</span>
+          <span class="gl-state-chip youtube">Indiana</span><span class="gl-state-chip youtube">Nebraska</span>
+        </div>
+      </div>
+      <div class="gl-group-card" style="border-top:4px solid #555555">
+        <div class="gl-group-title" style="color:#555555">⚖️ Control Group</div>
+        <div class="gl-stat-row">
+          <div class="gl-stat">
+            <div class="gl-stat-label">Stores (Wk 9)</div>
+            <div class="gl-stat-value" id="gl-stores-control">—</div>
+          </div>
+          <div class="gl-stat">
+            <div class="gl-stat-label">Wtd U/S/W (Wk 9)</div>
+            <div class="gl-stat-value" id="gl-usw-control">—</div>
+          </div>
+        </div>
+        <div class="gl-states">
+          <span class="gl-state-chip control">Virginia</span><span class="gl-state-chip control">Ohio</span>
+          <span class="gl-state-chip control">Minnesota</span><span class="gl-state-chip control">Kansas</span>
+          <span class="gl-state-chip control">Iowa</span><span class="gl-state-chip control">New Mexico</span>
+          <span class="gl-state-chip control">Colorado</span><span class="gl-state-chip control">Wisconsin</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Indexed charts: weighted + unweighted -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px">
+      <div class="chart-card">
+        <h3>Indexed U/S/W — Weighted by Store Count (Wk 9 = 100)</h3>
+        <div id="chart-geolift-indexed-w" class="chart-div" style="height:300px"></div>
+      </div>
+      <div class="chart-card">
+        <h3>Indexed U/S/W — Equal Weight per State (Wk 9 = 100)</h3>
+        <div id="chart-geolift-indexed-uw" class="chart-div" style="height:300px"></div>
+      </div>
+    </div>
+
+    <!-- Raw absolute U/S/W: weighted + unweighted -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px">
+      <div class="chart-card">
+        <h3>Raw U/S/W — Weighted (Absolute)</h3>
+        <div id="chart-geolift-raw-w" class="chart-div" style="height:280px"></div>
+      </div>
+      <div class="chart-card">
+        <h3>Raw U/S/W — Unweighted (Equal State Weight)</h3>
+        <div id="chart-geolift-raw-uw" class="chart-div" style="height:280px"></div>
+      </div>
+    </div>
+
+    <!-- Data table -->
+    <div class="data-table-card" style="margin-top:18px">
+      <h3>GeoLift Weekly Data — All Groups</h3>
+      <div class="data-table-scroll">
+        <table class="data-tbl">
+          <thead>
+            <tr>
+              <th>Week</th>
+              <th>Group</th>
+              <th>Stores</th>
+              <th>Total Units</th>
+              <th>Wtd U/S/W</th>
+              <th>Wtd Index</th>
+              <th>Unwtd U/S/W</th>
+              <th>Unwtd Index</th>
+            </tr>
+          </thead>
+          <tbody id="geolift-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Tab 7: Store Data ─────────────────────────────────────────────────── -->
   <div id="tab-storedata" class="tab-panel">
     <div class="data-table-card">
@@ -678,6 +808,7 @@ const WEEK_LABELS = {
   "202607": "Week 7 (3/20/26)",
   "202608": "Week 8 (3/27/26)",
   "202609": "Week 9 (4/3/26)",
+  "202610": "Week 10 (4/10/26)",
 };
 
 const SKU_SHORT = {
@@ -733,6 +864,14 @@ const PLOTLY_LAYOUT_BASE = {
 
 function weekLabel(w) { return WEEK_LABELS[w] || w; }
 
+const GEOLIFT_GROUPS = {
+  "Meta":    ["Tennessee","Kentucky","Utah","Oklahoma","Washington","Georgia","Arkansas","Louisiana"],
+  "YouTube": ["Nevada","Oregon","Missouri","Michigan","Arizona","Alabama","Indiana","Nebraska"],
+  "Control": ["Virginia","Ohio","Minnesota","Kansas","Iowa","New Mexico","Colorado","Wisconsin"],
+};
+const GEOLIFT_COLORS  = { "Meta":"#0057e7", "YouTube":"#e63221", "Control":"#555555" };
+const GEOLIFT_BASELINE = "202609";
+
 // ══ Tab Switching ═════════════════════════════════════════════════════════════
 let salesMapInit     = false;
 let oosMapInit       = false;
@@ -741,6 +880,7 @@ let stateChartsInit  = false;
 let markdownsInit    = false;
 let ecommInit        = false;
 let inventoryInit    = false;
+let geoliftInit      = false;
 
 function switchTab(name, btn) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -797,6 +937,14 @@ function switchTab(name, btn) {
     if (!inventoryInit) { initInventory(); inventoryInit = true; }
     else setTimeout(() => {
       ["chart-inv-onhand","chart-inv-pipeline","chart-inv-intransit","chart-inv-onorder","chart-inv-state"].forEach(id => {
+        const el = document.getElementById(id); if (el) Plotly.Plots.resize(el);
+      });
+    }, 50);
+  }
+  if (name === "geolift") {
+    if (!geoliftInit) { initGeolift(); geoliftInit = true; }
+    else setTimeout(() => {
+      ["chart-geolift-indexed-w","chart-geolift-indexed-uw","chart-geolift-raw-w","chart-geolift-raw-uw"].forEach(id => {
         const el = document.getElementById(id); if (el) Plotly.Plots.resize(el);
       });
     }, 50);
@@ -2298,6 +2446,159 @@ function togglePlay(tab) {
     btn.textContent="⏸ Pause";
     window[timerVar]=setInterval(navFns[tab], 1200);
   }
+}
+
+// ══ Tab: GeoLift ══════════════════════════════════════════════════════════════
+function initGeolift() {
+  // Per-week, per-state active store counts (stores that reported data that week)
+  const wsStores = {};
+  DATA.store_weeks.forEach(w => {
+    wsStores[w] = {};
+    Object.keys(DATA.weekly_stores[w] || {}).forEach(sn => {
+      const info = DATA.stores[sn];
+      if (!info) return;
+      const stName = ABBR_TO_STATE[info.state] || info.state;
+      wsStores[w][stName] = (wsStores[w][stName] || 0) + 1;
+    });
+  });
+
+  // Weighted U/S/W: total units / total active stores across all states in group
+  function wUSW(states, week) {
+    let q = 0, s = 0;
+    states.forEach(st => {
+      q += (DATA.state_sales[week] || {})[st] || 0;
+      s += (wsStores[week] || {})[st] || 0;
+    });
+    return s > 0 ? q / s : null;
+  }
+
+  // Unweighted U/S/W: mean of per-state U/S/W (each state equally weighted)
+  function uwUSW(states, week) {
+    const vals = [];
+    states.forEach(st => {
+      const qty = (DATA.state_sales[week] || {})[st] || 0;
+      const sts = (wsStores[week] || {})[st] || 0;
+      if (sts > 0) vals.push(qty / sts);
+    });
+    return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+  }
+
+  // Only weeks at or after the GeoLift start
+  const glWeeks  = DATA.store_weeks.filter(w => w >= GEOLIFT_BASELINE);
+  const glLabels = glWeeks.map(weekLabel);
+  const cfg = { responsive:true, displayModeBar:false };
+
+  // Baseline values at week 9
+  const baseW = {}, baseUW = {};
+  Object.entries(GEOLIFT_GROUPS).forEach(([g, states]) => {
+    baseW[g]  = wUSW(states, GEOLIFT_BASELINE);
+    baseUW[g] = uwUSW(states, GEOLIFT_BASELINE);
+  });
+
+  // Populate group summary cards
+  Object.entries(GEOLIFT_GROUPS).forEach(([g, states]) => {
+    const key = g.toLowerCase();
+    const storeCount = states.reduce((s,st)=>s+((wsStores[GEOLIFT_BASELINE]||{})[st]||0),0);
+    const el_s = document.getElementById("gl-stores-" + key);
+    const el_u = document.getElementById("gl-usw-"    + key);
+    if (el_s) el_s.textContent = storeCount;
+    if (el_u) el_u.textContent = baseW[g] != null ? baseW[g].toFixed(3) : "—";
+  });
+
+  const lBase = {
+    margin:{t:10,b:60,l:60,r:20},
+    paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
+    font:{family:"-apple-system,sans-serif",size:11},
+    legend:{orientation:"h",y:-0.28,font:{size:10}},
+    xaxis:{showgrid:false,tickangle:-30,type:"category"},
+    yaxis:{gridcolor:"#e8e8e8"},
+    hovermode:"x unified",
+  };
+  const refLine100 = {type:"line",xref:"paper",yref:"y",x0:0,x1:1,y0:100,y1:100,
+                      line:{color:"#ccc",width:1,dash:"dot"}};
+
+  // Build indexed traces (wUSW or uwUSW, against corresponding baselines)
+  function indexedTraces(metricFn, baselines) {
+    const ts = Object.entries(GEOLIFT_GROUPS).map(([g, states]) => ({
+      name: g, x: glLabels,
+      y: glWeeks.map(w => {
+        const v = metricFn(states, w);
+        return (v != null && baselines[g]) ? +(v / baselines[g] * 100).toFixed(1) : null;
+      }),
+      mode:"lines+markers",
+      line:{color:GEOLIFT_COLORS[g], width:3},
+      marker:{size:7},
+      hovertemplate:`<b>${g}</b>: %{y:.1f}<extra></extra>`,
+    }));
+    ts.push({
+      name:"Baseline (100)", x:glLabels, y:glLabels.map(()=>100),
+      mode:"lines", line:{color:"#bbb",width:1.5,dash:"dash"},
+      hoverinfo:"skip", showlegend:true,
+    });
+    return ts;
+  }
+
+  // Build raw (absolute) traces
+  function rawTraces(metricFn, fmt) {
+    return Object.entries(GEOLIFT_GROUPS).map(([g, states]) => ({
+      name: g, x: glLabels,
+      y: glWeeks.map(w => { const v = metricFn(states,w); return v!=null?+v.toFixed(4):null; }),
+      mode:"lines+markers",
+      line:{color:GEOLIFT_COLORS[g], width:3},
+      marker:{size:7},
+      hovertemplate:`<b>${g}</b>: %{y:.4f} U/S/W<extra></extra>`,
+    }));
+  }
+
+  Plotly.react("chart-geolift-indexed-w", indexedTraces(wUSW, baseW), {
+    ...lBase,
+    yaxis:{...lBase.yaxis, title:"Index (Wk 9 = 100)"},
+    shapes:[refLine100],
+  }, cfg);
+
+  Plotly.react("chart-geolift-indexed-uw", indexedTraces(uwUSW, baseUW), {
+    ...lBase,
+    yaxis:{...lBase.yaxis, title:"Index (Wk 9 = 100)"},
+    shapes:[refLine100],
+  }, cfg);
+
+  Plotly.react("chart-geolift-raw-w", rawTraces(wUSW), {
+    ...lBase,
+    yaxis:{...lBase.yaxis, title:"U/S/W (weighted)"},
+  }, cfg);
+
+  Plotly.react("chart-geolift-raw-uw", rawTraces(uwUSW), {
+    ...lBase,
+    yaxis:{...lBase.yaxis, title:"U/S/W (unweighted)"},
+  }, cfg);
+
+  // Data table
+  const tbody = document.getElementById("geolift-tbody");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  glWeeks.forEach(week => {
+    const lbl = weekLabel(week);
+    Object.entries(GEOLIFT_GROUPS).forEach(([g, states]) => {
+      const wv  = wUSW(states, week);
+      const uwv = uwUSW(states, week);
+      const wIdx  = (wv  != null && baseW[g])  ? (wv  / baseW[g]  * 100).toFixed(1) : "—";
+      const uwIdx = (uwv != null && baseUW[g]) ? (uwv / baseUW[g] * 100).toFixed(1) : "—";
+      const totalQ = states.reduce((s,st)=>s+((DATA.state_sales[week]||{})[st]||0), 0);
+      const totalS = states.reduce((s,st)=>s+((wsStores[week]||{})[st]||0), 0);
+      const key = g.toLowerCase();
+      const tr = document.createElement("tr");
+      tr.innerHTML =
+        `<td>${lbl}</td>` +
+        `<td><span class="gl-badge gl-badge-${key}">${g}</span></td>` +
+        `<td>${totalS}</td>` +
+        `<td>${totalQ.toLocaleString()}</td>` +
+        `<td>${wv  != null ? wv.toFixed(3)  : "—"}</td>` +
+        `<td>${wIdx}</td>` +
+        `<td>${uwv != null ? uwv.toFixed(3) : "—"}</td>` +
+        `<td>${uwIdx}</td>`;
+      tbody.appendChild(tr);
+    });
+  });
 }
 
 // ── Must be last ──────────────────────────────────────────────────────────────
