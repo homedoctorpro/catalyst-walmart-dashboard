@@ -688,6 +688,13 @@ def main():
     print(f"\nWrote {output_path} ({json_mb:.2f} MB JSON embedded)")
     print("Done.")
 
+    # ── Send weekly report email ──────────────────────────────────────────────
+    try:
+        from email_report import send_report
+        send_report(data)
+    except Exception as e:
+        print(f"  [Email] Error: {e}")
+
 
 if __name__ == "__main__":
     main()
