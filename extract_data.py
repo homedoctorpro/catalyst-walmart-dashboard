@@ -688,22 +688,22 @@ def main():
     print(f"\nWrote {output_path} ({json_mb:.2f} MB JSON embedded)")
     print("Done.")
 
-    # ── Send weekly report email (Mondays only, once per day) ────────────────
+    # ── Send weekly report email ──────────────────────────────────────────────
+    # Mondays (first run): full recipient list
+    # All other runs: pross@lignetics.com only
     from datetime import date
     today = date.today()
     sent_flag = os.path.join(os.path.dirname(__file__), ".email_sent_date")
     already_sent = os.path.exists(sent_flag) and open(sent_flag).read().strip() == str(today)
-    if today.weekday() != 0:
-        print(f"  [Email] Skipped — not Monday (today is {today.strftime('%A')})")
-    elif already_sent:
-        print(f"  [Email] Skipped — already sent today ({today})")
-    else:
-        try:
-            from email_report import send_report
-            send_report(data)
+    is_monday = today.weekday() == 0
+    dev_only  = not is_monday or already_sent
+    try:
+        from email_report import send_report
+        send_report(data, dev_only=dev_only)
+        if is_monday and not already_sent:
             open(sent_flag, "w").write(str(today))
-        except Exception as e:
-            print(f"  [Email] Error: {e}")
+    except Exception as e:
+        print(f"  [Email] Error: {e}")
 
 
 if __name__ == "__main__":

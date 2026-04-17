@@ -761,7 +761,9 @@ def build_html(data):
 
 
 # ── Send ──────────────────────────────────────────────────────────────────────
-def send_report(data, dry_run=False):
+DEV_RECIPIENTS = ["pross@lignetics.com"]
+
+def send_report(data, dry_run=False, dev_only=False):
     html = build_html(data)
 
     cur_week = (data["store_weeks"] or data["weeks"])[-1]
@@ -778,25 +780,26 @@ def send_report(data, dry_run=False):
         print("  [Email] Skipped — no app password configured in credentials.py")
         return
 
+    recipients = DEV_RECIPIENTS if dev_only else EMAIL_TO
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"]    = EMAIL_FROM
-    msg["To"]      = ", ".join(EMAIL_TO)
+    msg["To"]      = ", ".join(recipients)
     msg.attach(MIMEText(html, "html", "utf-8"))
 
     try:
         with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as server:
             server.login(EMAIL_USER, EMAIL_APP_PASSWORD)
-            server.sendmail(EMAIL_USER, EMAIL_TO, msg.as_string())
-        print(f"  [Email] Sent to {', '.join(EMAIL_TO)} — {subject}")
+            server.sendmail(EMAIL_USER, recipients, msg.as_string())
+        print(f"  [Email] Sent to {', '.join(recipients)} — {subject}")
     except Exception as e:
         # Fall back to STARTTLS on port 587
         try:
             with smtplib.SMTP(SMTP_HOST, 587) as server:
                 server.starttls()
                 server.login(EMAIL_USER, EMAIL_APP_PASSWORD)
-                server.sendmail(EMAIL_USER, EMAIL_TO, msg.as_string())
-            print(f"  [Email] Sent (587/TLS) to {', '.join(EMAIL_TO)} — {subject}")
+                server.sendmail(EMAIL_USER, recipients, msg.as_string())
+            print(f"  [Email] Sent (587/TLS) to {', '.join(recipients)} — {subject}")
         except Exception as e2:
             print(f"  [Email] FAILED (465: {e}) (587: {e2})")
 
