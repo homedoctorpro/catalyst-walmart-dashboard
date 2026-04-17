@@ -443,6 +443,13 @@
         <tbody id="oos-totals-tbody"></tbody>
       </table>
     </div>
+    <div class="oos-summary-card">
+      <h3>OOS by SKU — Current Week</h3>
+      <table class="oos-tbl" id="oos-sku-tbl">
+        <thead><tr><th>SKU</th><th>Total Placements</th><th>OOS Placements</th><th>OOS %</th></tr></thead>
+        <tbody id="oos-sku-tbody"></tbody>
+      </table>
+    </div>
     <div class="oos-table-card">
       <h3>All OOS Stores — Current Week</h3>
       <div class="oos-scroll">
@@ -2189,6 +2196,33 @@ function updateOosTable(wData, skuSet, consec) {
   document.getElementById("oos-instock-nosales-pct").textContent = pctOf(instockNoSales);
   document.getElementById("oos-zero-inventory").textContent      = zeroInventory.toLocaleString();
   document.getElementById("oos-zero-inventory-pct").textContent  = pctOf(zeroInventory);
+
+  // ── OOS by SKU table
+  const skuTbody = document.getElementById("oos-sku-tbody");
+  skuTbody.innerHTML = "";
+  let grandTotal = 0, grandOos = 0;
+  DATA.skus.filter(s => skuSet.has(s)).forEach(sku => {
+    let total = 0, oos = 0;
+    Object.values(wData).forEach(sdata => {
+      const sv = (sdata.skus||{})[sku];
+      if (sv === undefined) return;
+      total++;
+      if (sv.on_hand === 0) oos++;
+    });
+    grandTotal += total; grandOos += oos;
+    const pct = total > 0 ? (oos/total*100).toFixed(1)+"%" : "—";
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td style="color:${SKU_COLORS[sku]};font-weight:600">${SKU_SHORT[sku]||sku}</td>
+      <td>${total.toLocaleString()}</td>
+      <td>${oos.toLocaleString()}</td>
+      <td style="font-weight:700">${pct}</td>`;
+    skuTbody.appendChild(tr);
+  });
+  const totPct = grandTotal > 0 ? (grandOos/grandTotal*100).toFixed(1)+"%" : "—";
+  const totTr = document.createElement("tr");
+  totTr.style.cssText = "font-weight:700;border-top:2px solid #e0e0e0;background:#f5f5f5";
+  totTr.innerHTML = `<td>TOTAL</td><td>${grandTotal.toLocaleString()}</td><td>${grandOos.toLocaleString()}</td><td>${totPct}</td>`;
+  skuTbody.appendChild(totTr);
 }
 
 function oosNav(dir) { oosWeekIdx=(oosWeekIdx+dir+DATA.store_weeks.length)%DATA.store_weeks.length; renderOosMap(); }
