@@ -128,8 +128,12 @@ def extract_instore_metrics(week, df):
     """
     result = {}
 
-    # Map row index 2–5 to SKU labels
-    sku_rows = {2: SKUS[0], 3: SKUS[1], 4: SKUS[2], 5: SKUS[3]}
+    # Map row index 2–5 to SKU labels by reading col 0, not assuming fixed order
+    sku_rows = {}
+    for row_idx in [2, 3, 4, 5]:
+        sku_name = str(df.iloc[row_idx, 0]).strip()
+        if sku_name in SKUS:
+            sku_rows[row_idx] = sku_name
 
     def safe_float(val, multiply=1):
         try:
