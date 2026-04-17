@@ -403,7 +403,11 @@
     </div>
     <div class="chart-card" style="margin-top:14px;">
       <h3>Units Sold Distribution — Store Histogram</h3>
-      <div id="sales-hist-charts" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:8px;"></div>
+      <div id="sales-hist-charts" style="display:flex;flex-direction:column;gap:10px;margin-top:8px;">
+        <div id="sales-hist-row-15" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
+        <div id="sales-hist-row-34" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
+        <div id="sales-hist-row-combined" style="display:grid;grid-template-columns:1fr;gap:10px;"></div>
+      </div>
     </div>
   </div>
 
@@ -1924,8 +1928,16 @@ function renderSalesMap() {
 
 function renderSalesHistogram(wData, skuSet) {
   const skus = DATA.skus.filter(s => skuSet.has(s));
-  const container = document.getElementById("sales-hist-charts");
-  container.innerHTML = "";
+  document.getElementById("sales-hist-row-15").innerHTML = "";
+  document.getElementById("sales-hist-row-34").innerHTML = "";
+  document.getElementById("sales-hist-row-combined").innerHTML = "";
+
+  const SKU_ROW = {
+    "CATALYST15ORIG": "sales-hist-row-15",
+    "CATALYST15UNSCEN": "sales-hist-row-15",
+    "CATALYST34LBORIGINAL": "sales-hist-row-34",
+    "CATALYSTPET34LBUNSCE": "sales-hist-row-34",
+  };
 
   function makeChart(el, vals, title, color) {
     const pos = vals.filter(v => v >= 0);
@@ -1949,7 +1961,7 @@ function renderSalesHistogram(wData, skuSet) {
     }, { responsive: true, displayModeBar: false });
   }
 
-  // Per-SKU charts
+  // Per-SKU charts — routed into 15lb or 34lb row
   skus.forEach(sku => {
     const vals = [];
     Object.values(wData).forEach(sdata => {
@@ -1957,8 +1969,9 @@ function renderSalesHistogram(wData, skuSet) {
       if (skuData !== undefined) vals.push(skuData.qty ?? 0);
     });
     if (!vals.length) return;
+    const rowId = SKU_ROW[sku] || "sales-hist-row-34";
     const div = document.createElement("div");
-    container.appendChild(div);
+    document.getElementById(rowId).appendChild(div);
     makeChart(div, vals, SKU_SHORT[sku] || sku, SKU_COLORS[sku]);
   });
 
@@ -1972,7 +1985,7 @@ function renderSalesHistogram(wData, skuSet) {
   });
   if (combined.length) {
     const div = document.createElement("div");
-    container.appendChild(div);
+    document.getElementById("sales-hist-row-combined").appendChild(div);
     makeChart(div, combined, "Combined (avg/placement)", "#334455");
   }
 }
