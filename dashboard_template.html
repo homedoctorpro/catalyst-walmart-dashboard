@@ -401,6 +401,10 @@
         </table>
       </div>
     </div>
+    <div class="chart-card" style="margin-top:14px;">
+      <h3>Units Sold Distribution — Store Histogram</h3>
+      <div id="sales-hist-charts" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:8px;"></div>
+    </div>
   </div>
 
   <!-- ── Tab 3: OOS Map ─────────────────────────────────────────────────── -->
@@ -1908,6 +1912,62 @@ function renderSalesMap() {
   ], geoLayout());
 
   updateSalesStoreList(wData, skuSet);
+  renderSalesHistogram(wData, skuSet);
+}
+
+function renderSalesHistogram(wData, skuSet) {
+  const skus = DATA.skus.filter(s => skuSet.has(s));
+  const container = document.getElementById("sales-hist-charts");
+  container.innerHTML = "";
+
+  const LABELS = ["0","1","2","3","4","5+"];
+  function toBucket(v) { return Math.min(Math.round(v), 5); }
+  function countBuckets(values) {
+    const c = [0,0,0,0,0,0];
+    values.forEach(v => c[toBucket(v)]++);
+    return c;
+  }
+  function makeChart(el, counts, title, color) {
+    Plotly.newPlot(el, [{
+      type:"bar", x:LABELS, y:counts,
+      marker:{color, opacity:0.85},
+      hovertemplate:"%{x} units: <b>%{y}</b> stores<extra></extra>",
+    }], {
+      title:{text:title, font:{size:12,color:"#555"}, x:0.5, xanchor:"center", y:0.97},
+      margin:{t:28,r:8,b:36,l:36},
+      xaxis:{title:{text:"Units/wk",font:{size:10}}, tickfont:{size:10}},
+      yaxis:{title:{text:"Stores",font:{size:10}}, tickfont:{size:10}},
+      height:200,
+      paper_bgcolor:"#f8f9ff", plot_bgcolor:"#f8f9ff",
+      bargap:0.15,
+    }, {responsive:true, displayModeBar:false});
+  }
+
+  // Per-SKU charts
+  skus.forEach(sku => {
+    const vals = [];
+    Object.values(wData).forEach(sdata => {
+      if (sku in (sdata.skus||{})) vals.push(sdata.skus[sku].qty||0);
+    });
+    if (!vals.length) return;
+    const div = document.createElement("div");
+    container.appendChild(div);
+    makeChart(div, countBuckets(vals), SKU_SHORT[sku]||sku, SKU_COLORS[sku]);
+  });
+
+  // Combined — per store, average units across its active SKU placements
+  const combined = [];
+  Object.values(wData).forEach(sdata => {
+    const vals = skus
+      .map(sku => (sdata.skus||{})[sku]?.qty)
+      .filter(v => v !== undefined && v !== null);
+    if (vals.length) combined.push(vals.reduce((a,b)=>a+b,0) / vals.length);
+  });
+  if (combined.length) {
+    const div = document.createElement("div");
+    container.appendChild(div);
+    makeChart(div, countBuckets(combined), "Combined (avg/placement)", "#334455");
+  }
 }
 
 function updateSalesStoreList(wData, skuSet) {
