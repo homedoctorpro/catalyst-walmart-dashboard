@@ -18,6 +18,7 @@ except ImportError:
 EMAIL_FROM    = f"Catalyst Pet Reports <{EMAIL_USER}>"
 EMAIL_TO      = [
     "pross@lignetics.com",
+    "jlevine@lignetics.com",
     "hailey@storandco.com",
     "ckohagen@lignetics.com",
     "mscanlon@lignetics.com",
@@ -46,6 +47,7 @@ WEEK_LABELS = {
     "202605": "Week 5 (3/6/26)",   "202606": "Week 6 (3/13/26)",
     "202607": "Week 7 (3/20/26)",  "202608": "Week 8 (3/27/26)",
     "202609": "Week 9 (4/3/26)",   "202610": "Week 10 (4/10/26)",
+    "202611": "Week 11 (4/17/26)",
 }
 
 SKU_LABELS = {
@@ -730,9 +732,9 @@ def build_html(data):
 <div class="wrap">
 
   <!-- Header -->
-  <div class="header">
-    <h1>⚡ Catalyst Pet — Walmart Sales Report</h1>
-    <p>{wl(cur_week)} &nbsp;·&nbsp; WoW deltas: {wow_note} &nbsp;·&nbsp; {len(store_weeks)} weeks of data</p>
+  <div style="background-color:#1a1a2e;border-radius:12px 12px 0 0;padding:28px 32px;">
+    <h1 style="color:#ffffff;font-size:20px;margin:0 0 4px;font-family:Arial,Helvetica,sans-serif;">&#9889; Catalyst Pet &#8212; Walmart Sales Report</h1>
+    <p style="color:#aabbcc;font-size:13px;margin:0;font-family:Arial,Helvetica,sans-serif;">{wl(cur_week)} &nbsp;&middot;&nbsp; WoW deltas: {wow_note} &nbsp;&middot;&nbsp; {len(store_weeks)} weeks of data</p>
   </div>
 
   <!-- Body -->
