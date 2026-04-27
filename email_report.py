@@ -48,6 +48,7 @@ WEEK_LABELS = {
     "202607": "Week 7 (3/20/26)",  "202608": "Week 8 (3/27/26)",
     "202609": "Week 9 (4/3/26)",   "202610": "Week 10 (4/10/26)",
     "202611": "Week 11 (4/17/26)",
+    "202612": "Week 12 (4/24/26)",
 }
 
 SKU_LABELS = {
@@ -341,7 +342,7 @@ def make_oos_map(data):
     ax.set_ylim(24, 50)
     ax.set_aspect("equal")
     ax.axis("off")
-    ax.legend(loc="lower right", fontsize=7.5, framealpha=0.95,
+    ax.legend(loc="lower left", fontsize=7.5, framealpha=0.95,
               markerscale=2, edgecolor="#ddd", ncol=2)
     ax.set_title(f"Store OOS Map — {wl(latest)}", fontsize=10, color="#1a1a2e", pad=8)
 
@@ -480,6 +481,23 @@ def build_html(data):
 
     sku_rows = "\n".join(sku_row(sku, SKU_LABELS.get(sku, sku), cur_m) for sku in skus)
 
+    # U/S/W trend — last 3 weeks per SKU
+    all_metric_weeks_usw = sorted(w for w in metrics if any(
+        metrics[w].get(sku, {}).get("usw") is not None for sku in skus + ["Total"]
+    ))
+    usw_trend_weeks = all_metric_weeks_usw[-3:]
+    usw_trend_headers = "".join(f"<th>{wl(w)}</th>" for w in usw_trend_weeks) + "<th>WoW</th>"
+    usw_trend_rows = ""
+    for sku in skus + ["Total"]:
+        label = "TOTAL" if sku == "Total" else SKU_LABELS.get(sku, sku)
+        vals  = [metrics.get(w, {}).get(sku, {}).get("usw") for w in usw_trend_weeks]
+        cur_v, prev_v = vals[-1], vals[-2] if len(vals) >= 2 else None
+        d_str, d_color = delta_str(cur_v, prev_v)
+        delta_td = f'<span style="color:{d_color};font-weight:600;white-space:nowrap;">{d_str}</span>' if d_str else "—"
+        cells = "".join(f"<td>{fmt_usw(v)}</td>" for v in vals)
+        row_style = ' class="total-row"' if sku == "Total" else ""
+        usw_trend_rows += f"<tr{row_style}><td>{label}</td>{cells}<td>{delta_td}</td></tr>"
+
     sku_html = f"""
     <hr class="divider">
     <p class="section-title">SKU Breakdown — {wl(cur_week)}</p>
@@ -500,6 +518,11 @@ def build_html(data):
           <td>{fmt_usd(tot.get("wholesale_dollars"))}</td>
         </tr>
       </tbody>
+    </table>
+    <p style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.07em;margin:18px 0 8px;">U/S/W Trend by SKU</p>
+    <table class="sku-table">
+      <thead><tr><th>SKU</th>{usw_trend_headers}</tr></thead>
+      <tbody>{usw_trend_rows}</tbody>
     </table>"""
 
     # ── OOS ───────────────────────────────────────────────────────────────────
