@@ -38,6 +38,8 @@ SHEET_MAP = {
                "ecomm_l52": "Lignetics L52Wk Ecomm",        "ecomm_lw": "LW Catalyst Ecomm"},
     "202612": {"instore": "Catalyst LW Sales",              "bystore": "Sales by Store",
                "ecomm_l52": "LIGNETICS L52WK Ecomm",        "ecomm_lw": "Catalyst LW Ecomm"},
+    "202613": {"instore": "Catalyst LW Sales ",             "bystore": "LW Sales by Store",
+               "ecomm_l52": "Lignetics L52Wk Ecomm Total",  "ecomm_lw": "Catalyst LW Ecomm"},
 }
 
 SKUS = [
