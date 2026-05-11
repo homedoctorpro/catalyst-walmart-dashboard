@@ -83,6 +83,10 @@ ECOMM_PRODUCT_MAP = {
         ("Catalyst 15lb Orig", "Catalyst"),
     "catalyst pet softwood natural clumping cat litter unscented formula, 15 lb.":
         ("Catalyst 15lb Unsc", "Catalyst"),
+    "catalyst pet softwood natural clumping cat litter, original formula, 15 lb. bag":
+        ("Catalyst 15lb Orig", "Catalyst"),
+    "catalyst pet softwood natural clumping cat litter, unscented formula, 15 lb. bag":
+        ("Catalyst 15lb Unsc", "Catalyst"),
 }
 
 GEO_CACHE_FILE = "stores_geo.json"
