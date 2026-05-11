@@ -8,6 +8,7 @@ import os
 import glob
 import re
 import math
+from datetime import date, timedelta
 import pandas as pd
 import pgeocode
 
@@ -58,9 +59,11 @@ WHOLESALE_PRICE = {
     "CATALYSTPET34LBUNSCE":  12.98,
 }
 
-# ── Ecomm product name → (short display name, brand) ─────────────────────────
-# Keys are lowercased + "non- clumping" normalized to "non-clumping"
-ECOMM_PRODUCT_MAP = {
+# ── Ecomm product matching ───────────────────────────────────────────────────
+# Catalyst products are matched by tokens (brand + size + scent) so format
+# wobble (extra commas, " Bag" suffix, spacing) doesn't break the join.
+# Feline Fresh uses exact-match since the product taxonomy is varied.
+FELINE_FRESH_MAP = {
     "feline fresh non-clumping natural pine pellet cat litter, unscented, 20 lb bag":
         ("FF NonClump 20lb", "Feline Fresh"),
     "feline fresh non-clumping natural pine pellet cat litter, unscented, 40 lb bag":
@@ -75,19 +78,49 @@ ECOMM_PRODUCT_MAP = {
         ("FF Pine 20lb", "Feline Fresh"),
     "feline fresh pine pellet cat litter, 20lb":
         ("FF Pellet 20lb", "Feline Fresh"),
-    "catalyst pet softwood natural clumping cat litter, original formula, 34lb":
-        ("Catalyst 34lb Orig", "Catalyst"),
-    "catalyst pet softwood natural clumping cat litter unscented formula, 34 lb":
-        ("Catalyst 34lb Unsc", "Catalyst"),
-    "catalyst pet softwood natural clumping cat litter original formula, 15 lb.":
-        ("Catalyst 15lb Orig", "Catalyst"),
-    "catalyst pet softwood natural clumping cat litter unscented formula, 15 lb.":
-        ("Catalyst 15lb Unsc", "Catalyst"),
-    "catalyst pet softwood natural clumping cat litter, original formula, 15 lb. bag":
-        ("Catalyst 15lb Orig", "Catalyst"),
-    "catalyst pet softwood natural clumping cat litter, unscented formula, 15 lb. bag":
-        ("Catalyst 15lb Unsc", "Catalyst"),
 }
+
+
+def parse_ecomm_product(name_raw):
+    """Walmart ecomm product name → (short_label, brand) or None."""
+    n = name_raw.lower().strip().replace("non- clumping", "non-clumping")
+
+    if "catalyst" in n:
+        if re.search(r"\b34\s*lb\b", n):
+            size = "34lb"
+        elif re.search(r"\b15\s*lb\b", n):
+            size = "15lb"
+        else:
+            return None
+        if "unscent" in n:
+            scent = "Unsc"
+        elif "original" in n:
+            scent = "Orig"
+        else:
+            return None
+        return (f"Catalyst {size} {scent}", "Catalyst")
+
+    return FELINE_FRESH_MAP.get(n)
+
+
+# Walmart fiscal calendar anchor: Friday end of fiscal week 1, by year.
+# Add a new entry when calendar year rolls over (FY27, FY28, ...).
+FISCAL_YEAR_WEEK1_FRIDAY = {
+    "2026": date(2026, 2, 6),
+}
+
+
+def compute_week_label(week_code):
+    """'202614' → 'Week 14 (5/8/26)'. Falls back to the raw code if unknown year."""
+    if len(week_code) != 6 or not week_code.isdigit():
+        return week_code
+    year = week_code[:4]
+    wk = int(week_code[4:])
+    anchor = FISCAL_YEAR_WEEK1_FRIDAY.get(year)
+    if not anchor:
+        return week_code
+    friday = anchor + timedelta(days=7 * (wk - 1))
+    return f"Week {wk} ({friday.month}/{friday.day}/{friday.year % 100})"
 
 GEO_CACHE_FILE = "stores_geo.json"
 TEMPLATE_FILE  = "dashboard_template.html"
@@ -277,20 +310,23 @@ def extract_ecomm_data(df):
     Parse a Lignetics L52WK Ecomm (or LW Ecomm) sheet.
     Row 0: headers; Rows 1+: products (skip 'Total' rows and unknowns).
     Cols: 0=Product Name, 1=Net Retail Sales, 3=Net Unit Sales.
-    Returns {short_name: {"brand": str, "r": float|None, "u": int|None}}
+    Returns {short_name: {"brand": str, "r": float|None, "u": int|None}}.
+    Logs a [WARN] for any row containing "catalyst" that fails to parse —
+    surfaces silent format drift instead of dropping our SKUs.
     """
     result = {}
+    unmapped_catalyst = []
     for i in range(1, len(df)):
         row = df.iloc[i]
         try:
             name_raw = str(row.iloc[0]).strip()
             if not name_raw or name_raw.lower() in ("total", "nan", "product name", ""):
                 continue
-            # Normalize spacing around hyphens for matching
-            key = name_raw.lower().strip().replace("non- clumping", "non-clumping")
-            mapping = ECOMM_PRODUCT_MAP.get(key)
+            mapping = parse_ecomm_product(name_raw)
             if not mapping:
-                continue  # skip unmapped / misc products
+                if "catalyst" in name_raw.lower():
+                    unmapped_catalyst.append(name_raw)
+                continue
             short, brand = mapping
             retail = _safe_num(row.iloc[1])
             units  = _safe_num(row.iloc[3])
@@ -301,6 +337,8 @@ def extract_ecomm_data(df):
             }
         except Exception:
             continue
+    for n in unmapped_catalyst:
+        print(f"  [WARN] Unmapped Catalyst ecomm row: {n!r}")
     return result
 
 
@@ -668,6 +706,9 @@ def main():
     print(f"  Weekly ecomm weeks: {sorted(ecomm_weekly.keys())}")
 
     # 6. Assemble JSON
+    all_week_codes = sorted(set(files.keys()) | set(store_weeks_list) | set(ecomm_weekly.keys()))
+    week_labels = {w: compute_week_label(w) for w in all_week_codes}
+
     data = {
         "weeks":       sorted(files.keys()),
         "store_weeks": store_weeks_list,
@@ -682,6 +723,7 @@ def main():
         "ecomm_weekly": ecomm_weekly,
         "weekly_inventory": weekly_inventory,
         "state_inventory":  state_inventory,
+        "week_labels":  week_labels,
     }
 
     # 7. Read template and embed JSON
@@ -707,7 +749,6 @@ def main():
     # ── Send weekly report email ──────────────────────────────────────────────
     # Mondays (first run): full recipient list
     # All other runs: pross@lignetics.com only
-    from datetime import date
     today = date.today()
     sent_flag = os.path.join(os.path.dirname(__file__), ".email_sent_date")
     already_sent = os.path.exists(sent_flag) and open(sent_flag).read().strip() == str(today)

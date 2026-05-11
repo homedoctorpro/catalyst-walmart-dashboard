@@ -813,22 +813,8 @@ function showApp() {
 
 // ══ Constants ═════════════════════════════════════════════════════════════════
 
-const WEEK_LABELS = {
-  "202601": "Week 1 (2/6/26)",
-  "202602": "Week 2 (2/13/26)",
-  "202603": "Week 3 (2/20/26)",
-  "202604": "Week 4 (2/27/26)",
-  "202605": "Week 5 (3/6/26)",
-  "202606": "Week 6 (3/13/26)",
-  "202607": "Week 7 (3/20/26)",
-  "202608": "Week 8 (3/27/26)",
-  "202609": "Week 9 (4/3/26)",
-  "202610": "Week 10 (4/10/26)",
-  "202611": "Week 11 (4/17/26)",
-  "202612": "Week 12 (4/24/26)",
-  "202613": "Week 13 (5/1/26)",
-  "202614": "Week 14 (5/8/26)",
-};
+// Week labels are computed in Python (extract_data.compute_week_label)
+// and embedded in DATA.week_labels — single source of truth.
 
 const SKU_SHORT = {
   "CATALYST15ORIG":       "15O",
@@ -881,7 +867,7 @@ const PLOTLY_LAYOUT_BASE = {
 };
 
 
-function weekLabel(w) { return WEEK_LABELS[w] || w; }
+function weekLabel(w) { return (DATA.week_labels && DATA.week_labels[w]) || w; }
 
 const GEOLIFT_GROUPS = {
   "Meta":    ["TENNESSEE","KENTUCKY","UTAH","OKLAHOMA","WASHINGTON","GEORGIA","ARKANSAS","LOUISIANA"],

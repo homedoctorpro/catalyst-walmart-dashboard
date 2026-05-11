@@ -40,18 +40,9 @@ SMTP_HOST     = "smtp.gmail.com"
 SMTP_PORT     = 465   # SSL; falls back to 587/STARTTLS if needed
 DASHBOARD_URL = "https://homedoctorpro.github.io/catalyst-walmart-dashboard/dashboard.html"
 
-# ── Static maps (kept in sync with dashboard_template.html) ───────────────────
-WEEK_LABELS = {
-    "202601": "Week 1 (2/6/26)",   "202602": "Week 2 (2/13/26)",
-    "202603": "Week 3 (2/20/26)",  "202604": "Week 4 (2/27/26)",
-    "202605": "Week 5 (3/6/26)",   "202606": "Week 6 (3/13/26)",
-    "202607": "Week 7 (3/20/26)",  "202608": "Week 8 (3/27/26)",
-    "202609": "Week 9 (4/3/26)",   "202610": "Week 10 (4/10/26)",
-    "202611": "Week 11 (4/17/26)",
-    "202612": "Week 12 (4/24/26)",
-    "202613": "Week 13 (5/1/26)",
-    "202614": "Week 14 (5/8/26)",
-}
+# Populated from data["week_labels"] at the start of send_report() —
+# single source of truth lives in extract_data.compute_week_label().
+WEEK_LABELS = {}
 
 SKU_LABELS = {
     "CATALYST15ORIG":       "15lb Original",
@@ -791,6 +782,8 @@ def build_html(data):
 DEV_RECIPIENTS = ["pross@lignetics.com"]
 
 def send_report(data, dry_run=False, dev_only=False):
+    WEEK_LABELS.clear()
+    WEEK_LABELS.update(data.get("week_labels", {}))
     html = build_html(data)
 
     cur_week = (data["store_weeks"] or data["weeks"])[-1]

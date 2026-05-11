@@ -52,20 +52,22 @@ Do all of the following without being asked:
 1. **Check what Excel files exist** (`ls *.xlsx`) and identify any new week codes not yet in `SHEET_MAP`.
 2. **Get the sheet names** for each new file:
    `python -c "import openpyxl; wb = openpyxl.load_workbook('<filename>.xlsx', read_only=True); print(wb.sheetnames)"`
-3. **Add entries** to `SHEET_MAP` in `extract_data.py` — match `instore`, `bystore`, `ecomm_l52`, `ecomm_lw` keys to actual sheet names (trailing spaces matter; copy exactly).
-4. **Add entries** to `WEEK_LABELS` in both `dashboard_template.html` and `email_report.py` (e.g. `"202612": "Week 12 (4/24/26)"`). Week date = Monday of that week.
-5. **Run** `python extract_data.py` — this regenerates `dashboard.html` and sends the email automatically (full distro on Mondays, dev-only otherwise).
+3. **Add entries** to `SHEET_MAP` in `extract_data.py` — match `instore`, `bystore`, `ecomm_l52`, `ecomm_lw` keys to actual sheet names (trailing spaces matter; copy exactly). Set any sheet that doesn't exist that week to `None`.
+4. **Run** `python extract_data.py` — regenerates `dashboard.html`, sends the email (full distro on Mondays, dev-only otherwise). Week labels are auto-derived from the week code (`compute_week_label`), so no manual label edits are needed.
+5. **Watch for `[WARN] Unmapped Catalyst ecomm row:` lines** in the output — that means Walmart changed a Catalyst product name in a way the token matcher couldn't handle. Update `parse_ecomm_product` in `extract_data.py` if it fires.
 6. **If it's not Monday** and the user wants the full distro sent, run the manual send snippet from the session or use `python email_report.py` with `dev_only=False`.
 7. **Commit and push** to deploy to GitHub Pages:
    `git add dashboard.html dashboard_template.html extract_data.py email_report.py stores_geo.json && git commit -m "Add week XXXXXX data" && git push origin master`
+
+### When the calendar year rolls over (e.g. 202701 lands):
+Add the new fiscal year's week-1 Friday to `FISCAL_YEAR_WEEK1_FRIDAY` in `extract_data.py` (one line, e.g. `"2027": date(2027, 2, 5)`). Until that's set, week labels for the new year fall back to the raw `YYYYWW` code.
 
 ### Adding a new week (manual reference):
 1. Add the new Excel file to the root directory
 2. Check the sheet names: `python -c "import openpyxl; wb = openpyxl.load_workbook('<filename>.xlsx', read_only=True); print(wb.sheetnames)"`
 3. Add an entry to `SHEET_MAP` in `extract_data.py` with the correct sheet names
-4. Add an entry to `WEEK_LABELS` in `dashboard_template.html` and `email_report.py` (e.g. `"202608": "Week 8 (3/27/26)"`)
-5. Run `python extract_data.py`
-6. Commit and push to deploy: `git add dashboard.html dashboard_template.html extract_data.py email_report.py stores_geo.json && git commit -m "Add week XXXXXX data" && git push origin master`
+4. Run `python extract_data.py`
+5. Commit and push to deploy: `git add dashboard.html dashboard_template.html extract_data.py email_report.py stores_geo.json && git commit -m "Add week XXXXXX data" && git push origin master`
 
 ### Hosting & Deployment
 - **Hosted on**: GitHub Pages via `https://github.com/homedoctorpro/catalyst-walmart-dashboard`
