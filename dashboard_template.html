@@ -827,6 +827,7 @@ const WEEK_LABELS = {
   "202611": "Week 11 (4/17/26)",
   "202612": "Week 12 (4/24/26)",
   "202613": "Week 13 (5/1/26)",
+  "202614": "Week 14 (5/8/26)",
 };
 
 const SKU_SHORT = {
@@ -870,10 +871,10 @@ const STATE_NAME_TO_ABBR = {
 const ABBR_TO_STATE = Object.fromEntries(Object.entries(STATE_NAME_TO_ABBR).map(([n,a]) => [a,n]));
 
 const PLOTLY_LAYOUT_BASE = {
-  margin: { t:10, b:60, l:70, r:65 },
+  margin: { t:10, b:120, l:70, r:65 },
   paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
   font: { family: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif", size:11 },
-  legend: { orientation:"h", y:-0.28, font:{size:10} },
+  legend: { orientation:"h", y:-0.45, yanchor:"top", x:0.5, xanchor:"center", font:{size:10} },
   xaxis: { showgrid:false, tickangle:-30, type:"category" },
   yaxis: { gridcolor:"#e8e8e8" },
   hovermode: "x unified",
@@ -1552,7 +1553,7 @@ function initEcomm() {
     ...PLOTLY_LAYOUT_BASE,
     barmode: "group",
     yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: "Retail $", tickprefix: "$" },
-    legend: { orientation: "h", y: -0.28, font: { size: 10 } },
+    legend: { orientation: "h", y: -0.45, yanchor: "top", x: 0.5, xanchor: "center", font: { size: 10 } },
   }, cfg);
 
   // ── Chart 2: L52 Cumulative Trend by Brand ────────────────────────────────
@@ -2616,10 +2617,10 @@ function initGeolift() {
   });
 
   const lBase = {
-    margin:{t:10,b:60,l:60,r:20},
+    margin:{t:10,b:120,l:60,r:20},
     paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
     font:{family:"-apple-system,sans-serif",size:11},
-    legend:{orientation:"h",y:-0.28,font:{size:10}},
+    legend:{orientation:"h",y:-0.45,yanchor:"top",x:0.5,xanchor:"center",font:{size:10}},
     xaxis:{showgrid:false,tickangle:-30,type:"category"},
     yaxis:{gridcolor:"#e8e8e8"},
     hovermode:"x unified",
