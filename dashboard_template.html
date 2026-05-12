@@ -158,13 +158,15 @@
                 margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,.05); display:flex; gap:18px;
                 flex-wrap:wrap; align-items:center; }
   .trial-meta strong { color:#222; }
-  .trial-kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 14px; }
-  .trial-kpi { background: #fff; border-radius: 10px; padding: 12px 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  .trial-kpi-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 14px; }
+  .trial-kpi { background: #fff; border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
                border-left: 4px solid #999; }
-  .trial-kpi-lbl { font-size: 0.7rem; color: #777; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
-  .trial-kpi-val { font-size: 1.55rem; font-weight: 700; color: #222; margin-top: 4px; }
-  .trial-kpi-sub { font-size: 0.7rem; color: #888; margin-top: 2px; }
-  @media (max-width: 1200px) { .trial-kpi-row { grid-template-columns: repeat(3, 1fr); } }
+  .trial-kpi-lbl { font-size: 0.68rem; color: #777; text-transform: uppercase; letter-spacing: 0.03em; font-weight: 600; line-height: 1.2; }
+  .trial-kpi-val { font-size: 1.4rem; font-weight: 700; color: #222; margin-top: 4px; }
+  .trial-kpi-sub { font-size: 0.68rem; color: #888; margin-top: 2px; }
+  @media (max-width: 1400px) { .trial-kpi-row { grid-template-columns: repeat(3, 1fr); } }
+  .trial-nr-mode-btn { background:#fff; color:#0057e7; border:1.5px solid #0057e7; }
+  .trial-nr-mode-btn.active { background:#0057e7; color:#fff; }
   .trial-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 6px; }
   .trial-prod-btn { padding: 6px 14px; border: 2px solid #888; border-radius: 6px; background: #fff;
                     color: #555; font-weight: 700; cursor: pointer; font-size: 0.82rem;
@@ -956,7 +958,8 @@
       <div class="trial-kpi-row">
         <div class="trial-kpi"><div class="trial-kpi-lbl">Total Customers (Card)</div><div class="trial-kpi-val" id="trial-kpi-cust">—</div><div class="trial-kpi-sub" id="trial-kpi-cust-scaled"></div></div>
         <div class="trial-kpi" style="border-left-color:#2e7d32"><div class="trial-kpi-lbl">Repeat Customers (2+)</div><div class="trial-kpi-val" id="trial-kpi-rep" style="color:#2e7d32">—</div></div>
-        <div class="trial-kpi" style="border-left-color:#0057e7"><div class="trial-kpi-lbl">Repeat Rate</div><div class="trial-kpi-val" id="trial-kpi-rate" style="color:#0057e7">—</div></div>
+        <div class="trial-kpi" style="border-left-color:#0057e7"><div class="trial-kpi-lbl">Repeat Rate (Cumulative)</div><div class="trial-kpi-val" id="trial-kpi-rate" style="color:#0057e7">—</div></div>
+        <div class="trial-kpi" style="border-left-color:#e63221"><div class="trial-kpi-lbl">Latest Week — Repeat %</div><div class="trial-kpi-val" id="trial-kpi-wkrepeat" style="color:#e63221">—</div><div class="trial-kpi-sub" id="trial-kpi-wkrepeat-sub"></div></div>
         <div class="trial-kpi" style="border-left-color:#e67300"><div class="trial-kpi-lbl">Card $ (Cumulative)</div><div class="trial-kpi-val" id="trial-kpi-dollars">—</div><div class="trial-kpi-sub" id="trial-kpi-dollars-scaled"></div></div>
         <div class="trial-kpi" style="border-left-color:#9c27b0"><div class="trial-kpi-lbl">$ per Customer</div><div class="trial-kpi-val" id="trial-kpi-pc" style="color:#9c27b0">—</div></div>
       </div>
@@ -968,6 +971,24 @@
         <button class="trial-prod-btn" data-prod="34O" style="border-color:#e67300;color:#e67300">34O</button>
         <button class="trial-prod-btn" data-prod="15U" style="border-color:#00a86b;color:#00a86b">15U</button>
         <button class="trial-prod-btn" data-prod="34U" style="border-color:#9c27b0;color:#9c27b0">34U</button>
+        <span style="margin-left:auto;font-size:0.78rem;color:#888">Filter applies to per-product charts below</span>
+      </div>
+
+      <div class="chart-card" style="margin-top:14px">
+        <h3 style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span>Weekly Purchases: New vs Repeat (Selected Product)</span>
+          <span style="display:flex;gap:4px">
+            <button id="trial-nr-abs" class="ctrl-btn trial-nr-mode-btn active" onclick="setTrialNRMode('abs')"
+                    style="font-size:0.74rem;padding:4px 10px">Absolute</button>
+            <button id="trial-nr-pct" class="ctrl-btn trial-nr-mode-btn" onclick="setTrialNRMode('pct')"
+                    style="font-size:0.74rem;padding:4px 10px">Proportion</button>
+          </span>
+        </h3>
+        <div id="chart-trial-newrepeat" class="chart-div" style="height:340px"></div>
+        <div style="font-size:0.72rem;color:#999;margin-top:4px">
+          Repeat = transactions where the customer had already bought Catalyst earlier in the period.
+          Derived from cumulative bucket counts; <code>6+</code> bucket modeled as 6 txns (lower bound).
+        </div>
       </div>
 
       <div class="chart-grid" style="grid-template-columns: 1fr 1fr; margin-top:14px">
@@ -980,7 +1001,7 @@
           <div id="chart-trial-cumcust" class="chart-div" style="height:320px"></div>
         </div>
         <div class="chart-card">
-          <h3>Weekly New Customers (Trialers)</h3>
+          <h3>Weekly New Customers — by SKU</h3>
           <div id="chart-trial-newcust" class="chart-div" style="height:320px"></div>
         </div>
         <div class="chart-card">
@@ -3242,6 +3263,46 @@ function trialWeeklyNew(prod) {
   return tc.map((v, i) => i === 0 ? v : Math.max(0, v - tc[i-1]));
 }
 
+// Cumulative TRANSACTION count derived from buckets (6+ modeled as 6 — lower bound)
+function trialCumulativeTxns(prod) {
+  const c = prod.customers;
+  const weeksLen = prod.total_customers.length;
+  const out = [];
+  for (let i = 0; i < weeksLen; i++) {
+    const t = (c["1"][i]||0)*1 + (c["2"][i]||0)*2 + (c["3"][i]||0)*3
+            + (c["4"][i]||0)*4 + (c["5"][i]||0)*5 + (c["6+"][i]||0)*6;
+    out.push(t);
+  }
+  return out;
+}
+
+function trialWeeklyNewVsRepeat(prod) {
+  // Returns { newTxns, repeatTxns, totalTxns, repeatPct } per week
+  const cumTxns = trialCumulativeTxns(prod);
+  const tc = prod.total_customers;
+  const newTxns = [], repeatTxns = [], totalTxns = [], repeatPct = [];
+  for (let i = 0; i < tc.length; i++) {
+    const newC = i === 0 ? (tc[i]||0) : ((tc[i]||0) - (tc[i-1]||0));
+    const totalT = i === 0 ? (cumTxns[i]||0) : ((cumTxns[i]||0) - (cumTxns[i-1]||0));
+    const newClamped = Math.max(0, newC);
+    const totalClamped = Math.max(0, totalT);
+    const rep = Math.max(0, totalClamped - newClamped);
+    newTxns.push(newClamped);
+    repeatTxns.push(rep);
+    totalTxns.push(newClamped + rep);
+    repeatPct.push(totalClamped > 0 ? rep / totalClamped * 100 : 0);
+  }
+  return { newTxns, repeatTxns, totalTxns, repeatPct };
+}
+
+let trialNRMode = "abs"; // 'abs' | 'pct'
+function setTrialNRMode(mode) {
+  trialNRMode = mode;
+  document.getElementById("trial-nr-abs").classList.toggle("active", mode === "abs");
+  document.getElementById("trial-nr-pct").classList.toggle("active", mode === "pct");
+  if (window._trialLayoutBase && window._trialCfg) renderTrialNewRepeatChart(window._trialLayoutBase, window._trialCfg);
+}
+
 function initTrialRepeat() {
   const tr = DATA.trial_repeat;
   if (!tr || !tr.products) {
@@ -3278,6 +3339,16 @@ function initTrialRepeat() {
   document.getElementById("trial-kpi-dollars-scaled").textContent =
     scale > 1 ? `~$${Math.round(totalDollars * scale).toLocaleString()} scaled` : "";
   document.getElementById("trial-kpi-pc").textContent = "$" + dollarsPerCust.toFixed(2);
+
+  // Latest-week New vs Repeat (All Products)
+  const allNR = trialWeeklyNewVsRepeat(all);
+  const lwNew = allNR.newTxns[last] || 0;
+  const lwRep = allNR.repeatTxns[last] || 0;
+  const lwTotal = lwNew + lwRep;
+  const lwPct = lwTotal > 0 ? lwRep / lwTotal * 100 : 0;
+  document.getElementById("trial-kpi-wkrepeat").textContent = lwPct.toFixed(1) + "%";
+  document.getElementById("trial-kpi-wkrepeat-sub").textContent =
+    `${lwRep.toLocaleString()} repeat / ${lwTotal.toLocaleString()} total txns`;
 
   // ── Charts ────────────────────────────────────────────────────────────────
   const xLabels = tr.weeks.map(fmtTrialDate);
@@ -3347,7 +3418,10 @@ function initTrialRepeat() {
       yaxis2: { overlaying: "y", side: "right", showgrid: false, title: "All Products", tickformat: ",.0f" },
     }, cfg);
 
+  window._trialLayoutBase = layoutBase;
+  window._trialCfg = cfg;
   renderTrialBucketChart(layoutBase, cfg);
+  renderTrialNewRepeatChart(layoutBase, cfg);
 
   // Cumulative $ — 4 SKUs stacked + total line
   const dollarSeries = ["15O","34O","15U","34U"].map(name => ({
@@ -3388,8 +3462,61 @@ function initTrialRepeat() {
       btn.classList.add("active");
       trialSelectedProduct = btn.dataset.prod;
       renderTrialBucketChart(layoutBase, cfg);
+      renderTrialNewRepeatChart(layoutBase, cfg);
+      // Also update the latest-week KPI to reflect the selected product
+      const p = DATA.trial_repeat.products[trialSelectedProduct];
+      const nr = trialWeeklyNewVsRepeat(p);
+      const i = p.total_customers.length - 1;
+      const tot = (nr.newTxns[i] || 0) + (nr.repeatTxns[i] || 0);
+      const pct = tot > 0 ? nr.repeatTxns[i] / tot * 100 : 0;
+      document.getElementById("trial-kpi-wkrepeat").textContent = pct.toFixed(1) + "%";
+      document.getElementById("trial-kpi-wkrepeat-sub").textContent =
+        `${(nr.repeatTxns[i]||0).toLocaleString()} repeat / ${tot.toLocaleString()} txns · ${trialSelectedProduct}`;
     });
   });
+}
+
+function renderTrialNewRepeatChart(layoutBase, cfg) {
+  const tr = DATA.trial_repeat;
+  const prod = tr.products[trialSelectedProduct];
+  if (!prod) return;
+  const xLabels = tr.weeks.map(fmtTrialDate);
+  const nr = trialWeeklyNewVsRepeat(prod);
+  const newColor = TRIAL_PRODUCT_COLORS[trialSelectedProduct] || "#0057e7";
+  const traces = [
+    {
+      x: xLabels, y: nr.newTxns, name: "New (1st purchase)",
+      type: "bar", marker: { color: newColor },
+      customdata: nr.newTxns.map((v, i) => {
+        const t = (nr.newTxns[i]||0) + (nr.repeatTxns[i]||0);
+        return t > 0 ? (v / t * 100) : 0;
+      }),
+      hovertemplate: "New: %{y:,.0f} txns (%{customdata:.1f}% of week)<extra></extra>",
+    },
+    {
+      x: xLabels, y: nr.repeatTxns, name: "Repeat (2nd+ purchase)",
+      type: "bar", marker: { color: "#e63221" },
+      customdata: nr.repeatTxns.map((v, i) => {
+        const t = (nr.newTxns[i]||0) + (nr.repeatTxns[i]||0);
+        return t > 0 ? (v / t * 100) : 0;
+      }),
+      hovertemplate: "Repeat: %{y:,.0f} txns (%{customdata:.1f}% of week)<extra></extra>",
+    },
+  ];
+  const isPct = trialNRMode === "pct";
+  Plotly.newPlot("chart-trial-newrepeat", traces, {
+    ...layoutBase,
+    barmode: "stack",
+    barnorm: isPct ? "percent" : undefined,
+    yaxis: {
+      ...layoutBase.yaxis,
+      title: isPct ? "Share of weekly purchases" : "Weekly purchases (transactions)",
+      ticksuffix: isPct ? "%" : "",
+      tickformat: isPct ? ".0f" : ",.0f",
+      range: isPct ? [0, 100] : undefined,
+    },
+    hovermode: "x unified",
+  }, cfg);
 }
 
 function renderTrialBucketChart(layoutBase, cfg) {
