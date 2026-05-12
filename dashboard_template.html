@@ -362,7 +362,11 @@
 
     <!-- Metrics Table -->
     <div class="metrics-table-card">
-      <h3>Full Metrics Data</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap">
+        <h3 style="margin:0">Full Metrics Data</h3>
+        <button id="copy-metrics-btn" class="ctrl-btn" onclick="copyAllMetrics()"
+                style="font-size:0.78rem;padding:6px 14px">Copy All Metrics</button>
+      </div>
       <table id="metrics-table">
         <thead>
           <tr>
@@ -1348,6 +1352,67 @@ function buildMetricsTable() {
       tbody.appendChild(tr);
     });
   });
+}
+
+// ══ Copy All Metrics ══════════════════════════════════════════════════════════
+// Builds a tab-separated dump of every metric as its own table.
+// Columns: Week | 15O | 34O | 15U | 34U | Total (order requested by user).
+function copyAllMetrics() {
+  const COPY_SKUS = ["CATALYST15ORIG", "CATALYST34LBORIGINAL", "CATALYST15UNSCEN", "CATALYSTPET34LBUNSCE"];
+  const COPY_HEADERS = ["15O", "34O", "15U", "34U"];
+
+  const round2 = v => v == null ? "" : (Math.round(v * 100) / 100).toFixed(2);
+  const roundInt = v => v == null ? "" : String(Math.round(v));
+
+  const METRICS = [
+    { label: "U/S/W",        get: m => m && m.usw,              fmt: round2 },
+    { label: "Adj U/S/W",    get: m => calcAdjUSW(m),           fmt: round2 },
+    { label: "Instock %",    get: m => m && m.instock_pct,      fmt: round2 },
+    { label: "Units Sold",   get: m => m && m.pos_qty,          fmt: roundInt },
+    { label: "Retail $",     get: m => m && m.pos_dollars,      fmt: roundInt },
+    { label: "Wholesale $",  get: m => m && m.wholesale_dollars, fmt: roundInt },
+  ];
+
+  const sections = METRICS.map(metric => {
+    const header = ["Week", ...COPY_HEADERS, "Total"].join("\t");
+    const rows = DATA.weeks.map(w => {
+      const wMet = DATA.metrics[w] || {};
+      const vals = COPY_SKUS.map(sku => metric.fmt(metric.get(wMet[sku])));
+      const total = metric.fmt(metric.get(wMet["Total"]));
+      return [weekLabel(w), ...vals, total].join("\t");
+    });
+    return [metric.label, header, ...rows].join("\n");
+  });
+
+  const text = sections.join("\n\n");
+  const btn = document.getElementById("copy-metrics-btn");
+  const restore = () => { if (btn) { btn.textContent = "Copy All Metrics"; btn.style.background = ""; btn.style.color = ""; } };
+
+  const onOk = () => {
+    if (btn) { btn.textContent = "✓ Copied"; btn.style.background = "#2e7d32"; btn.style.color = "#fff"; }
+    setTimeout(restore, 1500);
+  };
+  const onFail = () => {
+    if (btn) { btn.textContent = "Copy failed"; btn.style.background = "#d32f2f"; btn.style.color = "#fff"; }
+    setTimeout(restore, 2000);
+  };
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(onOk).catch(() => fallbackCopy(text, onOk, onFail));
+  } else {
+    fallbackCopy(text, onOk, onFail);
+  }
+}
+
+function fallbackCopy(text, onOk, onFail) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed"; ta.style.left = "-9999px";
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy") ? onOk() : onFail(); }
+  catch (e) { onFail(); }
+  document.body.removeChild(ta);
 }
 
 // ══ Tab 8: Markdowns ══════════════════════════════════════════════════════════
