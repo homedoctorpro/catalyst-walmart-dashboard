@@ -152,6 +152,28 @@
   .endcap-chip.s-15U { background: #00a86b; }
   .endcap-chip.s-34U { background: #9c27b0; }
   .endcap-no-flag { color: #d32f2f; font-weight: 700; }
+
+  /* ── Trial & Repeat Tab ── */
+  .trial-meta { background:#fff; border-radius:8px; padding:10px 14px; font-size:0.82rem; color:#555;
+                margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,.05); display:flex; gap:18px;
+                flex-wrap:wrap; align-items:center; }
+  .trial-meta strong { color:#222; }
+  .trial-kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 14px; }
+  .trial-kpi { background: #fff; border-radius: 10px; padding: 12px 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+               border-left: 4px solid #999; }
+  .trial-kpi-lbl { font-size: 0.7rem; color: #777; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+  .trial-kpi-val { font-size: 1.55rem; font-weight: 700; color: #222; margin-top: 4px; }
+  .trial-kpi-sub { font-size: 0.7rem; color: #888; margin-top: 2px; }
+  @media (max-width: 1200px) { .trial-kpi-row { grid-template-columns: repeat(3, 1fr); } }
+  .trial-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 6px; }
+  .trial-prod-btn { padding: 6px 14px; border: 2px solid #888; border-radius: 6px; background: #fff;
+                    color: #555; font-weight: 700; cursor: pointer; font-size: 0.82rem;
+                    transition: all 0.1s; }
+  .trial-prod-btn.active { background: #333; color: #fff; border-color: #333; }
+  .trial-prod-btn[data-prod="15O"].active { background: #0057e7; border-color: #0057e7; color: #fff; }
+  .trial-prod-btn[data-prod="34O"].active { background: #e67300; border-color: #e67300; color: #fff; }
+  .trial-prod-btn[data-prod="15U"].active { background: #00a86b; border-color: #00a86b; color: #fff; }
+  .trial-prod-btn[data-prod="34U"].active { background: #9c27b0; border-color: #9c27b0; color: #fff; }
   .copy-metric-btn { margin-top: 4px; padding: 2px 8px; font-size: 0.7rem; font-weight: 700;
                      color: #0057e7; background: #fff; border: 1px solid #0057e7; border-radius: 5px;
                      cursor: pointer; transition: background 0.12s, color 0.12s; }
@@ -375,6 +397,7 @@
     <button class="tab-btn"        onclick="switchTab('inventory',this)">📦 Inventory</button>
     <button class="tab-btn"        onclick="switchTab('geolift',this)">🧪 GeoLift</button>
     <button class="tab-btn"        onclick="switchTab('endcap',this)">🎯 Endcap</button>
+    <button class="tab-btn"        onclick="switchTab('trial',this)">🔁 Trial &amp; Repeat</button>
   </div>
 
   <!-- ── Tab 1: Metrics ─────────────────────────────────────────────────── -->
@@ -919,6 +942,94 @@
       </div>
     </div>
   </div>
+
+  <!-- ── Tab: Trial & Repeat ──────────────────────────────────────────────── -->
+  <div id="tab-trial" class="tab-panel">
+    <div id="trial-empty" style="display:none;padding:40px;text-align:center;color:#888">
+      Trial &amp; Repeat data not available. Drop the Walmart report
+      <code>Catalyst Trial and Repeat Report.xlsx</code> into the project folder
+      and run <code>python extract_data.py</code>.
+    </div>
+    <div id="trial-content">
+      <div class="trial-meta" id="trial-meta"></div>
+
+      <div class="trial-kpi-row">
+        <div class="trial-kpi"><div class="trial-kpi-lbl">Total Customers (Card)</div><div class="trial-kpi-val" id="trial-kpi-cust">—</div><div class="trial-kpi-sub" id="trial-kpi-cust-scaled"></div></div>
+        <div class="trial-kpi" style="border-left-color:#2e7d32"><div class="trial-kpi-lbl">Repeat Customers (2+)</div><div class="trial-kpi-val" id="trial-kpi-rep" style="color:#2e7d32">—</div></div>
+        <div class="trial-kpi" style="border-left-color:#0057e7"><div class="trial-kpi-lbl">Repeat Rate</div><div class="trial-kpi-val" id="trial-kpi-rate" style="color:#0057e7">—</div></div>
+        <div class="trial-kpi" style="border-left-color:#e67300"><div class="trial-kpi-lbl">Card $ (Cumulative)</div><div class="trial-kpi-val" id="trial-kpi-dollars">—</div><div class="trial-kpi-sub" id="trial-kpi-dollars-scaled"></div></div>
+        <div class="trial-kpi" style="border-left-color:#9c27b0"><div class="trial-kpi-lbl">$ per Customer</div><div class="trial-kpi-val" id="trial-kpi-pc" style="color:#9c27b0">—</div></div>
+      </div>
+
+      <div class="trial-filters">
+        <span style="font-weight:600;color:#444;font-size:0.85rem">Product:</span>
+        <button class="trial-prod-btn active" data-prod="All Products">All Products</button>
+        <button class="trial-prod-btn" data-prod="15O" style="border-color:#0057e7;color:#0057e7">15O</button>
+        <button class="trial-prod-btn" data-prod="34O" style="border-color:#e67300;color:#e67300">34O</button>
+        <button class="trial-prod-btn" data-prod="15U" style="border-color:#00a86b;color:#00a86b">15U</button>
+        <button class="trial-prod-btn" data-prod="34U" style="border-color:#9c27b0;color:#9c27b0">34U</button>
+      </div>
+
+      <div class="chart-grid" style="grid-template-columns: 1fr 1fr; margin-top:14px">
+        <div class="chart-card">
+          <h3>Repeat Rate Over Time — All SKUs</h3>
+          <div id="chart-trial-rate" class="chart-div" style="height:320px"></div>
+        </div>
+        <div class="chart-card">
+          <h3>Cumulative Customers Over Time</h3>
+          <div id="chart-trial-cumcust" class="chart-div" style="height:320px"></div>
+        </div>
+        <div class="chart-card">
+          <h3>Weekly New Customers (Trialers)</h3>
+          <div id="chart-trial-newcust" class="chart-div" style="height:320px"></div>
+        </div>
+        <div class="chart-card">
+          <h3>Transaction-Count Distribution (Selected Product)</h3>
+          <div id="chart-trial-buckets" class="chart-div" style="height:320px"></div>
+        </div>
+      </div>
+
+      <div class="chart-grid" style="grid-template-columns: 1fr 1fr; margin-top:14px">
+        <div class="chart-card">
+          <h3>Card Sales $ — by SKU, Cumulative</h3>
+          <div id="chart-trial-dollars" class="chart-div" style="height:320px"></div>
+        </div>
+        <div class="chart-card">
+          <h3>$ per Customer — End of Period</h3>
+          <div id="chart-trial-pc" class="chart-div" style="height:320px"></div>
+        </div>
+      </div>
+
+      <div class="data-table-card" style="margin-top: 18px">
+        <h3>Per-SKU Summary (End of Period)</h3>
+        <div class="data-table-scroll">
+          <table class="data-tbl" id="trial-summary-table">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Total Customers</th>
+                <th>Trialers (1×)</th>
+                <th>Repeaters (2+)</th>
+                <th>Repeat Rate</th>
+                <th>3+ txns</th>
+                <th>Card $</th>
+                <th>$ / Customer</th>
+              </tr>
+            </thead>
+            <tbody id="trial-summary-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="background:#f5f8ff;border-left:4px solid #0057e7;padding:12px 16px;margin-top:18px;border-radius:6px;font-size:0.82rem;color:#444">
+        <strong style="color:#0057e7">About this data:</strong>
+        Walmart Luminate Trial &amp; Repeat report — card-traceable transactions only, sampled at the rate shown above.
+        Scaled estimates assume the sample rate; cash buyers are excluded so true totals are higher.
+        Repeat rate climbs as the launch matures; a 16-week window typically underestimates final repeat for cat litter
+        (4–8 week consumption cycle on 15lb, 10–12 weeks on 34lb).
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1017,6 +1128,7 @@ let ecommInit        = false;
 let inventoryInit    = false;
 let geoliftInit      = false;
 let endcapInit       = false;
+let trialInit        = false;
 
 function switchTab(name, btn) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -1088,6 +1200,13 @@ function switchTab(name, btn) {
   if (name === "endcap") {
     if (!endcapInit) { initEndcap(); endcapInit = true; }
     else if (window._endcapMap) setTimeout(() => window._endcapMap.invalidateSize(), 50);
+  }
+  if (name === "trial") {
+    if (!trialInit) { initTrialRepeat(); trialInit = true; }
+    else setTimeout(() => {
+      ["chart-trial-rate","chart-trial-cumcust","chart-trial-newcust","chart-trial-buckets","chart-trial-dollars","chart-trial-pc"]
+        .forEach(id => { const el = document.getElementById(id); if (el) Plotly.Plots.resize(el); });
+    }, 50);
   }
 }
 
@@ -3077,6 +3196,248 @@ function initEndcap() {
   renderEndcapTable();
 
   setTimeout(() => map.invalidateSize(), 100);
+}
+
+// ══ Tab: Trial & Repeat ═══════════════════════════════════════════════════════
+const TRIAL_PRODUCT_COLORS = {
+  "All Products": "#333333",
+  "15O": "#0057e7",
+  "34O": "#e67300",
+  "15U": "#00a86b",
+  "34U": "#9c27b0",
+};
+const TRIAL_BUCKET_COLORS = {
+  "1":  "#fdd0a2",
+  "2":  "#fd8d3c",
+  "3":  "#e6550d",
+  "4":  "#a63603",
+  "5":  "#7a2502",
+  "6+": "#3d1300",
+};
+let trialSelectedProduct = "All Products";
+
+function fmtTrialDate(iso) {
+  // 2026-04-18 -> "4/18"
+  const parts = iso.split("-");
+  return `${parseInt(parts[1])}/${parseInt(parts[2])}`;
+}
+
+function trialRepeatRateSeries(prod) {
+  // For each week i, repeat_rate = sum(buckets 2..6+ at i) / total_customers[i]
+  const c = prod.customers;
+  const weeksLen = prod.total_customers.length;
+  const rate = [];
+  for (let i = 0; i < weeksLen; i++) {
+    const total = prod.total_customers[i];
+    if (!total) { rate.push(null); continue; }
+    const repeaters = (c["2"][i]||0) + (c["3"][i]||0) + (c["4"][i]||0) + (c["5"][i]||0) + (c["6+"][i]||0);
+    rate.push(repeaters / total * 100);
+  }
+  return rate;
+}
+
+function trialWeeklyNew(prod) {
+  // delta of cumulative total customers
+  const tc = prod.total_customers;
+  return tc.map((v, i) => i === 0 ? v : Math.max(0, v - tc[i-1]));
+}
+
+function initTrialRepeat() {
+  const tr = DATA.trial_repeat;
+  if (!tr || !tr.products) {
+    document.getElementById("trial-empty").style.display = "block";
+    document.getElementById("trial-content").style.display = "none";
+    return;
+  }
+
+  // ── Meta line ─────────────────────────────────────────────────────────────
+  const meta = tr.meta || {};
+  const metaParts = [];
+  if (meta.period_label) metaParts.push(`<span><strong>Period:</strong> ${meta.period_label}</span>`);
+  if (meta.sample_rate != null) metaParts.push(`<span><strong>Sample rate:</strong> ${(meta.sample_rate * 100).toFixed(0)}%</span>`);
+  if (meta.txn_type) metaParts.push(`<span><strong>Txn type:</strong> ${meta.txn_type}</span>`);
+  if (meta.submitted_date) metaParts.push(`<span><strong>Report date:</strong> ${meta.submitted_date}</span>`);
+  document.getElementById("trial-meta").innerHTML = metaParts.join("");
+
+  // ── KPIs (use All Products at end of period) ─────────────────────────────
+  const all = tr.products["All Products"];
+  const last = all.total_customers.length - 1;
+  const totalCust = all.total_customers[last] || 0;
+  const repeaters = ["2","3","4","5","6+"].reduce((s, b) => s + (all.customers[b][last] || 0), 0);
+  const rate = totalCust ? repeaters / totalCust * 100 : 0;
+  const totalDollars = all.total_dollars[last] || 0;
+  const dollarsPerCust = totalCust ? totalDollars / totalCust : 0;
+  const scale = meta.sample_rate ? 1 / meta.sample_rate : 1;
+
+  document.getElementById("trial-kpi-cust").textContent = totalCust.toLocaleString();
+  document.getElementById("trial-kpi-cust-scaled").textContent =
+    scale > 1 ? `~${Math.round(totalCust * scale).toLocaleString()} scaled` : "";
+  document.getElementById("trial-kpi-rep").textContent = repeaters.toLocaleString();
+  document.getElementById("trial-kpi-rate").textContent = rate.toFixed(1) + "%";
+  document.getElementById("trial-kpi-dollars").textContent = "$" + Math.round(totalDollars).toLocaleString();
+  document.getElementById("trial-kpi-dollars-scaled").textContent =
+    scale > 1 ? `~$${Math.round(totalDollars * scale).toLocaleString()} scaled` : "";
+  document.getElementById("trial-kpi-pc").textContent = "$" + dollarsPerCust.toFixed(2);
+
+  // ── Charts ────────────────────────────────────────────────────────────────
+  const xLabels = tr.weeks.map(fmtTrialDate);
+  const layoutBase = {
+    margin: { t:10, b:60, l:60, r:30 },
+    paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+    font: { family: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif", size: 11 },
+    legend: { orientation: "h", y: -0.22, font: { size: 10 } },
+    xaxis: { showgrid: false, tickangle: -30 },
+    yaxis: { gridcolor: "#e8e8e8" },
+    hovermode: "x unified",
+  };
+  const cfg = { responsive: true, displayModeBar: false };
+
+  // Repeat Rate over time — all 5 series
+  const rateSeries = Object.keys(tr.products).map(name => ({
+    x: xLabels,
+    y: trialRepeatRateSeries(tr.products[name]),
+    name: name,
+    type: "scatter", mode: "lines+markers",
+    line:  { color: TRIAL_PRODUCT_COLORS[name] || "#999", width: name === "All Products" ? 3 : 2,
+             dash: name === "All Products" ? "dash" : "solid" },
+    marker:{ color: TRIAL_PRODUCT_COLORS[name] || "#999", size: name === "All Products" ? 7 : 5 },
+    hovertemplate: name + ": %{y:.1f}%<extra></extra>",
+  }));
+  Plotly.newPlot("chart-trial-rate", rateSeries,
+    { ...layoutBase, yaxis: { ...layoutBase.yaxis, ticksuffix: "%", title: "Repeat Rate" } }, cfg);
+
+  // Cumulative customers — all 5 series
+  const cumSeries = Object.keys(tr.products).map(name => ({
+    x: xLabels,
+    y: tr.products[name].total_customers,
+    name: name,
+    type: "scatter", mode: "lines+markers",
+    line:  { color: TRIAL_PRODUCT_COLORS[name] || "#999", width: name === "All Products" ? 3 : 2,
+             dash: name === "All Products" ? "dash" : "solid" },
+    marker:{ color: TRIAL_PRODUCT_COLORS[name] || "#999", size: name === "All Products" ? 7 : 5 },
+    hovertemplate: name + ": %{y:,.0f}<extra></extra>",
+  }));
+  Plotly.newPlot("chart-trial-cumcust", cumSeries,
+    { ...layoutBase, yaxis: { ...layoutBase.yaxis, title: "Cumulative Customers", tickformat: ",.0f" } }, cfg);
+
+  // Weekly new customers — grouped bars (4 SKUs + All as line overlay)
+  const newCustBars = ["15O","34O","15U","34U"].map(name => ({
+    x: xLabels,
+    y: trialWeeklyNew(tr.products[name]),
+    name: name,
+    type: "bar",
+    marker: { color: TRIAL_PRODUCT_COLORS[name] },
+    hovertemplate: name + ": %{y:,.0f}<extra></extra>",
+  }));
+  newCustBars.push({
+    x: xLabels,
+    y: trialWeeklyNew(tr.products["All Products"]),
+    name: "All Products",
+    type: "scatter", mode: "lines+markers",
+    line:  { color: "#333", width: 2, dash: "dot" },
+    marker:{ color: "#333", size: 5 },
+    yaxis: "y2",
+    hovertemplate: "All: %{y:,.0f}<extra></extra>",
+  });
+  Plotly.newPlot("chart-trial-newcust", newCustBars,
+    {
+      ...layoutBase,
+      barmode: "group",
+      yaxis:  { ...layoutBase.yaxis, title: "New customers (per SKU)", tickformat: ",.0f" },
+      yaxis2: { overlaying: "y", side: "right", showgrid: false, title: "All Products", tickformat: ",.0f" },
+    }, cfg);
+
+  renderTrialBucketChart(layoutBase, cfg);
+
+  // Cumulative $ — 4 SKUs stacked + total line
+  const dollarSeries = ["15O","34O","15U","34U"].map(name => ({
+    x: xLabels,
+    y: tr.products[name].total_dollars,
+    name: name,
+    type: "scatter", mode: "none", stackgroup: "one",
+    fillcolor: TRIAL_PRODUCT_COLORS[name],
+    hovertemplate: name + ": $%{y:,.0f}<extra></extra>",
+  }));
+  Plotly.newPlot("chart-trial-dollars", dollarSeries,
+    { ...layoutBase, yaxis: { ...layoutBase.yaxis, title: "Cumulative Card $", tickprefix: "$", tickformat: ",.0f" } }, cfg);
+
+  // $ per customer — bar chart
+  const pcLabels = ["15O","34O","15U","34U"];
+  const pcVals = pcLabels.map(name => {
+    const p = tr.products[name];
+    const tc = p.total_customers[last];
+    return tc ? p.total_dollars[last] / tc : 0;
+  });
+  Plotly.newPlot("chart-trial-pc",
+    [{
+      x: pcLabels, y: pcVals, type: "bar",
+      marker: { color: pcLabels.map(n => TRIAL_PRODUCT_COLORS[n]) },
+      text: pcVals.map(v => "$" + v.toFixed(2)),
+      textposition: "outside",
+      hovertemplate: "%{x}: $%{y:.2f}<extra></extra>",
+    }],
+    { ...layoutBase, showlegend: false, yaxis: { ...layoutBase.yaxis, title: "$ / Customer", tickprefix: "$" } }, cfg);
+
+  // Summary table
+  renderTrialSummaryTable();
+
+  // Product filter buttons
+  document.querySelectorAll(".trial-prod-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".trial-prod-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      trialSelectedProduct = btn.dataset.prod;
+      renderTrialBucketChart(layoutBase, cfg);
+    });
+  });
+}
+
+function renderTrialBucketChart(layoutBase, cfg) {
+  const tr = DATA.trial_repeat;
+  const prod = tr.products[trialSelectedProduct];
+  if (!prod) return;
+  const xLabels = tr.weeks.map(fmtTrialDate);
+  const series = ["1","2","3","4","5","6+"].map(b => ({
+    x: xLabels, y: prod.customers[b], name: b + " txn",
+    type: "bar", marker: { color: TRIAL_BUCKET_COLORS[b] },
+    hovertemplate: b + " txn: %{y:,.0f}<extra></extra>",
+  }));
+  Plotly.newPlot("chart-trial-buckets", series,
+    {
+      ...layoutBase,
+      barmode: "stack",
+      title: { text: trialSelectedProduct, font: { size: 12 }, x: 0.02, y: 0.98 },
+      yaxis: { ...layoutBase.yaxis, title: "Customers (cumulative, by # txns)", tickformat: ",.0f" },
+    }, cfg);
+}
+
+function renderTrialSummaryTable() {
+  const tr = DATA.trial_repeat;
+  const last = tr.weeks.length - 1;
+  const tbody = document.getElementById("trial-summary-tbody");
+  const order = ["All Products","15O","34O","15U","34U"];
+  tbody.innerHTML = order.map(name => {
+    const p = tr.products[name];
+    if (!p) return "";
+    const totalCust = p.total_customers[last] || 0;
+    const one = p.customers["1"][last] || 0;
+    const repeaters = totalCust - one;
+    const rate = totalCust ? repeaters / totalCust * 100 : 0;
+    const threeplus = ["3","4","5","6+"].reduce((s,b) => s + (p.customers[b][last]||0), 0);
+    const dollars = p.total_dollars[last] || 0;
+    const pc = totalCust ? dollars / totalCust : 0;
+    const isAll = name === "All Products";
+    return `<tr style="${isAll ? 'font-weight:700;background:#fafafa' : ''}">
+      <td><span style="display:inline-block;width:8px;height:8px;background:${TRIAL_PRODUCT_COLORS[name]};border-radius:50%;margin-right:6px;vertical-align:middle"></span>${name}</td>
+      <td>${totalCust.toLocaleString()}</td>
+      <td>${one.toLocaleString()}</td>
+      <td>${repeaters.toLocaleString()}</td>
+      <td>${rate.toFixed(1)}%</td>
+      <td>${threeplus.toLocaleString()}</td>
+      <td>$${Math.round(dollars).toLocaleString()}</td>
+      <td>$${pc.toFixed(2)}</td>
+    </tr>`;
+  }).join("");
 }
 
 // ── Must be last ──────────────────────────────────────────────────────────────

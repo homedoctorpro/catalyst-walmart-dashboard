@@ -720,6 +720,15 @@ def main():
         print(f"  [WARN] Endcap data unavailable: {e}")
         endcap_rows, endcap_summary = [], {"total": 0, "mapped": 0, "addressed": 0, "no_catalyst": 0}
 
+    # 5d. Trial & Repeat data (optional - requires Catalyst Trial and Repeat Report*.xlsx)
+    print("\nBuilding Trial & Repeat data...")
+    try:
+        from trial_repeat import build_trial_repeat_data
+        trial_repeat = build_trial_repeat_data(verbose=True)
+    except Exception as e:
+        print(f"  [WARN] Trial & Repeat data unavailable: {e}")
+        trial_repeat = None
+
     data = {
         "weeks":       sorted(files.keys()),
         "store_weeks": store_weeks_list,
@@ -736,6 +745,7 @@ def main():
         "state_inventory":  state_inventory,
         "week_labels":  week_labels,
         "endcap":      {"rows": endcap_rows, "summary": endcap_summary},
+        "trial_repeat": trial_repeat,
     }
 
     # 7. Read template and embed JSON
