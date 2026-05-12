@@ -956,11 +956,11 @@
       <div class="trial-meta" id="trial-meta"></div>
 
       <div class="trial-kpi-row">
-        <div class="trial-kpi"><div class="trial-kpi-lbl">Total Customers (Card)</div><div class="trial-kpi-val" id="trial-kpi-cust">—</div><div class="trial-kpi-sub" id="trial-kpi-cust-scaled"></div></div>
-        <div class="trial-kpi" style="border-left-color:#2e7d32"><div class="trial-kpi-lbl">Repeat Customers (2+)</div><div class="trial-kpi-val" id="trial-kpi-rep" style="color:#2e7d32">—</div></div>
+        <div class="trial-kpi"><div class="trial-kpi-lbl">Total Customers <span style="color:#bbb;font-weight:500">(panel)</span></div><div class="trial-kpi-val" id="trial-kpi-cust">—</div></div>
+        <div class="trial-kpi" style="border-left-color:#2e7d32"><div class="trial-kpi-lbl">Repeat Customers, 2+ <span style="color:#bbb;font-weight:500">(panel)</span></div><div class="trial-kpi-val" id="trial-kpi-rep" style="color:#2e7d32">—</div></div>
         <div class="trial-kpi" style="border-left-color:#0057e7"><div class="trial-kpi-lbl">Repeat Rate (Cumulative)</div><div class="trial-kpi-val" id="trial-kpi-rate" style="color:#0057e7">—</div></div>
         <div class="trial-kpi" style="border-left-color:#e63221"><div class="trial-kpi-lbl">Latest Week — Repeat %</div><div class="trial-kpi-val" id="trial-kpi-wkrepeat" style="color:#e63221">—</div><div class="trial-kpi-sub" id="trial-kpi-wkrepeat-sub"></div></div>
-        <div class="trial-kpi" style="border-left-color:#e67300"><div class="trial-kpi-lbl">Card $ (Cumulative)</div><div class="trial-kpi-val" id="trial-kpi-dollars">—</div><div class="trial-kpi-sub" id="trial-kpi-dollars-scaled"></div></div>
+        <div class="trial-kpi" style="border-left-color:#e67300"><div class="trial-kpi-lbl">Card $ Cumulative <span style="color:#bbb;font-weight:500">(panel)</span></div><div class="trial-kpi-val" id="trial-kpi-dollars">—</div></div>
         <div class="trial-kpi" style="border-left-color:#9c27b0"><div class="trial-kpi-lbl">$ per Customer</div><div class="trial-kpi-val" id="trial-kpi-pc" style="color:#9c27b0">—</div></div>
       </div>
 
@@ -1042,12 +1042,21 @@
         </div>
       </div>
 
-      <div style="background:#f5f8ff;border-left:4px solid #0057e7;padding:12px 16px;margin-top:18px;border-radius:6px;font-size:0.82rem;color:#444">
-        <strong style="color:#0057e7">About this data:</strong>
-        Walmart Luminate Trial &amp; Repeat report — card-traceable transactions only, sampled at the rate shown above.
-        Scaled estimates assume the sample rate; cash buyers are excluded so true totals are higher.
-        Repeat rate climbs as the launch matures; a 16-week window typically underestimates final repeat for cat litter
-        (4–8 week consumption cycle on 15lb, 10–12 weeks on 34lb).
+      <div style="background:#fff8e1;border-left:4px solid #f9a825;padding:12px 16px;margin-top:18px;border-radius:6px;font-size:0.82rem;color:#444">
+        <strong style="color:#b06600">⚠ How to read these numbers:</strong>
+        These are Walmart Luminate <strong>Continuous Panel</strong> observations — a card-traceable
+        subset of shoppers, not the full Walmart customer base. The <code>Sample Rate: 0.1</code>
+        metadata describes panel methodology and does <strong>not</strong> mean you should multiply by 10
+        to get true totals (cross-checked against actual POS volumes — that math doesn't reconcile).
+        <br><br>
+        <strong>What's trustworthy:</strong>
+        <span style="color:#2e7d32">repeat rate</span>, <span style="color:#2e7d32">trial trajectory shape</span>,
+        <span style="color:#2e7d32">SKU vs SKU comparisons</span>, <span style="color:#2e7d32">$ per customer ratios</span>.
+        <strong>Don't read literally:</strong>
+        <span style="color:#d32f2f">absolute customer counts</span> as a head-count of every Catalyst buyer.
+        Compare against the
+        <a href="javascript:void(0)" onclick="gotoMetricsUnits()" style="color:#0057e7;font-weight:600">📈 Metrics tab → POS Units / Retail $</a>
+        for true sales volumes (those are full POS, not panel).
       </div>
     </div>
   </div>
@@ -3237,6 +3246,16 @@ const TRIAL_BUCKET_COLORS = {
 };
 let trialSelectedProduct = "All Products";
 
+function gotoMetricsUnits() {
+  // Switch to Metrics tab and scroll to the Units Sold chart
+  const tabBtn = document.querySelector('.tab-btn');  // first tab = Metrics
+  if (tabBtn) tabBtn.click();
+  setTimeout(() => {
+    const el = document.getElementById("chart-units");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, 100);
+}
+
 function fmtTrialDate(iso) {
   // 2026-04-18 -> "4/18"
   const parts = iso.split("-");
@@ -3328,16 +3347,11 @@ function initTrialRepeat() {
   const rate = totalCust ? repeaters / totalCust * 100 : 0;
   const totalDollars = all.total_dollars[last] || 0;
   const dollarsPerCust = totalCust ? totalDollars / totalCust : 0;
-  const scale = meta.sample_rate ? 1 / meta.sample_rate : 1;
 
   document.getElementById("trial-kpi-cust").textContent = totalCust.toLocaleString();
-  document.getElementById("trial-kpi-cust-scaled").textContent =
-    scale > 1 ? `~${Math.round(totalCust * scale).toLocaleString()} scaled` : "";
   document.getElementById("trial-kpi-rep").textContent = repeaters.toLocaleString();
   document.getElementById("trial-kpi-rate").textContent = rate.toFixed(1) + "%";
   document.getElementById("trial-kpi-dollars").textContent = "$" + Math.round(totalDollars).toLocaleString();
-  document.getElementById("trial-kpi-dollars-scaled").textContent =
-    scale > 1 ? `~$${Math.round(totalDollars * scale).toLocaleString()} scaled` : "";
   document.getElementById("trial-kpi-pc").textContent = "$" + dollarsPerCust.toFixed(2);
 
   // Latest-week New vs Repeat (All Products)
