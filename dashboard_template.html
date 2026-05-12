@@ -94,6 +94,65 @@
   #metrics-table .total-row td { font-weight: 700; background: #fafafa; }
   #metrics-table tbody tr:hover td { background: #f8f9ff; }
 
+  /* ── Endcap Tab ── */
+  .endcap-kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+  .endcap-kpi { background: #fff; border-radius: 10px; padding: 14px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+                border-left: 4px solid #0057e7; }
+  .endcap-kpi-lbl { font-size: 0.72rem; color: #777; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+  .endcap-kpi-val { font-size: 1.55rem; font-weight: 700; color: #222; margin-top: 4px; }
+  .endcap-sub-tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid #e0e0e0; }
+  .endcap-sub-btn { background: transparent; border: none; padding: 9px 16px; font-weight: 600; color: #666;
+                    cursor: pointer; border-bottom: 3px solid transparent; font-size: 0.88rem; }
+  .endcap-sub-btn.active { color: #0057e7; border-bottom-color: #0057e7; }
+  .endcap-view { display: none; }
+  .endcap-view.active { display: block; }
+  .endcap-map-controls { background: #fff; padding: 10px 14px; border-radius: 8px; margin-bottom: 10px;
+                         display: flex; gap: 18px; align-items: center; flex-wrap: wrap; font-size: 0.85rem;
+                         box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .endcap-map-controls label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+  .endcap-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(0,0,0,.2); }
+  .endcap-dot.has { background: #0057e7; }
+  .endcap-dot.no  { background: #d32f2f; }
+  .endcap-popup b { color: #0057e7; }
+  .endcap-popup .badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 0.72rem;
+                         font-weight: 700; margin-right: 3px; color: #fff; }
+  .endcap-popup .b-15O { background: #0057e7; }
+  .endcap-popup .b-34O { background: #e67300; }
+  .endcap-popup .b-15U { background: #00a86b; }
+  .endcap-popup .b-34U { background: #9c27b0; }
+  .endcap-popup .no-cat { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.72rem;
+                          font-weight: 700; background: #d32f2f; color: #fff; }
+  .endcap-table-controls { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .endcap-table-controls input[type=text] { padding: 7px 10px; border: 1px solid #ccc; border-radius: 6px;
+                                            font-size: 0.88rem; min-width: 240px; }
+  .endcap-table-controls label { font-size: 0.85rem; display: inline-flex; align-items: center; gap: 5px; }
+  .endcap-count { color: #666; font-size: 0.85rem; margin-left: auto; }
+  .endcap-table-scroll { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+                         max-height: calc(100vh - 320px); overflow: auto; }
+  #endcap-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  #endcap-table th { position: sticky; top: 0; background: #f5f5f5; padding: 8px 10px; text-align: left;
+                     font-weight: 700; border-bottom: 2px solid #e0e0e0; cursor: pointer; white-space: nowrap; z-index: 5; }
+  #endcap-table th:hover { background: #ececec; }
+  #endcap-table th.center { text-align: center; }
+  #endcap-table td { padding: 6px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; white-space: nowrap; }
+  #endcap-table td.center { text-align: center; }
+  #endcap-table tr.no-cat td { background: #fdecec; }
+  #endcap-table tr:hover td { background: #f8f9ff; }
+  #endcap-table tr.no-cat:hover td { background: #fbdedb; }
+  .endcap-chip { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 0.72rem;
+                 font-weight: 700; color: #fff; }
+  .endcap-chip.s-15O { background: #0057e7; }
+  .endcap-chip.s-34O { background: #e67300; }
+  .endcap-chip.s-15U { background: #00a86b; }
+  .endcap-chip.s-34U { background: #9c27b0; }
+  .endcap-no-flag { color: #d32f2f; font-weight: 700; }
+  .copy-metric-btn { margin-top: 4px; padding: 2px 8px; font-size: 0.7rem; font-weight: 700;
+                     color: #0057e7; background: #fff; border: 1px solid #0057e7; border-radius: 5px;
+                     cursor: pointer; transition: background 0.12s, color 0.12s; }
+  .copy-metric-btn:hover { background: #0057e7; color: #fff; }
+  .copy-metric-btn.copied { background: #2e7d32; border-color: #2e7d32; color: #fff; }
+  .copy-metric-btn.failed { background: #d32f2f; border-color: #d32f2f; color: #fff; }
+
   /* ── Map Controls ── */
   .map-controls { background: #fff; border-radius: 12px; padding: 14px 18px;
                   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
@@ -309,6 +368,7 @@
     <button class="tab-btn"        onclick="switchTab('ecomm',this)">🛒 Ecomm</button>
     <button class="tab-btn"        onclick="switchTab('inventory',this)">📦 Inventory</button>
     <button class="tab-btn"        onclick="switchTab('geolift',this)">🧪 GeoLift</button>
+    <button class="tab-btn"        onclick="switchTab('endcap',this)">🎯 Endcap</button>
   </div>
 
   <!-- ── Tab 1: Metrics ─────────────────────────────────────────────────── -->
@@ -362,16 +422,21 @@
 
     <!-- Metrics Table -->
     <div class="metrics-table-card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap">
-        <h3 style="margin:0">Full Metrics Data</h3>
-        <button id="copy-metrics-btn" class="ctrl-btn" onclick="copyAllMetrics()"
-                style="font-size:0.78rem;padding:6px 14px">Copy All Metrics</button>
+      <h3>Full Metrics Data</h3>
+      <div style="font-size:0.75rem;color:#888;margin-bottom:10px">
+        Click a column's <span style="color:#0057e7;font-weight:700">Copy</span> button to copy that metric's table
+        (Week × 15O / 34O / 15U / 34U / Total) for paste into your spreadsheet.
       </div>
       <table id="metrics-table">
         <thead>
           <tr>
             <th>SKU</th>
-            <th>U/S/W</th><th>Adj U/S/W</th><th>Instock %</th><th>Units Sold</th><th>Retail $</th><th>Wholesale $</th>
+            <th><div>U/S/W</div><button class="copy-metric-btn" onclick="copyMetric(event,'usw')">Copy</button></th>
+            <th><div>Adj U/S/W</div><button class="copy-metric-btn" onclick="copyMetric(event,'adj_usw')">Copy</button></th>
+            <th><div>Instock %</div><button class="copy-metric-btn" onclick="copyMetric(event,'instock_pct')">Copy</button></th>
+            <th><div>Units Sold</div><button class="copy-metric-btn" onclick="copyMetric(event,'pos_qty')">Copy</button></th>
+            <th><div>Retail $</div><button class="copy-metric-btn" onclick="copyMetric(event,'pos_dollars')">Copy</button></th>
+            <th><div>Wholesale $</div><button class="copy-metric-btn" onclick="copyMetric(event,'wholesale_dollars')">Copy</button></th>
           </tr>
         </thead>
         <tbody id="metrics-tbody"></tbody>
@@ -793,6 +858,57 @@
       </div>
     </div>
   </div>
+
+  <!-- ── Tab: Endcap ─────────────────────────────────────────────────────────── -->
+  <div id="tab-endcap" class="tab-panel">
+    <div class="endcap-kpi-row">
+      <div class="endcap-kpi"><div class="endcap-kpi-lbl">Endcap Stores</div><div class="endcap-kpi-val" id="endcap-kpi-total">—</div></div>
+      <div class="endcap-kpi"><div class="endcap-kpi-lbl">Currently Stock Catalyst</div><div class="endcap-kpi-val" id="endcap-kpi-has" style="color:#0057e7">—</div></div>
+      <div class="endcap-kpi"><div class="endcap-kpi-lbl">On Endcap, No Catalyst Yet</div><div class="endcap-kpi-val" id="endcap-kpi-no" style="color:#d32f2f">—</div></div>
+      <div class="endcap-kpi"><div class="endcap-kpi-lbl">Total Recommended Qty</div><div class="endcap-kpi-val" id="endcap-kpi-qty">—</div></div>
+    </div>
+
+    <div class="endcap-sub-tabs">
+      <button class="endcap-sub-btn active" onclick="switchEndcapView('map',this)">🗺️ Map</button>
+      <button class="endcap-sub-btn"        onclick="switchEndcapView('table',this)">📋 Table</button>
+    </div>
+
+    <div id="endcap-view-map" class="endcap-view active">
+      <div class="endcap-map-controls">
+        <label><input type="checkbox" id="endcap-show-has" checked> <span class="endcap-dot has"></span> Stocks Catalyst</label>
+        <label><input type="checkbox" id="endcap-show-no" checked> <span class="endcap-dot no"></span> On endcap, no Catalyst yet</label>
+        <span style="color:#888;font-size:0.78rem;margin-left:auto">Click a marker for address &amp; current SKUs</span>
+      </div>
+      <div id="endcap-map" style="height:calc(100vh - 290px);min-height:480px;width:100%;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)"></div>
+    </div>
+
+    <div id="endcap-view-table" class="endcap-view">
+      <div class="endcap-table-controls">
+        <input type="text" id="endcap-search" placeholder="Search store #, city, state, address…">
+        <label><input type="checkbox" id="endcap-only-no"> Only stores without Catalyst</label>
+        <button class="ctrl-btn" onclick="copyEndcapTable()" style="font-size:0.78rem;padding:5px 12px">Copy Visible Rows</button>
+        <span class="endcap-count" id="endcap-row-count"></span>
+      </div>
+      <div class="endcap-table-scroll">
+        <table id="endcap-table">
+          <thead><tr>
+            <th data-col="store_number">Store #</th>
+            <th data-col="street_address">Address</th>
+            <th data-col="city">City</th>
+            <th data-col="state">State</th>
+            <th data-col="zip">Zip</th>
+            <th data-col="has_15O" class="center">15O</th>
+            <th data-col="has_34O" class="center">34O</th>
+            <th data-col="has_15U" class="center">15U</th>
+            <th data-col="has_34U" class="center">34U</th>
+            <th data-col="current_sku_count" class="center">Current SKUs</th>
+            <th data-col="endcap_recommended_qty" class="center">Endcap Qty</th>
+          </tr></thead>
+          <tbody id="endcap-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -890,6 +1006,7 @@ let markdownsInit    = false;
 let ecommInit        = false;
 let inventoryInit    = false;
 let geoliftInit      = false;
+let endcapInit       = false;
 
 function switchTab(name, btn) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -957,6 +1074,10 @@ function switchTab(name, btn) {
         const el = document.getElementById(id); if (el) Plotly.Plots.resize(el);
       });
     }, 50);
+  }
+  if (name === "endcap") {
+    if (!endcapInit) { initEndcap(); endcapInit = true; }
+    else if (window._endcapMap) setTimeout(() => window._endcapMap.invalidateSize(), 50);
   }
 }
 
@@ -1354,48 +1475,43 @@ function buildMetricsTable() {
   });
 }
 
-// ══ Copy All Metrics ══════════════════════════════════════════════════════════
-// Builds a tab-separated dump of every metric as its own table.
-// Columns: Week | 15O | 34O | 15U | 34U | Total (order requested by user).
-function copyAllMetrics() {
-  const COPY_SKUS = ["CATALYST15ORIG", "CATALYST34LBORIGINAL", "CATALYST15UNSCEN", "CATALYSTPET34LBUNSCE"];
-  const COPY_HEADERS = ["15O", "34O", "15U", "34U"];
+// ══ Copy Metric Table ═════════════════════════════════════════════════════════
+// Copies one metric's table as TSV: Week | 15O | 34O | 15U | 34U | Total.
+const COPY_SKUS_ORDER = ["CATALYST15ORIG", "CATALYST34LBORIGINAL", "CATALYST15UNSCEN", "CATALYSTPET34LBUNSCE"];
+const COPY_SKU_HEADERS = ["15O", "34O", "15U", "34U"];
 
-  const round2 = v => v == null ? "" : (Math.round(v * 100) / 100).toFixed(2);
-  const roundInt = v => v == null ? "" : String(Math.round(v));
+const COPY_METRIC_SPECS = {
+  usw:               { get: m => m && m.usw,               fmt: v => (Math.round(v * 100) / 100).toFixed(2) },
+  adj_usw:           { get: m => calcAdjUSW(m),            fmt: v => (Math.round(v * 100) / 100).toFixed(2) },
+  instock_pct:       { get: m => m && m.instock_pct,       fmt: v => (Math.round(v * 100) / 100).toFixed(2) },
+  pos_qty:           { get: m => m && m.pos_qty,           fmt: v => String(Math.round(v)) },
+  pos_dollars:       { get: m => m && m.pos_dollars,       fmt: v => String(Math.round(v)) },
+  wholesale_dollars: { get: m => m && m.wholesale_dollars, fmt: v => String(Math.round(v)) },
+};
 
-  const METRICS = [
-    { label: "U/S/W",        get: m => m && m.usw,              fmt: round2 },
-    { label: "Adj U/S/W",    get: m => calcAdjUSW(m),           fmt: round2 },
-    { label: "Instock %",    get: m => m && m.instock_pct,      fmt: round2 },
-    { label: "Units Sold",   get: m => m && m.pos_qty,          fmt: roundInt },
-    { label: "Retail $",     get: m => m && m.pos_dollars,      fmt: roundInt },
-    { label: "Wholesale $",  get: m => m && m.wholesale_dollars, fmt: roundInt },
-  ];
+function copyMetric(evt, key) {
+  const spec = COPY_METRIC_SPECS[key];
+  if (!spec) return;
+  const fmt = v => v == null ? "" : spec.fmt(v);
 
-  const sections = METRICS.map(metric => {
-    const header = ["Week", ...COPY_HEADERS, "Total"].join("\t");
-    const rows = DATA.weeks.map(w => {
-      const wMet = DATA.metrics[w] || {};
-      const vals = COPY_SKUS.map(sku => metric.fmt(metric.get(wMet[sku])));
-      const total = metric.fmt(metric.get(wMet["Total"]));
-      return [weekLabel(w), ...vals, total].join("\t");
-    });
-    return [metric.label, header, ...rows].join("\n");
+  const header = ["Week", ...COPY_SKU_HEADERS, "Total"].join("\t");
+  const rows = DATA.weeks.map(w => {
+    const wMet = DATA.metrics[w] || {};
+    const vals = COPY_SKUS_ORDER.map(sku => fmt(spec.get(wMet[sku])));
+    const total = fmt(spec.get(wMet["Total"]));
+    return [weekLabel(w), ...vals, total].join("\t");
   });
+  const text = [header, ...rows].join("\n");
 
-  const text = sections.join("\n\n");
-  const btn = document.getElementById("copy-metrics-btn");
-  const restore = () => { if (btn) { btn.textContent = "Copy All Metrics"; btn.style.background = ""; btn.style.color = ""; } };
-
-  const onOk = () => {
-    if (btn) { btn.textContent = "✓ Copied"; btn.style.background = "#2e7d32"; btn.style.color = "#fff"; }
-    setTimeout(restore, 1500);
+  const btn = (evt && evt.currentTarget) || null;
+  const label = btn ? btn.textContent : "Copy";
+  const flash = (cls, txt, ms) => {
+    if (!btn) return;
+    btn.classList.add(cls); btn.textContent = txt;
+    setTimeout(() => { btn.classList.remove(cls); btn.textContent = label; }, ms);
   };
-  const onFail = () => {
-    if (btn) { btn.textContent = "Copy failed"; btn.style.background = "#d32f2f"; btn.style.color = "#fff"; }
-    setTimeout(restore, 2000);
-  };
+  const onOk   = () => flash("copied", "✓ Copied", 1500);
+  const onFail = () => flash("failed", "Failed",   2000);
 
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(onOk).catch(() => fallbackCopy(text, onOk, onFail));
@@ -2761,6 +2877,175 @@ function initGeolift() {
       tbody.appendChild(tr);
     });
   });
+}
+
+// ══ Tab: Endcap ═══════════════════════════════════════════════════════════════
+let endcapSortCol = "store_number";
+let endcapSortAsc = true;
+let endcapClusterHas = null, endcapClusterNo = null;
+
+function switchEndcapView(view, btn) {
+  document.querySelectorAll(".endcap-sub-btn").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".endcap-view").forEach(v => v.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById("endcap-view-" + view).classList.add("active");
+  if (view === "map" && window._endcapMap) setTimeout(() => window._endcapMap.invalidateSize(), 50);
+}
+
+function endcapPopup(r) {
+  const addr = [r.street_address, r.city, r.state, r.zip].filter(Boolean).join(", ");
+  const skus = ["15O","34O","15U","34U"].filter(k => r["has_" + k] === "Y");
+  const skuHtml = skus.length
+    ? skus.map(k => `<span class="badge b-${k}">${k}</span>`).join("")
+    : `<span class="no-cat">⚠ No Catalyst SKUs yet</span>`;
+  return `<div class="endcap-popup"><b>Store #${r.store_number}</b>${r.store_name ? " · " + r.store_name : ""}<br>`
+       + `${addr || "<i>no address</i>"}<br>`
+       + `<div style="margin-top:6px"><strong>Currently stocked:</strong> ${skuHtml}</div>`
+       + `<div style="margin-top:4px;color:#666;font-size:0.78rem">Endcap recommended qty: ${r.endcap_recommended_qty}</div></div>`;
+}
+
+function endcapChip(v, key) {
+  return v === "Y" ? `<span class="endcap-chip s-${key}">${key}</span>` : "";
+}
+
+function renderEndcapTable() {
+  if (!DATA.endcap || !DATA.endcap.rows) return;
+  const q = document.getElementById("endcap-search").value.trim().toLowerCase();
+  const onlyNo = document.getElementById("endcap-only-no").checked;
+  let rows = DATA.endcap.rows.slice();
+  if (onlyNo) rows = rows.filter(r => r.on_endcap_no_catalyst === "Y");
+  if (q) {
+    rows = rows.filter(r =>
+      String(r.store_number).includes(q) ||
+      (r.street_address && r.street_address.toLowerCase().includes(q)) ||
+      (r.city && r.city.toLowerCase().includes(q)) ||
+      (r.state && r.state.toLowerCase().includes(q)) ||
+      (r.zip && String(r.zip).includes(q))
+    );
+  }
+  const col = endcapSortCol;
+  rows.sort((a, b) => {
+    let av = a[col], bv = b[col];
+    if (typeof av !== "number") av = parseFloat(av);
+    if (typeof bv !== "number") bv = parseFloat(bv);
+    if (isNaN(av) && isNaN(bv)) { av = a[col] || ""; bv = b[col] || ""; }
+    if (av < bv) return endcapSortAsc ? -1 : 1;
+    if (av > bv) return endcapSortAsc ? 1 : -1;
+    return 0;
+  });
+  const tbody = document.getElementById("endcap-tbody");
+  tbody.innerHTML = rows.map(r => `
+    <tr class="${r.on_endcap_no_catalyst === "Y" ? "no-cat" : ""}">
+      <td>${r.store_number}</td>
+      <td>${r.street_address || ""}</td>
+      <td>${r.city || ""}</td>
+      <td>${r.state || ""}</td>
+      <td>${r.zip || ""}</td>
+      <td class="center">${endcapChip(r.has_15O, "15O")}</td>
+      <td class="center">${endcapChip(r.has_34O, "34O")}</td>
+      <td class="center">${endcapChip(r.has_15U, "15U")}</td>
+      <td class="center">${endcapChip(r.has_34U, "34U")}</td>
+      <td class="center">${r.current_sku_count === 0 ? '<span class="endcap-no-flag">0</span>' : r.current_sku_count}</td>
+      <td class="center">${r.endcap_recommended_qty}</td>
+    </tr>`).join("");
+  document.getElementById("endcap-row-count").textContent =
+    `${rows.length.toLocaleString()} of ${DATA.endcap.rows.length.toLocaleString()} stores`;
+  // Stash filtered rows for copy
+  window._endcapVisibleRows = rows;
+}
+
+function copyEndcapTable() {
+  const rows = window._endcapVisibleRows || DATA.endcap.rows;
+  const header = ["Store #","Address","City","State","Zip","15O","34O","15U","34U","Current SKUs","Endcap Qty"].join("\t");
+  const lines = rows.map(r => [
+    r.store_number, r.street_address || "", r.city || "", r.state || "", r.zip || "",
+    r.has_15O || "", r.has_34O || "", r.has_15U || "", r.has_34U || "",
+    r.current_sku_count, r.endcap_recommended_qty,
+  ].join("\t"));
+  const text = [header, ...lines].join("\n");
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text);
+  } else {
+    fallbackCopy(text, () => {}, () => {});
+  }
+}
+
+function initEndcap() {
+  const endcap = DATA.endcap;
+  if (!endcap || !endcap.rows || endcap.rows.length === 0) {
+    document.getElementById("tab-endcap").innerHTML =
+      '<div style="padding:40px;text-align:center;color:#888">Endcap data not available. ' +
+      'Add EndcapStoreList.xlsx and Store &amp; DC Addresses.xlsx, then run extract_data.py.</div>';
+    return;
+  }
+
+  const s = endcap.summary || {};
+  document.getElementById("endcap-kpi-total").textContent = (s.total || 0).toLocaleString();
+  const has = (s.total || 0) - (s.no_catalyst || 0);
+  document.getElementById("endcap-kpi-has").textContent = has.toLocaleString();
+  document.getElementById("endcap-kpi-no").textContent = (s.no_catalyst || 0).toLocaleString();
+  const totalQty = endcap.rows.reduce((sum, r) => sum + (r.endcap_recommended_qty || 0), 0);
+  document.getElementById("endcap-kpi-qty").textContent = totalQty.toLocaleString();
+
+  // ── Map ────────────────────────────────────────────────────────────────────
+  const map = L.map("endcap-map", { preferCanvas: true }).setView([39.5, -98.35], 4);
+  window._endcapMap = map;
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "© OpenStreetMap", maxZoom: 19,
+  }).addTo(map);
+
+  endcapClusterHas = L.markerClusterGroup({
+    chunkedLoading: true, showCoverageOnHover: false, maxClusterRadius: 45,
+    iconCreateFunction: c => L.divIcon({
+      html: `<div style="background:#0057e7;color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.78rem;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3)">${c.getChildCount()}</div>`,
+      className: "", iconSize: [34, 34],
+    }),
+  });
+  endcapClusterNo = L.markerClusterGroup({
+    chunkedLoading: true, showCoverageOnHover: false, maxClusterRadius: 45,
+    iconCreateFunction: c => L.divIcon({
+      html: `<div style="background:#d32f2f;color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.78rem;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3)">${c.getChildCount()}</div>`,
+      className: "", iconSize: [34, 34],
+    }),
+  });
+
+  endcap.rows.forEach(r => {
+    if (r.latitude === "" || r.longitude === "" || r.latitude == null) return;
+    const noCat = r.on_endcap_no_catalyst === "Y";
+    const color = noCat ? "#d32f2f" : "#0057e7";
+    const marker = L.circleMarker([r.latitude, r.longitude], {
+      radius: noCat ? 7 : 5,
+      color: color, fillColor: color,
+      fillOpacity: noCat ? 0.85 : 0.65,
+      weight: noCat ? 2 : 1,
+    });
+    marker.bindPopup(endcapPopup(r));
+    (noCat ? endcapClusterNo : endcapClusterHas).addLayer(marker);
+  });
+  map.addLayer(endcapClusterHas);
+  map.addLayer(endcapClusterNo);
+
+  document.getElementById("endcap-show-has").addEventListener("change", e => {
+    if (e.target.checked) map.addLayer(endcapClusterHas); else map.removeLayer(endcapClusterHas);
+  });
+  document.getElementById("endcap-show-no").addEventListener("change", e => {
+    if (e.target.checked) map.addLayer(endcapClusterNo); else map.removeLayer(endcapClusterNo);
+  });
+
+  // ── Table ──────────────────────────────────────────────────────────────────
+  document.querySelectorAll("#endcap-table th").forEach(th => {
+    th.addEventListener("click", () => {
+      const col = th.dataset.col;
+      if (endcapSortCol === col) endcapSortAsc = !endcapSortAsc;
+      else { endcapSortCol = col; endcapSortAsc = true; }
+      renderEndcapTable();
+    });
+  });
+  document.getElementById("endcap-search").addEventListener("input", renderEndcapTable);
+  document.getElementById("endcap-only-no").addEventListener("change", renderEndcapTable);
+  renderEndcapTable();
+
+  setTimeout(() => map.invalidateSize(), 100);
 }
 
 // ── Must be last ──────────────────────────────────────────────────────────────

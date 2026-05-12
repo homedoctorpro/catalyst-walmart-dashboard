@@ -709,6 +709,17 @@ def main():
     all_week_codes = sorted(set(files.keys()) | set(store_weeks_list) | set(ecomm_weekly.keys()))
     week_labels = {w: compute_week_label(w) for w in all_week_codes}
 
+    # 5c. Endcap data (optional - requires EndcapStoreList.xlsx + Store & DC Addresses.xlsx)
+    print("\nBuilding endcap store data...")
+    try:
+        from endcap_export import build_endcap_rows
+        endcap_rows, endcap_summary = build_endcap_rows(verbose=False)
+        print(f"  Endcap stores: {endcap_summary['total']}, mapped: {endcap_summary['mapped']}, "
+              f"no Catalyst: {endcap_summary['no_catalyst']}")
+    except Exception as e:
+        print(f"  [WARN] Endcap data unavailable: {e}")
+        endcap_rows, endcap_summary = [], {"total": 0, "mapped": 0, "addressed": 0, "no_catalyst": 0}
+
     data = {
         "weeks":       sorted(files.keys()),
         "store_weeks": store_weeks_list,
@@ -724,6 +735,7 @@ def main():
         "weekly_inventory": weekly_inventory,
         "state_inventory":  state_inventory,
         "week_labels":  week_labels,
+        "endcap":      {"rows": endcap_rows, "summary": endcap_summary},
     }
 
     # 7. Read template and embed JSON
