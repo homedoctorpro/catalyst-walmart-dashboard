@@ -95,11 +95,12 @@
   #metrics-table tbody tr:hover td { background: #f8f9ff; }
 
   /* ── Endcap Tab ── */
-  .endcap-kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
-  .endcap-kpi { background: #fff; border-radius: 10px; padding: 14px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
-                border-left: 4px solid #0057e7; }
-  .endcap-kpi-lbl { font-size: 0.72rem; color: #777; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
-  .endcap-kpi-val { font-size: 1.55rem; font-weight: 700; color: #222; margin-top: 4px; }
+  .endcap-kpi-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 16px; }
+  .endcap-kpi { background: #fff; border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+                border-left: 4px solid #999; }
+  .endcap-kpi-lbl { font-size: 0.68rem; color: #777; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; line-height: 1.25; }
+  .endcap-kpi-val { font-size: 1.45rem; font-weight: 700; color: #222; margin-top: 4px; }
+  @media (max-width: 1200px) { .endcap-kpi-row { grid-template-columns: repeat(3, 1fr); } }
   .endcap-sub-tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid #e0e0e0; }
   .endcap-sub-btn { background: transparent; border: none; padding: 9px 16px; font-weight: 600; color: #666;
                     cursor: pointer; border-bottom: 3px solid transparent; font-size: 0.88rem; }
@@ -137,8 +138,13 @@
   #endcap-table td { padding: 6px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; white-space: nowrap; }
   #endcap-table td.center { text-align: center; }
   #endcap-table tr.no-cat td { background: #fdecec; }
+  #endcap-table tr.no-15o td { background: #fff4e5; }
+  #endcap-table tr.no-cat.no-15o td { background: #fdecec; }  /* no-cat wins */
+  #endcap-table tr.no-addr td:first-child { border-left: 4px solid #f9a825; }
+  #endcap-table tr.no-addr td.addr-missing { background: #fff8e1; color: #b06600; font-style: italic; }
   #endcap-table tr:hover td { background: #f8f9ff; }
   #endcap-table tr.no-cat:hover td { background: #fbdedb; }
+  #endcap-table tr.no-15o:hover td { background: #ffe9c8; }
   .endcap-chip { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 0.72rem;
                  font-weight: 700; color: #fff; }
   .endcap-chip.s-15O { background: #0057e7; }
@@ -863,8 +869,10 @@
   <div id="tab-endcap" class="tab-panel">
     <div class="endcap-kpi-row">
       <div class="endcap-kpi"><div class="endcap-kpi-lbl">Endcap Stores</div><div class="endcap-kpi-val" id="endcap-kpi-total">—</div></div>
-      <div class="endcap-kpi"><div class="endcap-kpi-lbl">Currently Stock Catalyst</div><div class="endcap-kpi-val" id="endcap-kpi-has" style="color:#0057e7">—</div></div>
-      <div class="endcap-kpi"><div class="endcap-kpi-lbl">On Endcap, No Catalyst Yet</div><div class="endcap-kpi-val" id="endcap-kpi-no" style="color:#d32f2f">—</div></div>
+      <div class="endcap-kpi" style="border-left-color:#0057e7"><div class="endcap-kpi-lbl">Currently Stock Catalyst</div><div class="endcap-kpi-val" id="endcap-kpi-has" style="color:#0057e7">—</div></div>
+      <div class="endcap-kpi" style="border-left-color:#d32f2f"><div class="endcap-kpi-lbl">On Endcap, No Catalyst Yet</div><div class="endcap-kpi-val" id="endcap-kpi-no" style="color:#d32f2f">—</div></div>
+      <div class="endcap-kpi" style="border-left-color:#e67300"><div class="endcap-kpi-lbl">On Endcap, No 15lb Original</div><div class="endcap-kpi-val" id="endcap-kpi-no15o" style="color:#e67300">—</div></div>
+      <div class="endcap-kpi" style="border-left-color:#f9a825"><div class="endcap-kpi-lbl">Missing Address</div><div class="endcap-kpi-val" id="endcap-kpi-noaddr" style="color:#b06600">—</div></div>
       <div class="endcap-kpi"><div class="endcap-kpi-lbl">Total Recommended Qty</div><div class="endcap-kpi-val" id="endcap-kpi-qty">—</div></div>
     </div>
 
@@ -885,7 +893,9 @@
     <div id="endcap-view-table" class="endcap-view">
       <div class="endcap-table-controls">
         <input type="text" id="endcap-search" placeholder="Search store #, city, state, address…">
-        <label><input type="checkbox" id="endcap-only-no"> Only stores without Catalyst</label>
+        <label><input type="checkbox" id="endcap-only-no"> <span style="color:#d32f2f;font-weight:700">No Catalyst</span></label>
+        <label><input type="checkbox" id="endcap-only-no15o"> <span style="color:#e67300;font-weight:700">No 15lb Original</span></label>
+        <label><input type="checkbox" id="endcap-only-noaddr"> <span style="color:#b06600;font-weight:700">Missing address</span></label>
         <button class="ctrl-btn" onclick="copyEndcapTable()" style="font-size:0.78rem;padding:5px 12px">Copy Visible Rows</button>
         <span class="endcap-count" id="endcap-row-count"></span>
       </div>
@@ -2911,9 +2921,13 @@ function endcapChip(v, key) {
 function renderEndcapTable() {
   if (!DATA.endcap || !DATA.endcap.rows) return;
   const q = document.getElementById("endcap-search").value.trim().toLowerCase();
-  const onlyNo = document.getElementById("endcap-only-no").checked;
+  const onlyNoCat = document.getElementById("endcap-only-no").checked;
+  const onlyNo15O = document.getElementById("endcap-only-no15o").checked;
+  const onlyNoAddr = document.getElementById("endcap-only-noaddr").checked;
   let rows = DATA.endcap.rows.slice();
-  if (onlyNo) rows = rows.filter(r => r.on_endcap_no_catalyst === "Y");
+  if (onlyNoCat)  rows = rows.filter(r => r.on_endcap_no_catalyst === "Y");
+  if (onlyNo15O)  rows = rows.filter(r => r.has_15O !== "Y");
+  if (onlyNoAddr) rows = rows.filter(r => !r.street_address);
   if (q) {
     rows = rows.filter(r =>
       String(r.store_number).includes(q) ||
@@ -2934,23 +2948,34 @@ function renderEndcapTable() {
     return 0;
   });
   const tbody = document.getElementById("endcap-tbody");
-  tbody.innerHTML = rows.map(r => `
-    <tr class="${r.on_endcap_no_catalyst === "Y" ? "no-cat" : ""}">
+  tbody.innerHTML = rows.map(r => {
+    const noCat  = r.on_endcap_no_catalyst === "Y";
+    const no15O  = r.has_15O !== "Y";
+    const noAddr = !r.street_address;
+    const cls = [noCat ? "no-cat" : (no15O ? "no-15o" : ""), noAddr ? "no-addr" : ""].filter(Boolean).join(" ");
+    const addrCell = noAddr
+      ? `<td class="addr-missing">⚠ no address</td>`
+      : `<td>${r.street_address}</td>`;
+    const fifteenO = r.has_15O === "Y"
+      ? endcapChip("Y", "15O")
+      : (noCat ? "" : `<span style="color:#e67300;font-weight:700">✗</span>`);
+    return `
+    <tr class="${cls}">
       <td>${r.store_number}</td>
-      <td>${r.street_address || ""}</td>
+      ${addrCell}
       <td>${r.city || ""}</td>
       <td>${r.state || ""}</td>
       <td>${r.zip || ""}</td>
-      <td class="center">${endcapChip(r.has_15O, "15O")}</td>
+      <td class="center">${fifteenO}</td>
       <td class="center">${endcapChip(r.has_34O, "34O")}</td>
       <td class="center">${endcapChip(r.has_15U, "15U")}</td>
       <td class="center">${endcapChip(r.has_34U, "34U")}</td>
       <td class="center">${r.current_sku_count === 0 ? '<span class="endcap-no-flag">0</span>' : r.current_sku_count}</td>
       <td class="center">${r.endcap_recommended_qty}</td>
-    </tr>`).join("");
+    </tr>`;
+  }).join("");
   document.getElementById("endcap-row-count").textContent =
     `${rows.length.toLocaleString()} of ${DATA.endcap.rows.length.toLocaleString()} stores`;
-  // Stash filtered rows for copy
   window._endcapVisibleRows = rows;
 }
 
@@ -2980,10 +3005,14 @@ function initEndcap() {
   }
 
   const s = endcap.summary || {};
+  const no15O  = endcap.rows.filter(r => r.has_15O !== "Y").length;
+  const noAddr = endcap.rows.filter(r => !r.street_address).length;
   document.getElementById("endcap-kpi-total").textContent = (s.total || 0).toLocaleString();
   const has = (s.total || 0) - (s.no_catalyst || 0);
   document.getElementById("endcap-kpi-has").textContent = has.toLocaleString();
   document.getElementById("endcap-kpi-no").textContent = (s.no_catalyst || 0).toLocaleString();
+  document.getElementById("endcap-kpi-no15o").textContent = no15O.toLocaleString();
+  document.getElementById("endcap-kpi-noaddr").textContent = noAddr.toLocaleString();
   const totalQty = endcap.rows.reduce((sum, r) => sum + (r.endcap_recommended_qty || 0), 0);
   document.getElementById("endcap-kpi-qty").textContent = totalQty.toLocaleString();
 
@@ -3043,6 +3072,8 @@ function initEndcap() {
   });
   document.getElementById("endcap-search").addEventListener("input", renderEndcapTable);
   document.getElementById("endcap-only-no").addEventListener("change", renderEndcapTable);
+  document.getElementById("endcap-only-no15o").addEventListener("change", renderEndcapTable);
+  document.getElementById("endcap-only-noaddr").addEventListener("change", renderEndcapTable);
   renderEndcapTable();
 
   setTimeout(() => map.invalidateSize(), 100);
