@@ -388,6 +388,7 @@
 
   <div class="tab-bar">
     <button class="tab-btn active" onclick="switchTab('metrics',this)">📈 Metrics</button>
+    <button class="tab-btn"        onclick="switchTab('monthly',this)">📅 Monthly</button>
     <button class="tab-btn"        onclick="switchTab('sales',this)">🗺️ Sales Map</button>
     <button class="tab-btn"        onclick="switchTab('oos',this)">⚠️ OOS Map</button>
     <button class="tab-btn"        onclick="switchTab('statestats',this)">🏛️ State Stats</button>
@@ -471,6 +472,57 @@
           </tr>
         </thead>
         <tbody id="metrics-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Tab: Monthly ───────────────────────────────────────────────────── -->
+  <div id="tab-monthly" class="tab-panel">
+    <div style="background:#fff;border-radius:12px;padding:14px 18px;margin-bottom:14px;font-size:0.82rem;color:#555;border-left:4px solid #0057e7">
+      <strong style="color:#222">Weekly → Monthly rollup.</strong>
+      Each week is assigned to the calendar month containing its week-ending Friday.
+      <span style="color:#666">Sums:</span> POS $, Units, Wholesale $.
+      <span style="color:#666">Averages across weeks:</span> U/S/W, Adj U/S/W, Instock %.
+      Months with fewer reporting weeks than calendar Fridays are flagged
+      <em style="color:#b26500">(partial)</em>.
+    </div>
+
+    <!-- KPI Row -->
+    <div class="kpi-row" id="monthly-kpi-row"></div>
+
+    <!-- Series Filter -->
+    <div class="metrics-filter" id="monthly-filter"><span>Show:</span></div>
+
+    <!-- Charts -->
+    <div class="chart-grid">
+      <div class="chart-card"><h3>U/S/W (Monthly Avg)</h3><div id="chart-m-usw" class="chart-div"></div></div>
+      <div class="chart-card"><h3>Adj U/S/W (Monthly Avg)</h3><div id="chart-m-adj-usw" class="chart-div"></div></div>
+      <div class="chart-card"><h3>Instock % (Monthly Avg)</h3><div id="chart-m-instock" class="chart-div"></div></div>
+      <div class="chart-card"><h3>Units Sold (Monthly Sum)</h3><div id="chart-m-units" class="chart-div"></div></div>
+      <div class="chart-card"><h3>Retail Sales ($, Monthly Sum)</h3><div id="chart-m-retail" class="chart-div"></div></div>
+      <div class="chart-card"><h3>Wholesale Revenue ($, Monthly Sum)</h3><div id="chart-m-wholesale" class="chart-div"></div></div>
+    </div>
+
+    <!-- Monthly Table -->
+    <div class="metrics-table-card">
+      <h3>Monthly Rollup Data</h3>
+      <div style="font-size:0.75rem;color:#888;margin-bottom:10px">
+        Click a column's <span style="color:#0057e7;font-weight:700">Copy</span> button to copy that metric's table
+        (Month × 15O / 34O / 15U / 34U / Total) for paste into your spreadsheet.
+      </div>
+      <table id="monthly-table">
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th><div>U/S/W (avg)</div><button class="copy-metric-btn" onclick="copyMonthlyMetric(event,'usw')">Copy</button></th>
+            <th><div>Adj U/S/W (avg)</div><button class="copy-metric-btn" onclick="copyMonthlyMetric(event,'adj_usw')">Copy</button></th>
+            <th><div>Instock % (avg)</div><button class="copy-metric-btn" onclick="copyMonthlyMetric(event,'instock_pct')">Copy</button></th>
+            <th><div>Units Sold (sum)</div><button class="copy-metric-btn" onclick="copyMonthlyMetric(event,'pos_qty')">Copy</button></th>
+            <th><div>Retail $ (sum)</div><button class="copy-metric-btn" onclick="copyMonthlyMetric(event,'pos_dollars')">Copy</button></th>
+            <th><div>Wholesale $ (sum)</div><button class="copy-metric-btn" onclick="copyMonthlyMetric(event,'wholesale_dollars')">Copy</button></th>
+          </tr>
+        </thead>
+        <tbody id="monthly-tbody"></tbody>
       </table>
     </div>
   </div>
@@ -1159,6 +1211,7 @@ let inventoryInit    = false;
 let geoliftInit      = false;
 let endcapInit       = false;
 let trialInit        = false;
+let monthlyInit      = false;
 
 function switchTab(name, btn) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -1235,6 +1288,13 @@ function switchTab(name, btn) {
     if (!trialInit) { initTrialRepeat(); trialInit = true; }
     else setTimeout(() => {
       ["chart-trial-rate","chart-trial-cumcust","chart-trial-newcust","chart-trial-buckets","chart-trial-dollars","chart-trial-pc"]
+        .forEach(id => { const el = document.getElementById(id); if (el) Plotly.Plots.resize(el); });
+    }, 50);
+  }
+  if (name === "monthly") {
+    if (!monthlyInit) { initMonthly(); monthlyInit = true; }
+    else setTimeout(() => {
+      ["chart-m-usw","chart-m-adj-usw","chart-m-instock","chart-m-units","chart-m-retail","chart-m-wholesale"]
         .forEach(id => { const el = document.getElementById(id); if (el) Plotly.Plots.resize(el); });
     }, 50);
   }
@@ -1688,6 +1748,304 @@ function fallbackCopy(text, onOk, onFail) {
   try { document.execCommand("copy") ? onOk() : onFail(); }
   catch (e) { onFail(); }
   document.body.removeChild(ta);
+}
+
+// ══ Tab: Monthly Rollup ═══════════════════════════════════════════════════════
+// Group weekly metrics by calendar month based on week-ending Friday date.
+// Sums: pos_dollars, pos_qty, wholesale_dollars.  Averages: usw, instock_pct, markdown_pct.
+// Adj U/S/W = monthly_usw / (monthly_instock_pct/100).
+const MONTH_SHORT_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function fridaysInCalendarMonth(year, monthIdx /* 0-11 */) {
+  // Count Fridays (day === 5) in this calendar month.
+  let count = 0;
+  const d = new Date(Date.UTC(year, monthIdx, 1));
+  const lastDay = new Date(Date.UTC(year, monthIdx + 1, 0)).getUTCDate();
+  for (let day = 1; day <= lastDay; day++) {
+    d.setUTCDate(day);
+    if (d.getUTCDay() === 5) count++;
+  }
+  return count;
+}
+
+function buildMonthlyRollup() {
+  // Returns { months: ["2026-02", ...], byMonth: { "2026-02": { label, isPartial, weekCount, expectedWeeks, series: { sku|"Total": {usw, adj_usw, instock_pct, pos_qty, pos_dollars, wholesale_dollars} } } } }
+  const wkDates = DATA.week_dates || {};
+  const groups = {};   // monthKey -> [weeks]
+  DATA.weeks.forEach(w => {
+    const iso = wkDates[w]; if (!iso) return;
+    const [y, m] = iso.split("-").map(Number);
+    const key = `${y}-${String(m).padStart(2,"0")}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(w);
+  });
+
+  const months = Object.keys(groups).sort();
+  const byMonth = {};
+  months.forEach(key => {
+    const [yearStr, monthStr] = key.split("-");
+    const year = +yearStr, monthIdx = +monthStr - 1;
+    const weeks = groups[key];
+    const expectedWeeks = fridaysInCalendarMonth(year, monthIdx);
+    const labelBase = `${MONTH_SHORT_NAMES[monthIdx]} ${String(year).slice(2)}`;
+    const isPartial = weeks.length < expectedWeeks;
+    const label = isPartial ? `${labelBase} (${weeks.length}/${expectedWeeks} wks)` : labelBase;
+
+    const series = {};
+    ALL_SERIES.forEach(s => {
+      // Accumulators
+      let sumDollars = 0, hasDollars = false;
+      let sumQty = 0, hasQty = false;
+      let sumWholesale = 0, hasWholesale = false;
+      let uswSum = 0, uswN = 0;
+      let instockSum = 0, instockN = 0;
+      weeks.forEach(w => {
+        const m = (DATA.metrics[w] || {})[s];
+        if (!m) return;
+        if (m.pos_dollars != null)       { sumDollars   += m.pos_dollars;   hasDollars = true; }
+        if (m.pos_qty != null)           { sumQty       += m.pos_qty;       hasQty = true; }
+        if (m.wholesale_dollars != null) { sumWholesale += m.wholesale_dollars; hasWholesale = true; }
+        if (m.usw != null)               { uswSum       += m.usw;           uswN++; }
+        if (m.instock_pct != null)       { instockSum   += m.instock_pct;   instockN++; }
+      });
+      const usw         = uswN     ? uswSum     / uswN     : null;
+      const instock_pct = instockN ? instockSum / instockN : null;
+      let adj_usw = null;
+      if (usw != null && instock_pct) adj_usw = usw / (instock_pct / 100);
+
+      series[s] = {
+        usw,
+        adj_usw,
+        instock_pct,
+        pos_qty:           hasQty       ? sumQty       : null,
+        pos_dollars:       hasDollars   ? sumDollars   : null,
+        wholesale_dollars: hasWholesale ? sumWholesale : null,
+      };
+    });
+
+    byMonth[key] = { label, weekCount: weeks.length, expectedWeeks, isPartial, weeks, series };
+  });
+
+  return { months, byMonth };
+}
+
+let MONTHLY_ROLLUP = null;
+
+function initMonthly() {
+  MONTHLY_ROLLUP = buildMonthlyRollup();
+  buildMonthlyKPIs();
+  buildMonthlyFilter();
+  buildMonthlyCharts();
+  buildMonthlyTable();
+}
+
+function buildMonthlyKPIs() {
+  const container = document.getElementById("monthly-kpi-row");
+  container.innerHTML = "";
+  const { months, byMonth } = MONTHLY_ROLLUP;
+  if (!months.length) {
+    container.innerHTML = '<div style="color:#888;padding:16px">No monthly data yet.</div>';
+    return;
+  }
+  const latestKey = months[months.length - 1];
+  const prevKey   = months.length >= 2 ? months[months.length - 2] : null;
+  const cur  = byMonth[latestKey].series["Total"];
+  const prev = prevKey ? byMonth[prevKey].series["Total"] : {};
+
+  const chg = (c, p) => {
+    if (c == null || p == null || p === 0) return "";
+    const pct = (c - p) / Math.abs(p) * 100;
+    const sign = pct >= 0 ? "+" : "";
+    const color = pct < 0 ? "#d32f2f" : "#2e7d32";
+    return `<span class="kpi-chg" style="color:${color}">${sign}${pct.toFixed(1)}%</span>`;
+  };
+
+  const cards = [
+    { color: "#0057e7", label: "U/S/W (avg)",      val: cur.usw,         pval: prev.usw,         fmt: v => v.toFixed(2) },
+    { color: "#1565c0", label: "Adj U/S/W (avg)",  val: cur.adj_usw,     pval: prev.adj_usw,     fmt: v => v.toFixed(2) },
+    { color: "#00a86b", label: "Instock % (avg)",  val: cur.instock_pct, pval: prev.instock_pct, fmt: v => v.toFixed(2) + "%" },
+    { color: "#e67300", label: "Units (sum)",      val: cur.pos_qty,     pval: prev.pos_qty,     fmt: v => v.toLocaleString() },
+    { color: "#9c27b0", label: "Retail $ (sum)",   val: cur.pos_dollars, pval: prev.pos_dollars, fmt: v => "$" + Math.round(v).toLocaleString() },
+    { color: "#333",    label: "Wholesale $ (sum)",val: cur.wholesale_dollars, pval: prev.wholesale_dollars, fmt: v => "$" + Math.round(v).toLocaleString() },
+  ];
+  cards.forEach(c => {
+    const card = document.createElement("div");
+    card.className = "kpi-card";
+    card.style.borderLeftColor = c.color;
+    card.innerHTML = `<div class="kpi-label">${c.label}</div>
+      <div class="kpi-value">${c.val != null ? c.fmt(c.val) : "—"}${chg(c.val, c.pval)}</div>
+      <div class="kpi-sub">${byMonth[latestKey].label}</div>`;
+    container.appendChild(card);
+  });
+}
+
+function buildMonthlyFilter() {
+  const container = document.getElementById("monthly-filter");
+  // Reuse the same visibleSeries set as the Metrics tab — chips drive both.
+  const chartIds = ["chart-m-usw","chart-m-adj-usw","chart-m-instock","chart-m-units","chart-m-retail","chart-m-wholesale"];
+  ALL_SERIES.forEach((series, idx) => {
+    const lbl = document.createElement("label");
+    lbl.className = "series-chip";
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.checked = visibleSeries.has(series);
+    cb.addEventListener("change", () => {
+      if (cb.checked) visibleSeries.add(series); else visibleSeries.delete(series);
+      chartIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.data) Plotly.restyle(el, { visible: cb.checked ? true : "legendonly" }, [idx]);
+      });
+    });
+    const swatch = document.createElement("span");
+    swatch.style.cssText = `display:inline-block;width:10px;height:10px;background:${SKU_COLORS[series]};border-radius:${series==="Total"?"2px":"50%"}`;
+    lbl.appendChild(cb); lbl.appendChild(swatch);
+    lbl.appendChild(document.createTextNode(" " + series));
+    container.appendChild(lbl);
+  });
+}
+
+function buildMonthlyCharts() {
+  const { months, byMonth } = MONTHLY_ROLLUP;
+  const xLabels = months.map(k => byMonth[k].label);
+  const cfg = { responsive:true, displayModeBar:false };
+
+  const getVals = (key, label) =>
+    months.map(k => {
+      const s = byMonth[k].series[label];
+      return (s && s[key] != null) ? s[key] : null;
+    });
+
+  Plotly.newPlot("chart-m-usw",
+    ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("usw", s), s==="Total", "%{y:.2f}")),
+    {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"Units/Store/Week (avg)"}}, cfg);
+
+  Plotly.newPlot("chart-m-adj-usw",
+    ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("adj_usw", s), s==="Total", "%{y:.2f}")),
+    {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"Adj. U/S/W (avg)"}}, cfg);
+
+  Plotly.newPlot("chart-m-instock",
+    ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("instock_pct", s), s==="Total", "%{y:.2f}%")),
+    {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"%", range:[50,105], ticksuffix:"%"}}, cfg);
+
+  Plotly.newPlot("chart-m-units",
+    ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("pos_qty", s), s==="Total", "%{y:,.0f}")),
+    {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"Units"}}, cfg);
+
+  Plotly.newPlot("chart-m-retail",
+    ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("pos_dollars", s), s==="Total", "$%{y:,.0f}")),
+    {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"$", tickprefix:"$", tickformat:",.0f"}}, cfg);
+
+  Plotly.newPlot("chart-m-wholesale",
+    ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("wholesale_dollars", s), s==="Total", "$%{y:,.0f}")),
+    {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"$", tickprefix:"$", tickformat:",.0f"}}, cfg);
+}
+
+function buildMonthlyTable() {
+  const tbody = document.getElementById("monthly-tbody");
+  tbody.innerHTML = "";
+  const { months, byMonth } = MONTHLY_ROLLUP;
+
+  const fmt = (v, type) => {
+    if (v == null) return "—";
+    if (type === "pct")    return v.toFixed(2) + "%";
+    if (type === "usw")    return v.toFixed(2);
+    if (type === "int")    return Math.round(v).toLocaleString();
+    if (type === "dollar") return "$" + Math.round(v).toLocaleString();
+    return v;
+  };
+  const toDisplayVal = (v, type) => {
+    if (v == null) return null;
+    if (type === "pct" || type === "usw") return parseFloat(v.toFixed(2));
+    if (type === "dollar" || type === "int") return Math.round(v);
+    return v;
+  };
+  const fmtChg = (curr, prev) => {
+    if (curr == null || prev == null || prev === 0) return "";
+    const c = (curr - prev) / Math.abs(prev) * 100;
+    const sign = c >= 0 ? "+" : "";
+    const color = c < 0 ? "#d32f2f" : "#2e7d32";
+    return `<span style="font-size:0.75em;color:${color};margin-left:4px">(${sign}${c.toFixed(1)}%)</span>`;
+  };
+
+  const COL_COUNT = 7;
+  months.forEach((key, mIdx) => {
+    const mo = byMonth[key];
+    const partialNote = mo.isPartial
+      ? ` <span style="color:#b26500;font-weight:500">— partial (${mo.weekCount}/${mo.expectedWeeks} wks)</span>`
+      : ` <span style="color:#888;font-weight:500">— ${mo.weekCount} wks</span>`;
+    const trHead = document.createElement("tr");
+    trHead.className = "week-group-row";
+    const tdHead = document.createElement("td");
+    tdHead.colSpan = COL_COUNT;
+    tdHead.innerHTML = mo.label.replace(/ \(.*$/, "") + partialNote;
+    trHead.appendChild(tdHead);
+    tbody.appendChild(trHead);
+
+    const prevKey  = mIdx > 0 ? months[mIdx - 1] : null;
+    const prevSeries = prevKey ? byMonth[prevKey].series : {};
+
+    ALL_SERIES.forEach(series => {
+      const s  = mo.series[series] || {};
+      const ps = prevSeries[series] || {};
+      const tr = document.createElement("tr");
+      if (series === "Total") tr.className = "total-row";
+
+      const cellDefs = [
+        { text: series, curr: null, prev: null },
+        { text: fmt(s.usw, "usw"),                  curr: toDisplayVal(s.usw, "usw"),                  prev: toDisplayVal(ps.usw, "usw") },
+        { text: fmt(s.adj_usw, "usw"),              curr: toDisplayVal(s.adj_usw, "usw"),              prev: toDisplayVal(ps.adj_usw, "usw") },
+        { text: fmt(s.instock_pct, "pct"),          curr: toDisplayVal(s.instock_pct, "pct"),          prev: toDisplayVal(ps.instock_pct, "pct") },
+        { text: fmt(s.pos_qty, "int"),              curr: toDisplayVal(s.pos_qty, "int"),              prev: toDisplayVal(ps.pos_qty, "int") },
+        { text: fmt(s.pos_dollars, "dollar"),       curr: toDisplayVal(s.pos_dollars, "dollar"),       prev: toDisplayVal(ps.pos_dollars, "dollar") },
+        { text: fmt(s.wholesale_dollars, "dollar"), curr: toDisplayVal(s.wholesale_dollars, "dollar"), prev: toDisplayVal(ps.wholesale_dollars, "dollar") },
+      ];
+      cellDefs.forEach(({ text, curr, prev }) => {
+        const td = document.createElement("td");
+        if (prevKey && curr != null) td.innerHTML = text + fmtChg(curr, prev);
+        else td.textContent = text;
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  });
+}
+
+function copyMonthlyMetric(evt, key) {
+  if (!MONTHLY_ROLLUP) MONTHLY_ROLLUP = buildMonthlyRollup();
+  const { months, byMonth } = MONTHLY_ROLLUP;
+  const fmtNum = {
+    usw:               v => (Math.round(v * 100) / 100).toFixed(2),
+    adj_usw:           v => (Math.round(v * 100) / 100).toFixed(2),
+    instock_pct:       v => (Math.round(v * 100) / 100).toFixed(2),
+    pos_qty:           v => String(Math.round(v)),
+    pos_dollars:       v => String(Math.round(v)),
+    wholesale_dollars: v => String(Math.round(v)),
+  }[key];
+  if (!fmtNum) return;
+  const fmt = v => v == null ? "" : fmtNum(v);
+
+  const header = ["Month", ...COPY_SKU_HEADERS, "Total"].join("\t");
+  const rows = months.map(k => {
+    const ser = byMonth[k].series;
+    const vals = COPY_SKUS_ORDER.map(sku => fmt(ser[sku] && ser[sku][key]));
+    const total = fmt(ser["Total"] && ser["Total"][key]);
+    return [byMonth[k].label, ...vals, total].join("\t");
+  });
+  const text = [header, ...rows].join("\n");
+
+  const btn = (evt && evt.currentTarget) || null;
+  const label = btn ? btn.textContent : "Copy";
+  const flash = (cls, txt, ms) => {
+    if (!btn) return;
+    btn.classList.add(cls); btn.textContent = txt;
+    setTimeout(() => { btn.classList.remove(cls); btn.textContent = label; }, ms);
+  };
+  const onOk   = () => flash("copied", "✓ Copied", 1500);
+  const onFail = () => flash("failed", "Failed",   2000);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(onOk).catch(() => fallbackCopy(text, onOk, onFail));
+  } else {
+    fallbackCopy(text, onOk, onFail);
+  }
 }
 
 // ══ Tab 8: Markdowns ══════════════════════════════════════════════════════════

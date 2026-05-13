@@ -122,6 +122,18 @@ def compute_week_label(week_code):
     friday = anchor + timedelta(days=7 * (wk - 1))
     return f"Week {wk} ({friday.month}/{friday.day}/{friday.year % 100})"
 
+
+def compute_week_date(week_code):
+    """'202614' → '2026-05-08' (Friday end-of-week ISO date). Returns None if year unknown."""
+    if len(week_code) != 6 or not week_code.isdigit():
+        return None
+    year = week_code[:4]
+    wk = int(week_code[4:])
+    anchor = FISCAL_YEAR_WEEK1_FRIDAY.get(year)
+    if not anchor:
+        return None
+    return (anchor + timedelta(days=7 * (wk - 1))).isoformat()
+
 GEO_CACHE_FILE = "stores_geo.json"
 TEMPLATE_FILE  = "dashboard_template.html"
 OUTPUT_FILE    = "dashboard.html"
@@ -708,6 +720,7 @@ def main():
     # 6. Assemble JSON
     all_week_codes = sorted(set(files.keys()) | set(store_weeks_list) | set(ecomm_weekly.keys()))
     week_labels = {w: compute_week_label(w) for w in all_week_codes}
+    week_dates  = {w: d for w in all_week_codes if (d := compute_week_date(w))}
 
     # 5c. Endcap data (optional - requires EndcapStoreList.xlsx + Store & DC Addresses.xlsx)
     print("\nBuilding endcap store data...")
@@ -744,6 +757,7 @@ def main():
         "weekly_inventory": weekly_inventory,
         "state_inventory":  state_inventory,
         "week_labels":  week_labels,
+        "week_dates":   week_dates,
         "endcap":      {"rows": endcap_rows, "summary": endcap_summary},
         "trial_repeat": trial_repeat,
     }
