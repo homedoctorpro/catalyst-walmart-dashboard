@@ -2681,9 +2681,14 @@ function fcFyKey(monthKey) {
 
 function fcCyKey(monthKey) { return "CY " + monthKey.slice(0, 4); }
 
-function fcMonthFridays(monthKey) {
-  const [y, m] = monthKey.split("-").map(Number);
-  return fridaysInCalendarMonth(y, m - 1);
+// Weeks-per-month divisor for Indicated U/S/W. Using the raw count of Fridays
+// would alternate 4 vs 5 across months and bake an artificial sawtooth into
+// the line even when units and placements are smooth. A constant 52/12 keeps
+// U/S/W comparable month-over-month at the cost of being slightly approximate
+// for any single calendar month.
+const FC_WEEKS_PER_MONTH = 52 / 12;
+function fcMonthFridays(monthKey) {   // kept name for compatibility with column-builders
+  return FC_WEEKS_PER_MONTH;
 }
 
 function fcBuildTableColumns() {
