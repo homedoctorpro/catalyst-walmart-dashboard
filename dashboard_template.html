@@ -1235,7 +1235,20 @@
       <div class="chart-card"><h3>Wholesale Revenue ($)</h3><div id="chart-fc-wholesale" class="chart-div"></div></div>
       <div class="chart-card"><h3>Gross Profit ($)</h3><div id="chart-fc-gp" class="chart-div"></div></div>
       <div class="chart-card"><h3>New Trialers per Month (cohort source)</h3><div id="chart-fc-new" class="chart-div"></div></div>
+      <div class="chart-card">
+        <h3>Indicated New U/S/W by SKU</h3>
+        <div id="chart-fc-usw-new" class="chart-div"></div>
+      </div>
+      <div class="chart-card">
+        <h3>Indicated Repeat U/S/W by SKU</h3>
+        <div id="chart-fc-usw-repeat" class="chart-div"></div>
+      </div>
+      <div class="chart-card">
+        <h3>Indicated Total U/S/W by SKU</h3>
+        <div id="chart-fc-usw-total" class="chart-div"></div>
+      </div>
     </div>
+    <div id="fc-placement-note" style="font-size:0.75rem;color:#888;margin-top:-8px;margin-bottom:8px"></div>
 
     <!-- Table -->
     <div class="metrics-table-card">
@@ -1249,6 +1262,7 @@
           <button class="pill-btn theme-fc active" data-fcmode="units"     onclick="setForecastMode(this)">Units</button>
           <button class="pill-btn theme-fc"        data-fcmode="wholesale" onclick="setForecastMode(this)">Wholesale $</button>
           <button class="pill-btn theme-fc"        data-fcmode="gp"        onclick="setForecastMode(this)">Gross Profit $</button>
+          <button class="pill-btn theme-fc"        data-fcmode="usw"       onclick="setForecastMode(this)">Indicated U/S/W</button>
         </div>
         <label style="font-size:0.78rem;color:#555"><input type="checkbox" id="fc-show-history" checked onchange="renderForecastTable()"> Show historical</label>
         <label style="font-size:0.78rem;color:#555"><input type="checkbox" id="fc-collapse-years" onchange="renderForecastTable()"> Annual totals</label>
@@ -1459,7 +1473,8 @@ function switchTab(name, btn) {
   if (name === "forecast") {
     if (!forecastInit) { initForecast(); forecastInit = true; }
     else setTimeout(() => {
-      ["chart-fc-units-sku","chart-fc-units-size","chart-fc-newrepeat","chart-fc-wholesale","chart-fc-gp","chart-fc-new"]
+      ["chart-fc-units-sku","chart-fc-units-size","chart-fc-newrepeat","chart-fc-wholesale","chart-fc-gp","chart-fc-new",
+       "chart-fc-usw-new","chart-fc-usw-repeat","chart-fc-usw-total"]
         .forEach(id => { const el = document.getElementById(id); if (el) Plotly.Plots.resize(el); });
     }, 50);
   }
@@ -2224,6 +2239,30 @@ const FC_GP    = { "15": 3.02,  "34":  4.95 };
 const FC_HORIZON_MONTHS = 60;
 const FC_SHORT_TO_LONG = Object.fromEntries(Object.entries(SKU_SHORT).map(([l, s]) => [s, l]));
 
+// Indicated U/S/W: derive store-placement counts from the latest reporting week,
+// using the same counting convention as the OOS / placements panels elsewhere
+// (each store × SKU pair = one placement).
+let FC_PLACEMENTS = null;
+
+function fcComputePlacements() {
+  if (!DATA.store_weeks || DATA.store_weeks.length === 0) return null;
+  const lastWeek = DATA.store_weeks[DATA.store_weeks.length - 1];
+  const stores = DATA.weekly_stores[lastWeek] || {};
+  const bySku  = Object.fromEntries(DATA.skus.map(s => [s, 0]));
+  Object.values(stores).forEach(sd => {
+    Object.keys(sd.skus || {}).forEach(sku => {
+      if (sku in bySku) bySku[sku]++;
+    });
+  });
+  const place15 = (bySku["CATALYST15ORIG"] || 0)       + (bySku["CATALYST15UNSCEN"] || 0);
+  const place34 = (bySku["CATALYST34LBORIGINAL"] || 0) + (bySku["CATALYSTPET34LBUNSCE"] || 0);
+  return {
+    bySku, bySize: { "15": place15, "34": place34 },
+    total: place15 + place34,
+    sourceWeek: lastWeek,
+  };
+}
+
 function fcSkuSize(longSku) {
   // "CATALYST15ORIG" / "CATALYST15UNSCEN" → "15"; "CATALYST34LBORIGINAL" / "CATALYSTPET34LBUNSCE" → "34"
   return /15/.test(longSku) ? "15" : "34";
@@ -2420,6 +2459,15 @@ function initForecast() {
       '<div style="padding:40px;text-align:center;color:#888">Forecast requires weekly POS data.</div>';
     return;
   }
+  FC_PLACEMENTS = fcComputePlacements();
+  if (FC_PLACEMENTS) {
+    const p = FC_PLACEMENTS;
+    document.getElementById("fc-placement-note").innerHTML =
+      `Indicated U/S/W denominator uses placements from <strong>${weekLabel(p.sourceWeek)}</strong>: ` +
+      DATA.skus.map(s => `${SKU_SHORT[s]} ${p.bySku[s].toLocaleString()}`).join(" · ") +
+      ` · 15 lb total ${p.bySize["15"].toLocaleString()} · 34 lb total ${p.bySize["34"].toLocaleString()} · ` +
+      `All SKUs ${p.total.toLocaleString()} placement-weeks.`;
+  }
   ["fa-decay-new","fa-repeat-initial","fa-repeat-decay"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("input", refreshForecast);
@@ -2579,6 +2627,30 @@ function renderForecastCharts() {
   }));
   Plotly.newPlot("chart-fc-new", newTraces,
     { ...base, yaxis: { ...base.yaxis, title: "New trialers / month" } }, cfg);
+
+  // 7-9) Indicated U/S/W charts (new / repeat / total). Constant placements
+  //      from latest reporting week; weeks = Fridays in each calendar month.
+  if (FC_PLACEMENTS) {
+    const PL = FC_PLACEMENTS;
+    const weeksPerMonth = r.derived.map(m => fcMonthFridays(m.key));
+    const uswByWhich = (which) => DATA.skus.map(sku => ({
+      x: xLabels,
+      y: r.derived.map((m, i) => {
+        const u = m.bySku[sku][which] || 0;
+        const p = PL.bySku[sku] || 0;
+        const w = weeksPerMonth[i] || 0;
+        return (p && w) ? u / p / w : null;
+      }),
+      name: SKU_SHORT[sku] || sku,
+      type: "scatter", mode: "lines",
+      line: { color: SKU_COLORS[sku], width: 2 },
+      hovertemplate: (SKU_SHORT[sku] || sku) + ": %{y:.3f} U/S/W<extra></extra>",
+    }));
+    const uswLayout = { ...base, yaxis: { ...base.yaxis, title: "Units / Store / Week", tickformat: ".2f" } };
+    Plotly.newPlot("chart-fc-usw-new",    uswByWhich("new"),    uswLayout, cfg);
+    Plotly.newPlot("chart-fc-usw-repeat", uswByWhich("repeat"), uswLayout, cfg);
+    Plotly.newPlot("chart-fc-usw-total",  uswByWhich("total"),  uswLayout, cfg);
+  }
 }
 
 // ── Table (months as columns, one mode at a time × new/repeat/total per series) ─
@@ -2609,6 +2681,11 @@ function fcFyKey(monthKey) {
 
 function fcCyKey(monthKey) { return "CY " + monthKey.slice(0, 4); }
 
+function fcMonthFridays(monthKey) {
+  const [y, m] = monthKey.split("-").map(Number);
+  return fridaysInCalendarMonth(y, m - 1);
+}
+
 function fcBuildTableColumns() {
   // Returns [{ label, isForecast, isMixed, bySku, bySize, total }] honoring
   // current show-historical, collapse-to-annual, and CY/FY toggles.
@@ -2629,6 +2706,7 @@ function fcBuildTableColumns() {
           label: k,
           isForecast: i >= hc,
           isMixed: false,
+          weeks: 0,
           bySku: Object.fromEntries(DATA.skus.map(s => [s, { new:0, repeat:0, total:0, wholesale:0, gp:0 }])),
           bySize: { "15": { new:0, repeat:0, total:0, wholesale:0, gp:0 },
                     "34": { new:0, repeat:0, total:0, wholesale:0, gp:0 } },
@@ -2638,6 +2716,7 @@ function fcBuildTableColumns() {
       }
       const g = byYr[k];
       if ((i >= hc) !== g.isForecast) g.isMixed = true;
+      g.weeks += fcMonthFridays(m.key);
       DATA.skus.forEach(s => KEYS.forEach(kk => g.bySku[s][kk] += m.bySku[s][kk] || 0));
       ["15","34"].forEach(sz => KEYS.forEach(kk => g.bySize[sz][kk] += m.bySize[sz][kk] || 0));
       KEYS.forEach(kk => g.total[kk] += m.total[kk] || 0);
@@ -2650,6 +2729,7 @@ function fcBuildTableColumns() {
       label: m.label,
       isForecast: i >= hc,
       isMixed: false,
+      weeks: fcMonthFridays(m.key),
       bySku: m.bySku,
       bySize: m.bySize,
       total: m.total,
@@ -2657,36 +2737,58 @@ function fcBuildTableColumns() {
     .filter(c => showHist || c.isForecast);
 }
 
-// Convert raw unit counts to the active mode (units / wholesale $ / gp $).
+// Convert raw unit counts to the active mode (units / wholesale $ / gp $ / U/S/W).
 //   For dollar modes, per-size ASP / GP applies — so mixed-size aggregates
 //   compute as Σ over sizes (units_size × rate_size), not as totalUnits × oneRate.
-function fcValueFromUnits(units, sizeKey) {
-  if (FC_TABLE_MODE === "units") return units;
-  const tbl = FC_TABLE_MODE === "wholesale" ? FC_ASP : FC_GP;
-  return units * tbl[sizeKey];
+//   For U/S/W mode, value = units / placements / weeks-in-period.
+function fcValueFromUnits(units, sizeKey, placements, weeks) {
+  if (FC_TABLE_MODE === "units")     return units;
+  if (FC_TABLE_MODE === "wholesale") return units * FC_ASP[sizeKey];
+  if (FC_TABLE_MODE === "gp")        return units * FC_GP[sizeKey];
+  if (FC_TABLE_MODE === "usw") {
+    if (!placements || !weeks) return null;
+    return units / placements / weeks;
+  }
+  return null;
 }
 
-function fcValueMixed(units15, units34) {
-  if (FC_TABLE_MODE === "units") return units15 + units34;
-  const tbl = FC_TABLE_MODE === "wholesale" ? FC_ASP : FC_GP;
-  return units15 * tbl["15"] + units34 * tbl["34"];
+function fcValueMixed(units15, units34, placements15, placements34, weeks) {
+  if (FC_TABLE_MODE === "units")     return units15 + units34;
+  if (FC_TABLE_MODE === "wholesale") return units15 * FC_ASP["15"] + units34 * FC_ASP["34"];
+  if (FC_TABLE_MODE === "gp")        return units15 * FC_GP["15"]  + units34 * FC_GP["34"];
+  if (FC_TABLE_MODE === "usw") {
+    const tp = (placements15 || 0) + (placements34 || 0);
+    if (!tp || !weeks) return null;
+    return (units15 + units34) / tp / weeks;
+  }
+  return null;
 }
 
 function fcSeriesDefs() {
   // Each series produces 3 rows (new / repeat / total) under one logical group.
+  const PL = FC_PLACEMENTS;
   return [
     ...DATA.skus.map(sku => ({
       label: SKU_SHORT[sku] || sku,
       kind: "sku",
       size: fcSkuSize(sku),
-      get: (c, which) => fcValueFromUnits(c.bySku[sku][which] || 0, fcSkuSize(sku)),
+      get: (c, which) => fcValueFromUnits(
+        c.bySku[sku][which] || 0,
+        fcSkuSize(sku),
+        PL && PL.bySku[sku],
+        c.weeks,
+      ),
     })),
     { label: "15 lb total", kind: "size", size: "15",
-      get: (c, which) => fcValueFromUnits(c.bySize["15"][which] || 0, "15") },
+      get: (c, which) => fcValueFromUnits(c.bySize["15"][which] || 0, "15", PL && PL.bySize["15"], c.weeks) },
     { label: "34 lb total", kind: "size", size: "34",
-      get: (c, which) => fcValueFromUnits(c.bySize["34"][which] || 0, "34") },
+      get: (c, which) => fcValueFromUnits(c.bySize["34"][which] || 0, "34", PL && PL.bySize["34"], c.weeks) },
     { label: "All SKUs",    kind: "grand",
-      get: (c, which) => fcValueMixed(c.bySize["15"][which] || 0, c.bySize["34"][which] || 0) },
+      get: (c, which) => fcValueMixed(
+        c.bySize["15"][which] || 0, c.bySize["34"][which] || 0,
+        PL && PL.bySize["15"], PL && PL.bySize["34"],
+        c.weeks,
+      ) },
   ];
 }
 
@@ -2697,8 +2799,10 @@ function renderForecastTable() {
   document.getElementById("fc-year-mode-group").style.display = collapse ? "inline-flex" : "none";
 
   const cols = fcBuildTableColumns();
-  const isDollar = FC_TABLE_MODE !== "units";
+  const isDollar = FC_TABLE_MODE === "wholesale" || FC_TABLE_MODE === "gp";
+  const isUsw    = FC_TABLE_MODE === "usw";
   const fmt = v => v == null ? "—"
+                 : isUsw    ? v.toFixed(3)
                  : isDollar ? "$" + Math.round(v).toLocaleString()
                             : Math.round(v).toLocaleString();
 
@@ -2744,8 +2848,8 @@ function copyForecastMetric(evt) {
   if (!FC_RESULT) return;
   const cols = fcBuildTableColumns();
   const seriesDefs = fcSeriesDefs();
-  const isDollar = FC_TABLE_MODE !== "units";
-  const fmt = v => String(Math.round(v || 0));
+  const isUsw = FC_TABLE_MODE === "usw";
+  const fmt = v => v == null ? "" : (isUsw ? v.toFixed(3) : String(Math.round(v)));
 
   const header = ["Series", ...cols.map(c => c.label + (c.isForecast ? " (fc)" : ""))].join("\t");
   const SUBS = ["new","repeat","total"];
@@ -2756,7 +2860,10 @@ function copyForecastMetric(evt) {
       rows.push([`${s.label} · ${SUB_LABELS[which]}`, ...cols.map(c => fmt(s.get(c, which)))].join("\t"));
     });
   });
-  const modeTag = FC_TABLE_MODE === "units" ? "(units)" : FC_TABLE_MODE === "wholesale" ? "($ wholesale)" : "($ gross profit)";
+  const modeTag = FC_TABLE_MODE === "units"     ? "(units)"
+                : FC_TABLE_MODE === "wholesale" ? "($ wholesale)"
+                : FC_TABLE_MODE === "gp"        ? "($ gross profit)"
+                                                : "(indicated U/S/W)";
   const text = [`Forecast ${modeTag}`, header, ...rows].join("\n");
 
   const btn = (evt && evt.currentTarget) || null;
