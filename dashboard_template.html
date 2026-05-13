@@ -343,11 +343,34 @@
   .fa-ref-tag.tag-15 { background: #0057e7; }
   .fa-ref-tag.tag-34 { background: #e67300; }
   .fa-actions { display: flex; align-items: end; }
-  .fc-row-size { background: #f6f9ff; font-weight: 600; }
+  .fc-row-size  { background: #f6f9ff; font-weight: 600; }
   .fc-row-total { background: #eef3ff; font-weight: 700; color: #0057e7; }
-  .fc-row-forecast td:first-child::before { content: "🔮 "; }
-  .fc-month-header { background: #f5f5f5; font-weight: 700; }
-  .fc-month-header.fc-forecast { background: #f3e8fb; color: #6a1b9a; }
+
+  /* Forecast wide table — months as columns, sticky series column */
+  .fc-table-controls { display: flex; gap: 14px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .fc-metric-pills { display: flex; gap: 4px; }
+  .fc-pill { padding: 5px 12px; border: 2px solid #e0e0e0; background: #fff;
+             border-radius: 6px; cursor: pointer; font-size: 0.78rem; font-weight: 600;
+             color: #555; font-family: inherit; }
+  .fc-pill:hover { border-color: #9c27b0; color: #9c27b0; }
+  .fc-pill.active { background: #9c27b0; color: #fff; border-color: #9c27b0; }
+  .fc-table-scroll { overflow: auto; max-height: 600px; border: 1px solid #eee; border-radius: 6px; }
+  .fc-wide-table { border-collapse: separate; border-spacing: 0; font-size: 0.78rem;
+                   width: max-content; min-width: 100%; }
+  .fc-wide-table th, .fc-wide-table td { padding: 6px 10px; white-space: nowrap;
+                                         border-bottom: 1px solid #f0f0f0; text-align: right; }
+  .fc-wide-table thead th { position: sticky; top: 0; background: #fafafa;
+                            font-weight: 700; color: #444; z-index: 2;
+                            border-bottom: 2px solid #ddd; }
+  .fc-wide-table thead th.fc-th-forecast { background: #f3e8fb; color: #6a1b9a; }
+  .fc-wide-table th:first-child, .fc-wide-table td:first-child {
+    position: sticky; left: 0; background: #fff; z-index: 1;
+    text-align: left; font-weight: 600; min-width: 130px;
+    border-right: 2px solid #ddd;
+  }
+  .fc-wide-table thead th:first-child { z-index: 3; background: #fafafa; }
+  .fc-wide-table tr.fc-row-size  td:first-child { background: #f6f9ff; }
+  .fc-wide-table tr.fc-row-total td:first-child { background: #eef3ff; }
 
   /* ── Store Map Tab ── */
   #store-map-leaflet { width: 100%; height: 620px; border-radius: 8px; z-index: 0; }
@@ -1206,25 +1229,24 @@
     <div class="metrics-table-card">
       <h3>Monthly Forecast Detail</h3>
       <div style="font-size:0.75rem;color:#888;margin-bottom:10px">
-        Historical months show actual POS units split via Luminate. Forecast months are model output.
-        Click <span style="color:#0057e7;font-weight:700">Copy</span> on any column to grab Month × Series × value as TSV.
+        Months go across — scroll right for further-out forecast. Pick a metric to view; "Copy" pulls the whole grid as TSV.
       </div>
-      <div style="display:flex;gap:14px;align-items:center;margin-bottom:8px;font-size:0.78rem;color:#555">
-        <label><input type="checkbox" id="fc-show-history" checked onchange="renderForecastTable()"> Show historical months</label>
-        <label><input type="checkbox" id="fc-collapse-years" onchange="renderForecastTable()"> Collapse to annual totals</label>
+      <div class="fc-table-controls">
+        <span style="font-weight:700;font-size:0.78rem;color:#555">Metric:</span>
+        <div class="fc-metric-pills">
+          <button class="fc-pill active" data-fcmet="total"     onclick="setForecastMetric(this)">Total Units</button>
+          <button class="fc-pill"        data-fcmet="new"       onclick="setForecastMetric(this)">New Units</button>
+          <button class="fc-pill"        data-fcmet="repeat"    onclick="setForecastMetric(this)">Repeat Units</button>
+          <button class="fc-pill"        data-fcmet="wholesale" onclick="setForecastMetric(this)">Wholesale $</button>
+          <button class="fc-pill"        data-fcmet="gp"        onclick="setForecastMetric(this)">Gross Profit $</button>
+        </div>
+        <label style="font-size:0.78rem;color:#555"><input type="checkbox" id="fc-show-history" checked onchange="renderForecastTable()"> Show historical</label>
+        <label style="font-size:0.78rem;color:#555"><input type="checkbox" id="fc-collapse-years" onchange="renderForecastTable()"> Annual totals</label>
+        <button class="copy-metric-btn" onclick="copyForecastMetric(event)" style="margin-left:auto">Copy table</button>
       </div>
-      <div style="max-height:600px;overflow-y:auto">
-        <table id="forecast-table">
-          <thead>
-            <tr>
-              <th>Series</th>
-              <th><div>New Units</div><button class="copy-metric-btn" onclick="copyForecastMetric(event,'new')">Copy</button></th>
-              <th><div>Repeat Units</div><button class="copy-metric-btn" onclick="copyForecastMetric(event,'repeat')">Copy</button></th>
-              <th><div>Total Units</div><button class="copy-metric-btn" onclick="copyForecastMetric(event,'total')">Copy</button></th>
-              <th><div>Wholesale $</div><button class="copy-metric-btn" onclick="copyForecastMetric(event,'wholesale')">Copy</button></th>
-              <th><div>Gross Profit $</div><button class="copy-metric-btn" onclick="copyForecastMetric(event,'gp')">Copy</button></th>
-            </tr>
-          </thead>
+      <div class="fc-table-scroll">
+        <table id="forecast-table" class="fc-wide-table">
+          <thead><tr id="forecast-thead-row"></tr></thead>
           <tbody id="forecast-tbody"></tbody>
         </table>
       </div>
@@ -2550,110 +2572,112 @@ function renderForecastCharts() {
     { ...base, yaxis: { ...base.yaxis, title: "New trialers / month" } }, cfg);
 }
 
-// ── Table ────────────────────────────────────────────────────────────────────
-function renderForecastTable() {
-  const tbody = document.getElementById("forecast-tbody");
-  tbody.innerHTML = "";
+// ── Table (months as columns, one metric at a time) ──────────────────────────
+let FC_TABLE_METRIC = "total";   // "total" | "new" | "repeat" | "wholesale" | "gp"
+
+function setForecastMetric(btn) {
+  document.querySelectorAll(".fc-pill").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  FC_TABLE_METRIC = btn.dataset.fcmet;
+  renderForecastTable();
+}
+
+function fcBuildTableColumns() {
+  // Returns [{ label, isForecast, isMixed, bySku, bySize, total }] honoring
+  // current show-historical and collapse-to-annual toggles.
   const r = FC_RESULT;
+  const hc = r.historicalCount;
   const showHist = document.getElementById("fc-show-history").checked;
   const collapse = document.getElementById("fc-collapse-years").checked;
-  const hc = r.historicalCount;
+  const KEYS = ["new","repeat","total","wholesale","gp"];
 
-  // Build rows: either monthly or yearly-collapsed.
-  let groups;
   if (collapse) {
-    // Group derived rows by year. Historical and forecast years may overlap (rare); we just key by year.
     const byYear = {};
     r.derived.forEach((m, i) => {
       const yr = m.key.slice(0, 4);
-      if (!byYear[yr]) byYear[yr] = { label: "FY " + yr, isForecast: i >= hc, isMixed: false, agg: m };
-      if (byYear[yr].agg !== m) {
-        // accumulate
-        const a = byYear[yr].agg;
-        // First time: clone the structure
-        if (byYear[yr]._cloned !== true) {
-          byYear[yr]._cloned = true;
-          byYear[yr].agg = {
-            label: byYear[yr].label,
-            isForecast: byYear[yr].isForecast,
-            bySku: Object.fromEntries(DATA.skus.map(s => [s, { ...a.bySku[s] }])),
-            bySize: { "15": { ...a.bySize["15"] }, "34": { ...a.bySize["34"] } },
-            total: { ...a.total },
-          };
-        }
-        DATA.skus.forEach(s => {
-          ["new","repeat","total","wholesale","gp"].forEach(k => {
-            byYear[yr].agg.bySku[s][k] += m.bySku[s][k];
-          });
-        });
-        ["15","34"].forEach(sz => ["new","repeat","total","wholesale","gp"].forEach(k => {
-          byYear[yr].agg.bySize[sz][k] += m.bySize[sz][k];
-        }));
-        ["new","repeat","total","wholesale","gp"].forEach(k => byYear[yr].agg.total[k] += m.total[k]);
-        if ((i >= hc) !== byYear[yr].isForecast) byYear[yr].isMixed = true;
+      if (!byYear[yr]) {
+        byYear[yr] = {
+          label: "FY " + yr,
+          isForecast: i >= hc,
+          isMixed: false,
+          bySku: Object.fromEntries(DATA.skus.map(s => [s, { new:0, repeat:0, total:0, wholesale:0, gp:0 }])),
+          bySize: { "15": { new:0, repeat:0, total:0, wholesale:0, gp:0 },
+                    "34": { new:0, repeat:0, total:0, wholesale:0, gp:0 } },
+          total:  { new:0, repeat:0, total:0, wholesale:0, gp:0 },
+        };
       }
+      const g = byYear[yr];
+      if ((i >= hc) !== g.isForecast) g.isMixed = true;
+      DATA.skus.forEach(s => KEYS.forEach(k => g.bySku[s][k] += m.bySku[s][k] || 0));
+      ["15","34"].forEach(sz => KEYS.forEach(k => g.bySize[sz][k] += m.bySize[sz][k] || 0));
+      KEYS.forEach(k => g.total[k] += m.total[k] || 0);
     });
-    groups = Object.values(byYear).map(g => ({ label: g.label, isForecast: g.isForecast, isMixed: g.isMixed, m: g.agg }));
-  } else {
-    groups = r.derived
-      .map((m, i) => ({ label: m.label, isForecast: i >= hc, isMixed: false, m }))
-      .filter(g => showHist || g.isForecast);
+    return Object.values(byYear);
   }
 
-  const fmtUnits = v => v == null ? "—" : Math.round(v).toLocaleString();
-  const fmtDollars = v => v == null ? "—" : "$" + Math.round(v).toLocaleString();
-
-  const rowDef = (label, d, cls) => {
-    const tr = document.createElement("tr");
-    if (cls) tr.className = cls;
-    tr.innerHTML =
-      `<td>${label}</td>` +
-      `<td>${fmtUnits(d.new)}</td>` +
-      `<td>${fmtUnits(d.repeat)}</td>` +
-      `<td>${fmtUnits(d.total)}</td>` +
-      `<td>${fmtDollars(d.wholesale)}</td>` +
-      `<td>${fmtDollars(d.gp)}</td>`;
-    return tr;
-  };
-
-  groups.forEach(g => {
-    const headTr = document.createElement("tr");
-    headTr.className = "fc-month-header" + (g.isForecast ? " fc-forecast" : "");
-    const td = document.createElement("td");
-    td.colSpan = 6;
-    let tag = g.isForecast ? '<span style="color:#9c27b0;font-weight:500"> · forecast</span>'
-                           : '<span style="color:#888;font-weight:500"> · historical</span>';
-    if (g.isMixed) tag = '<span style="color:#b26500;font-weight:500"> · mixed</span>';
-    td.innerHTML = g.label + tag;
-    headTr.appendChild(td);
-    tbody.appendChild(headTr);
-
-    DATA.skus.forEach(sku => {
-      tbody.appendChild(rowDef(SKU_SHORT[sku] || sku, g.m.bySku[sku]));
-    });
-    tbody.appendChild(rowDef("15 lb total", g.m.bySize["15"], "fc-row-size"));
-    tbody.appendChild(rowDef("34 lb total", g.m.bySize["34"], "fc-row-size"));
-    tbody.appendChild(rowDef("All SKUs",    g.m.total,        "fc-row-total"));
-  });
+  return r.derived
+    .map((m, i) => ({
+      label: m.label,
+      isForecast: i >= hc,
+      isMixed: false,
+      bySku: m.bySku,
+      bySize: m.bySize,
+      total: m.total,
+    }))
+    .filter(c => showHist || c.isForecast);
 }
 
-// ── Copy a column to clipboard as TSV ─────────────────────────────────────────
-function copyForecastMetric(evt, key) {
+function renderForecastTable() {
   if (!FC_RESULT) return;
-  const r = FC_RESULT;
-  const hc = r.historicalCount;
-  const showHist = document.getElementById("fc-show-history").checked;
-  const months = r.derived.filter((_, i) => showHist || i >= hc);
-  const skuShort = DATA.skus.map(s => SKU_SHORT[s] || s);
+  const cols = fcBuildTableColumns();
+  const metric = FC_TABLE_METRIC;
+  const isDollar = metric === "wholesale" || metric === "gp";
+  const fmt = v => v == null ? "—"
+                 : isDollar ? "$" + Math.round(v).toLocaleString()
+                            : Math.round(v).toLocaleString();
 
-  const header = ["Month", ...skuShort, "15lb", "34lb", "Total"].join("\t");
-  const fmt = v => key === "wholesale" || key === "gp"
-    ? String(Math.round(v || 0))
-    : String(Math.round(v || 0));
-  const rows = months.map(m => {
-    const skuVals = DATA.skus.map(s => fmt(m.bySku[s][key]));
-    return [m.label, ...skuVals, fmt(m.bySize["15"][key]), fmt(m.bySize["34"][key]), fmt(m.total[key])].join("\t");
-  });
+  const thead = document.getElementById("forecast-thead-row");
+  thead.innerHTML = '<th>Series</th>' + cols.map(c => {
+    const cls = c.isForecast ? "fc-th-forecast" : "";
+    const tip = c.isMixed ? " (mixed)" : (c.isForecast ? "" : " (hist)");
+    return `<th class="${cls}" title="${c.label}${tip}">${c.label}</th>`;
+  }).join("");
+
+  const tbody = document.getElementById("forecast-tbody");
+  tbody.innerHTML = "";
+
+  const addRow = (label, accessor, cls) => {
+    const tr = document.createElement("tr");
+    if (cls) tr.className = cls;
+    let html = `<td>${label}</td>`;
+    cols.forEach(c => { html += `<td>${fmt(accessor(c)[metric])}</td>`; });
+    tr.innerHTML = html;
+    tbody.appendChild(tr);
+  };
+
+  DATA.skus.forEach(sku => addRow(SKU_SHORT[sku] || sku, c => c.bySku[sku]));
+  addRow("15 lb total", c => c.bySize["15"], "fc-row-size");
+  addRow("34 lb total", c => c.bySize["34"], "fc-row-size");
+  addRow("All SKUs",    c => c.total,        "fc-row-total");
+}
+
+// Copy: whole grid (series × months) for the currently-selected metric as TSV.
+function copyForecastMetric(evt) {
+  if (!FC_RESULT) return;
+  const cols = fcBuildTableColumns();
+  const metric = FC_TABLE_METRIC;
+  const fmt = v => String(Math.round(v || 0));
+
+  const header = ["Series", ...cols.map(c => c.label + (c.isForecast ? " (fc)" : ""))].join("\t");
+  const seriesDefs = [
+    ...DATA.skus.map(s => [SKU_SHORT[s] || s, c => c.bySku[s]]),
+    ["15 lb total", c => c.bySize["15"]],
+    ["34 lb total", c => c.bySize["34"]],
+    ["All SKUs",    c => c.total],
+  ];
+  const rows = seriesDefs.map(([label, accessor]) =>
+    [label, ...cols.map(c => fmt(accessor(c)[metric]))].join("\t")
+  );
   const text = [header, ...rows].join("\n");
 
   const btn = (evt && evt.currentTarget) || null;
