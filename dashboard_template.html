@@ -346,31 +346,36 @@
   .fc-row-size  { background: #f6f9ff; font-weight: 600; }
   .fc-row-total { background: #eef3ff; font-weight: 700; color: #0057e7; }
 
-  /* Forecast wide table — months as columns, sticky series column */
-  .fc-table-controls { display: flex; gap: 14px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
-  .fc-metric-pills { display: flex; gap: 4px; }
-  .fc-pill { padding: 5px 12px; border: 2px solid #e0e0e0; background: #fff;
-             border-radius: 6px; cursor: pointer; font-size: 0.78rem; font-weight: 600;
-             color: #555; font-family: inherit; }
-  .fc-pill:hover { border-color: #9c27b0; color: #9c27b0; }
-  .fc-pill.active { background: #9c27b0; color: #fff; border-color: #9c27b0; }
-  .fc-table-scroll { overflow: auto; max-height: 600px; border: 1px solid #eee; border-radius: 6px; }
-  .fc-wide-table { border-collapse: separate; border-spacing: 0; font-size: 0.78rem;
-                   width: max-content; min-width: 100%; }
-  .fc-wide-table th, .fc-wide-table td { padding: 6px 10px; white-space: nowrap;
-                                         border-bottom: 1px solid #f0f0f0; text-align: right; }
-  .fc-wide-table thead th { position: sticky; top: 0; background: #fafafa;
-                            font-weight: 700; color: #444; z-index: 2;
-                            border-bottom: 2px solid #ddd; }
-  .fc-wide-table thead th.fc-th-forecast { background: #f3e8fb; color: #6a1b9a; }
-  .fc-wide-table th:first-child, .fc-wide-table td:first-child {
+  /* Wide tables — months as columns, sticky series column. Shared by Monthly + Forecast. */
+  .wide-table-controls { display: flex; gap: 14px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .metric-pills { display: flex; gap: 4px; flex-wrap: wrap; }
+  .pill-btn { padding: 5px 12px; border: 2px solid #e0e0e0; background: #fff;
+              border-radius: 6px; cursor: pointer; font-size: 0.78rem; font-weight: 600;
+              color: #555; font-family: inherit; }
+  .pill-btn:hover { border-color: #0057e7; color: #0057e7; }
+  .pill-btn.active { background: #0057e7; color: #fff; border-color: #0057e7; }
+  .pill-btn.theme-fc:hover { border-color: #9c27b0; color: #9c27b0; }
+  .pill-btn.theme-fc.active { background: #9c27b0; color: #fff; border-color: #9c27b0; }
+  .wide-table-scroll { overflow: auto; max-height: 600px; border: 1px solid #eee; border-radius: 6px; }
+  .wide-table { border-collapse: separate; border-spacing: 0; font-size: 0.78rem;
+                width: max-content; min-width: 100%; }
+  .wide-table th, .wide-table td { padding: 6px 10px; white-space: nowrap;
+                                   border-bottom: 1px solid #f0f0f0; text-align: right; }
+  .wide-table thead th { position: sticky; top: 0; background: #fafafa;
+                         font-weight: 700; color: #444; z-index: 2;
+                         border-bottom: 2px solid #ddd; }
+  .wide-table thead th.fc-th-forecast { background: #f3e8fb; color: #6a1b9a; }
+  .wide-table thead th.partial-th     { background: #fff7e6; color: #b26500; }
+  .wide-table th:first-child, .wide-table td:first-child {
     position: sticky; left: 0; background: #fff; z-index: 1;
     text-align: left; font-weight: 600; min-width: 130px;
     border-right: 2px solid #ddd;
   }
-  .fc-wide-table thead th:first-child { z-index: 3; background: #fafafa; }
-  .fc-wide-table tr.fc-row-size  td:first-child { background: #f6f9ff; }
-  .fc-wide-table tr.fc-row-total td:first-child { background: #eef3ff; }
+  .wide-table thead th:first-child { z-index: 3; background: #fafafa; }
+  .wide-table tr.fc-row-size  td:first-child { background: #f6f9ff; }
+  .wide-table tr.fc-row-total td:first-child { background: #eef3ff; }
+  .wide-table tr.total-row td:first-child    { background: #eef3ff; color: #0057e7; }
+  .wide-table tr.total-row td                { font-weight: 700; color: #0057e7; }
 
   /* ── Store Map Tab ── */
   #store-map-leaflet { width: 100%; height: 620px; border-radius: 8px; z-index: 0; }
@@ -558,23 +563,27 @@
     <div class="metrics-table-card">
       <h3>Monthly Rollup Data</h3>
       <div style="font-size:0.75rem;color:#888;margin-bottom:10px">
-        Click a column's <span style="color:#0057e7;font-weight:700">Copy</span> button to copy that metric's table
-        (Month × 15O / 34O / 15U / 34U / Total) for paste into your spreadsheet.
+        Months go across — pick a metric to view; partial months are tinted.
+        <span style="color:#0057e7;font-weight:700">Copy table</span> grabs the full Series × Month grid as TSV.
       </div>
-      <table id="monthly-table">
-        <thead>
-          <tr>
-            <th>SKU</th>
-            <th><div>U/S/W (avg)</div><button class="copy-metric-btn" onclick="copyMonthlyMetric(event,'usw')">Copy</button></th>
-            <th><div>Adj U/S/W (avg)</div><button class="copy-metric-btn" onclick="copyMonthlyMetric(event,'adj_usw')">Copy</button></th>
-            <th><div>Instock % (avg)</div><button class="copy-metric-btn" onclick="copyMonthlyMetric(event,'instock_pct')">Copy</button></th>
-            <th><div>Units Sold (sum)</div><button class="copy-metric-btn" onclick="copyMonthlyMetric(event,'pos_qty')">Copy</button></th>
-            <th><div>Retail $ (sum)</div><button class="copy-metric-btn" onclick="copyMonthlyMetric(event,'pos_dollars')">Copy</button></th>
-            <th><div>Wholesale $ (sum)</div><button class="copy-metric-btn" onclick="copyMonthlyMetric(event,'wholesale_dollars')">Copy</button></th>
-          </tr>
-        </thead>
-        <tbody id="monthly-tbody"></tbody>
-      </table>
+      <div class="wide-table-controls">
+        <span style="font-weight:700;font-size:0.78rem;color:#555">Metric:</span>
+        <div class="metric-pills">
+          <button class="pill-btn active" data-mmet="pos_qty"           onclick="setMonthlyMetric(this)">Units Sold (sum)</button>
+          <button class="pill-btn"        data-mmet="pos_dollars"       onclick="setMonthlyMetric(this)">Retail $ (sum)</button>
+          <button class="pill-btn"        data-mmet="wholesale_dollars" onclick="setMonthlyMetric(this)">Wholesale $ (sum)</button>
+          <button class="pill-btn"        data-mmet="usw"               onclick="setMonthlyMetric(this)">U/S/W (avg)</button>
+          <button class="pill-btn"        data-mmet="adj_usw"           onclick="setMonthlyMetric(this)">Adj U/S/W (avg)</button>
+          <button class="pill-btn"        data-mmet="instock_pct"       onclick="setMonthlyMetric(this)">Instock % (avg)</button>
+        </div>
+        <button class="copy-metric-btn" onclick="copyMonthlyMetric(event)" style="margin-left:auto">Copy table</button>
+      </div>
+      <div class="wide-table-scroll">
+        <table id="monthly-table" class="wide-table">
+          <thead><tr id="monthly-thead-row"></tr></thead>
+          <tbody id="monthly-tbody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -1231,21 +1240,21 @@
       <div style="font-size:0.75rem;color:#888;margin-bottom:10px">
         Months go across — scroll right for further-out forecast. Pick a metric to view; "Copy" pulls the whole grid as TSV.
       </div>
-      <div class="fc-table-controls">
+      <div class="wide-table-controls">
         <span style="font-weight:700;font-size:0.78rem;color:#555">Metric:</span>
-        <div class="fc-metric-pills">
-          <button class="fc-pill active" data-fcmet="total"     onclick="setForecastMetric(this)">Total Units</button>
-          <button class="fc-pill"        data-fcmet="new"       onclick="setForecastMetric(this)">New Units</button>
-          <button class="fc-pill"        data-fcmet="repeat"    onclick="setForecastMetric(this)">Repeat Units</button>
-          <button class="fc-pill"        data-fcmet="wholesale" onclick="setForecastMetric(this)">Wholesale $</button>
-          <button class="fc-pill"        data-fcmet="gp"        onclick="setForecastMetric(this)">Gross Profit $</button>
+        <div class="metric-pills">
+          <button class="pill-btn theme-fc active" data-fcmet="total"     onclick="setForecastMetric(this)">Total Units</button>
+          <button class="pill-btn theme-fc"        data-fcmet="new"       onclick="setForecastMetric(this)">New Units</button>
+          <button class="pill-btn theme-fc"        data-fcmet="repeat"    onclick="setForecastMetric(this)">Repeat Units</button>
+          <button class="pill-btn theme-fc"        data-fcmet="wholesale" onclick="setForecastMetric(this)">Wholesale $</button>
+          <button class="pill-btn theme-fc"        data-fcmet="gp"        onclick="setForecastMetric(this)">Gross Profit $</button>
         </div>
         <label style="font-size:0.78rem;color:#555"><input type="checkbox" id="fc-show-history" checked onchange="renderForecastTable()"> Show historical</label>
         <label style="font-size:0.78rem;color:#555"><input type="checkbox" id="fc-collapse-years" onchange="renderForecastTable()"> Annual totals</label>
         <button class="copy-metric-btn" onclick="copyForecastMetric(event)" style="margin-left:auto">Copy table</button>
       </div>
-      <div class="fc-table-scroll">
-        <table id="forecast-table" class="fc-wide-table">
+      <div class="wide-table-scroll">
+        <table id="forecast-table" class="wide-table">
           <thead><tr id="forecast-thead-row"></tr></thead>
           <tbody id="forecast-tbody"></tbody>
         </table>
@@ -2087,97 +2096,89 @@ function buildMonthlyCharts() {
     {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"$", tickprefix:"$", tickformat:",.0f"}}, cfg);
 }
 
+// Monthly table — months across columns, sticky series rows. One metric at a time.
+let MONTHLY_TABLE_METRIC = "pos_qty";
+const MONTHLY_METRIC_TYPE = {
+  usw:               "usw",
+  adj_usw:           "usw",
+  instock_pct:       "pct",
+  pos_qty:           "int",
+  pos_dollars:       "dollar",
+  wholesale_dollars: "dollar",
+};
+
+function setMonthlyMetric(btn) {
+  document.querySelectorAll(".pill-btn:not(.theme-fc)").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  MONTHLY_TABLE_METRIC = btn.dataset.mmet;
+  buildMonthlyTable();
+}
+
+function fmtMonthlyValue(v, type) {
+  if (v == null) return "—";
+  if (type === "pct")    return v.toFixed(2) + "%";
+  if (type === "usw")    return v.toFixed(2);
+  if (type === "int")    return Math.round(v).toLocaleString();
+  if (type === "dollar") return "$" + Math.round(v).toLocaleString();
+  return String(v);
+}
+
 function buildMonthlyTable() {
+  if (!MONTHLY_ROLLUP) MONTHLY_ROLLUP = buildMonthlyRollup();
+  const { months, byMonth } = MONTHLY_ROLLUP;
+  const metric = MONTHLY_TABLE_METRIC;
+  const type   = MONTHLY_METRIC_TYPE[metric];
+
+  // Header row: Series | month1 | month2 | …
+  const thead = document.getElementById("monthly-thead-row");
+  thead.innerHTML = '<th>Series</th>' + months.map(k => {
+    const mo = byMonth[k];
+    const cls = mo.isPartial ? "partial-th" : "";
+    const tip = mo.isPartial
+      ? `${mo.label} — partial (${mo.weekCount}/${mo.expectedWeeks} wks)`
+      : `${mo.label} — ${mo.weekCount} wks`;
+    const sublabel = mo.label.replace(/ \(.*$/, "");
+    return `<th class="${cls}" title="${tip}">${sublabel}` +
+           (mo.isPartial ? `<div style="font-size:0.68rem;font-weight:500">${mo.weekCount}/${mo.expectedWeeks} wks</div>` : "") +
+           `</th>`;
+  }).join("");
+
+  // Body rows: one per series (4 SKUs + Total)
   const tbody = document.getElementById("monthly-tbody");
   tbody.innerHTML = "";
-  const { months, byMonth } = MONTHLY_ROLLUP;
-
-  const fmt = (v, type) => {
-    if (v == null) return "—";
-    if (type === "pct")    return v.toFixed(2) + "%";
-    if (type === "usw")    return v.toFixed(2);
-    if (type === "int")    return Math.round(v).toLocaleString();
-    if (type === "dollar") return "$" + Math.round(v).toLocaleString();
-    return v;
-  };
-  const toDisplayVal = (v, type) => {
-    if (v == null) return null;
-    if (type === "pct" || type === "usw") return parseFloat(v.toFixed(2));
-    if (type === "dollar" || type === "int") return Math.round(v);
-    return v;
-  };
-  const fmtChg = (curr, prev) => {
-    if (curr == null || prev == null || prev === 0) return "";
-    const c = (curr - prev) / Math.abs(prev) * 100;
-    const sign = c >= 0 ? "+" : "";
-    const color = c < 0 ? "#d32f2f" : "#2e7d32";
-    return `<span style="font-size:0.75em;color:${color};margin-left:4px">(${sign}${c.toFixed(1)}%)</span>`;
-  };
-
-  const COL_COUNT = 7;
-  months.forEach((key, mIdx) => {
-    const mo = byMonth[key];
-    const partialNote = mo.isPartial
-      ? ` <span style="color:#b26500;font-weight:500">— partial (${mo.weekCount}/${mo.expectedWeeks} wks)</span>`
-      : ` <span style="color:#888;font-weight:500">— ${mo.weekCount} wks</span>`;
-    const trHead = document.createElement("tr");
-    trHead.className = "week-group-row";
-    const tdHead = document.createElement("td");
-    tdHead.colSpan = COL_COUNT;
-    tdHead.innerHTML = mo.label.replace(/ \(.*$/, "") + partialNote;
-    trHead.appendChild(tdHead);
-    tbody.appendChild(trHead);
-
-    const prevKey  = mIdx > 0 ? months[mIdx - 1] : null;
-    const prevSeries = prevKey ? byMonth[prevKey].series : {};
-
-    ALL_SERIES.forEach(series => {
-      const s  = mo.series[series] || {};
-      const ps = prevSeries[series] || {};
-      const tr = document.createElement("tr");
-      if (series === "Total") tr.className = "total-row";
-
-      const cellDefs = [
-        { text: series, curr: null, prev: null },
-        { text: fmt(s.usw, "usw"),                  curr: toDisplayVal(s.usw, "usw"),                  prev: toDisplayVal(ps.usw, "usw") },
-        { text: fmt(s.adj_usw, "usw"),              curr: toDisplayVal(s.adj_usw, "usw"),              prev: toDisplayVal(ps.adj_usw, "usw") },
-        { text: fmt(s.instock_pct, "pct"),          curr: toDisplayVal(s.instock_pct, "pct"),          prev: toDisplayVal(ps.instock_pct, "pct") },
-        { text: fmt(s.pos_qty, "int"),              curr: toDisplayVal(s.pos_qty, "int"),              prev: toDisplayVal(ps.pos_qty, "int") },
-        { text: fmt(s.pos_dollars, "dollar"),       curr: toDisplayVal(s.pos_dollars, "dollar"),       prev: toDisplayVal(ps.pos_dollars, "dollar") },
-        { text: fmt(s.wholesale_dollars, "dollar"), curr: toDisplayVal(s.wholesale_dollars, "dollar"), prev: toDisplayVal(ps.wholesale_dollars, "dollar") },
-      ];
-      cellDefs.forEach(({ text, curr, prev }) => {
-        const td = document.createElement("td");
-        if (prevKey && curr != null) td.innerHTML = text + fmtChg(curr, prev);
-        else td.textContent = text;
-        tr.appendChild(td);
-      });
-      tbody.appendChild(tr);
+  ALL_SERIES.forEach(series => {
+    const tr = document.createElement("tr");
+    if (series === "Total") tr.className = "total-row";
+    let html = `<td>${series}</td>`;
+    months.forEach(k => {
+      const s = byMonth[k].series[series] || {};
+      html += `<td>${fmtMonthlyValue(s[metric], type)}</td>`;
     });
+    tr.innerHTML = html;
+    tbody.appendChild(tr);
   });
 }
 
-function copyMonthlyMetric(evt, key) {
+// Copy current metric as TSV: Series header row + month columns.
+function copyMonthlyMetric(evt) {
   if (!MONTHLY_ROLLUP) MONTHLY_ROLLUP = buildMonthlyRollup();
   const { months, byMonth } = MONTHLY_ROLLUP;
-  const fmtNum = {
-    usw:               v => (Math.round(v * 100) / 100).toFixed(2),
-    adj_usw:           v => (Math.round(v * 100) / 100).toFixed(2),
-    instock_pct:       v => (Math.round(v * 100) / 100).toFixed(2),
-    pos_qty:           v => String(Math.round(v)),
-    pos_dollars:       v => String(Math.round(v)),
-    wholesale_dollars: v => String(Math.round(v)),
-  }[key];
-  if (!fmtNum) return;
-  const fmt = v => v == null ? "" : fmtNum(v);
+  const metric = MONTHLY_TABLE_METRIC;
+  const type   = MONTHLY_METRIC_TYPE[metric];
 
-  const header = ["Month", ...COPY_SKU_HEADERS, "Total"].join("\t");
-  const rows = months.map(k => {
-    const ser = byMonth[k].series;
-    const vals = COPY_SKUS_ORDER.map(sku => fmt(ser[sku] && ser[sku][key]));
-    const total = fmt(ser["Total"] && ser["Total"][key]);
-    return [byMonth[k].label, ...vals, total].join("\t");
-  });
+  const rawFmt = v => {
+    if (v == null) return "";
+    if (type === "pct" || type === "usw") return (Math.round(v * 100) / 100).toFixed(2);
+    return String(Math.round(v));
+  };
+
+  const header = ["Series", ...months.map(k => {
+    const mo = byMonth[k];
+    return mo.label.replace(/ \(.*$/, "") + (mo.isPartial ? " (partial)" : "");
+  })].join("\t");
+  const rows = ALL_SERIES.map(series =>
+    [series, ...months.map(k => rawFmt((byMonth[k].series[series] || {})[metric]))].join("\t")
+  );
   const text = [header, ...rows].join("\n");
 
   const btn = (evt && evt.currentTarget) || null;
@@ -2576,7 +2577,7 @@ function renderForecastCharts() {
 let FC_TABLE_METRIC = "total";   // "total" | "new" | "repeat" | "wholesale" | "gp"
 
 function setForecastMetric(btn) {
-  document.querySelectorAll(".fc-pill").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".pill-btn.theme-fc").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
   FC_TABLE_METRIC = btn.dataset.fcmet;
   renderForecastTable();
