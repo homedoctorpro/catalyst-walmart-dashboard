@@ -1282,7 +1282,8 @@
             <button class="pill-btn theme-fc"        data-fcyr="fy" onclick="setForecastYearMode(this)">FY (Jul–Jun)</button>
           </div>
         </span>
-        <button class="copy-metric-btn" onclick="copyForecastMetric(event)" style="margin-left:auto">Copy table</button>
+        <button class="copy-metric-btn" onclick="copyForecastSizeUnits(event)" style="margin-left:auto" title="Copy raw unit values for the 15lb and 34lb totals (new / repeat / total) from Feb 26 onward — no labels, ready to paste into a spreadsheet">Copy 15+34 lb units</button>
+        <button class="copy-metric-btn" onclick="copyForecastMetric(event)">Copy table</button>
       </div>
       <div class="wide-table-scroll">
         <table id="forecast-table" class="wide-table">
@@ -2867,6 +2868,38 @@ function renderForecastTable() {
       tbody.appendChild(tr);
     });
   });
+}
+
+// Quick copy: 6 rows of raw units (15lb new/repeat/total, then 34lb same)
+// across every month from Feb 26 to the end of the forecast. No row labels,
+// no header — straight numbers ready to paste into a spreadsheet template.
+function copyForecastSizeUnits(evt) {
+  if (!FC_RESULT) return;
+  const months = FC_RESULT.derived;   // all months: historical + forecast, monthly grain
+  const rows = [
+    months.map(m => Math.round(m.bySize["15"].new    || 0)).join("\t"),
+    months.map(m => Math.round(m.bySize["15"].repeat || 0)).join("\t"),
+    months.map(m => Math.round(m.bySize["15"].total  || 0)).join("\t"),
+    months.map(m => Math.round(m.bySize["34"].new    || 0)).join("\t"),
+    months.map(m => Math.round(m.bySize["34"].repeat || 0)).join("\t"),
+    months.map(m => Math.round(m.bySize["34"].total  || 0)).join("\t"),
+  ];
+  const text = rows.join("\n");
+
+  const btn = (evt && evt.currentTarget) || null;
+  const label = btn ? btn.textContent : "Copy";
+  const flash = (cls, txt, ms) => {
+    if (!btn) return;
+    btn.classList.add(cls); btn.textContent = txt;
+    setTimeout(() => { btn.classList.remove(cls); btn.textContent = label; }, ms);
+  };
+  const onOk   = () => flash("copied", "✓ Copied", 1500);
+  const onFail = () => flash("failed", "Failed",   2000);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(onOk).catch(() => fallbackCopy(text, onOk, onFail));
+  } else {
+    fallbackCopy(text, onOk, onFail);
+  }
 }
 
 // Copy: full series × {new,repeat,total} × month grid for the current mode.
