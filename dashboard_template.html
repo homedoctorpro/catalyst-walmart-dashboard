@@ -1179,7 +1179,7 @@
   <!-- ── Tab: Forecast ─────────────────────────────────────────────────────── -->
   <div id="tab-forecast" class="tab-panel">
     <div style="background:#fff;border-radius:12px;padding:14px 18px;margin-bottom:14px;font-size:0.82rem;color:#555;border-left:4px solid #9c27b0">
-      <strong style="color:#222">5-year monthly forecast.</strong>
+      <strong style="color:#222">Monthly forecast through Jun 2031.</strong>
       Historical months: <em>new units</em> = POS units × (Luminate new transactions ÷ total transactions).
       Forecast months: new units decay compound monthly; repeats accumulate from prior cohorts at +2, +4, +6… months
       with multiplicative cycle decay. ASP &amp; gross-profit-per-unit are fixed by size and shown in the assumption panel.
@@ -2221,13 +2221,13 @@ function copyMonthlyMetric(evt) {
 }
 
 // ══ Tab: Forecast ═════════════════════════════════════════════════════════════
-// 5-year monthly forecast per SKU + per-size + total.
+// Monthly forecast per SKU + per-size + total, through Jun 2031.
 //
 // Historical phase (months with complete POS data + Luminate coverage):
 //   new_units(M, SKU)    = pos_units(M, SKU) × (luminate_new_txns / total_txns)
 //   repeat_units(M, SKU) = pos_units(M, SKU) − new_units(M, SKU)
 //
-// Forecast phase (60 months after last complete historical month):
+// Forecast phase (FC_HORIZON_MONTHS months after last complete historical month):
 //   new_units(M, SKU)    = new_units(M-1, SKU) × (1 − d_new)            ← compound monthly decay
 //   repeat_units(M, SKU) = Σ over cohorts at idx M-2, M-4, M-6, …
 //                            of cohort_new × r_initial × (1 − r_decay)^(k-1)
@@ -2236,7 +2236,7 @@ function copyMonthlyMetric(evt) {
 // Wholesale $ and gross profit $ apply per-size rates to total_units.
 const FC_ASP   = { "15": 9.18,  "34": 12.98 };
 const FC_GP    = { "15": 3.02,  "34":  4.95 };
-const FC_HORIZON_MONTHS = 60;
+const FC_HORIZON_MONTHS = 62;   // May 2026 → Jun 2031 (covers FY27–FY31 in full)
 const FC_SHORT_TO_LONG = Object.fromEntries(Object.entries(SKU_SHORT).map(([l, s]) => [s, l]));
 
 // Indicated U/S/W: derive store-placement counts from the latest reporting week,
@@ -2488,9 +2488,9 @@ function renderForecastKPIs() {
   const sumGp = arr => arr.reduce((s, m) => s + m.total.gp, 0);
 
   const cards = [
-    { color: "#9c27b0", label: "5-yr Forecast Units",     val: sum(forecast),       fmt: v => Math.round(v).toLocaleString() },
-    { color: "#0057e7", label: "5-yr Wholesale $",        val: sumWhole(forecast),  fmt: v => "$" + Math.round(v).toLocaleString() },
-    { color: "#2e7d32", label: "5-yr Gross Profit $",     val: sumGp(forecast),     fmt: v => "$" + Math.round(v).toLocaleString() },
+    { color: "#9c27b0", label: "Forecast Units",          val: sum(forecast),       fmt: v => Math.round(v).toLocaleString() },
+    { color: "#0057e7", label: "Forecast Wholesale $",    val: sumWhole(forecast),  fmt: v => "$" + Math.round(v).toLocaleString() },
+    { color: "#2e7d32", label: "Forecast Gross Profit $", val: sumGp(forecast),     fmt: v => "$" + Math.round(v).toLocaleString() },
     { color: "#e67300", label: "Year-1 Forecast Units",   val: sum(yr1),            fmt: v => Math.round(v).toLocaleString() },
     { color: "#1565c0", label: "Year-1 Wholesale $",      val: sumWhole(yr1),       fmt: v => "$" + Math.round(v).toLocaleString() },
     { color: "#333",    label: "Year-1 Gross Profit $",   val: sumGp(yr1),          fmt: v => "$" + Math.round(v).toLocaleString() },
