@@ -322,6 +322,33 @@
   /* ── Toggle button active state ── */
   .ctrl-btn.active { background: #003580; color: #fff; border-color: #003580; }
 
+  /* ── Forecast Tab Assumption Panel ── */
+  .forecast-assumptions { background: #fff; border-radius: 12px; padding: 16px 18px;
+                          box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 16px;
+                          display: grid; grid-template-columns: repeat(4, 1fr) auto; gap: 18px;
+                          align-items: start; }
+  .fa-group { display: flex; flex-direction: column; gap: 4px; }
+  .fa-label { font-size: 0.78rem; font-weight: 700; color: #444; text-transform: uppercase;
+              letter-spacing: 0.03em; }
+  .fa-input-row { display: flex; align-items: baseline; gap: 8px; }
+  .fa-input-row input[type="number"] { width: 90px; padding: 6px 10px; border: 2px solid #e0e0e0;
+                                       border-radius: 6px; font-size: 1.05rem; font-weight: 700;
+                                       color: #0057e7; font-family: inherit; }
+  .fa-input-row input[type="number"]:focus { outline: none; border-color: #0057e7; }
+  .fa-unit { font-size: 0.82rem; color: #888; font-weight: 500; }
+  .fa-hint { font-size: 0.72rem; color: #999; line-height: 1.35; }
+  .fa-ref .fa-ref-grid { display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem; color: #555; }
+  .fa-ref-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-weight: 700;
+                color: #fff; font-size: 0.72rem; margin-right: 6px; }
+  .fa-ref-tag.tag-15 { background: #0057e7; }
+  .fa-ref-tag.tag-34 { background: #e67300; }
+  .fa-actions { display: flex; align-items: end; }
+  .fc-row-size { background: #f6f9ff; font-weight: 600; }
+  .fc-row-total { background: #eef3ff; font-weight: 700; color: #0057e7; }
+  .fc-row-forecast td:first-child::before { content: "🔮 "; }
+  .fc-month-header { background: #f5f5f5; font-weight: 700; }
+  .fc-month-header.fc-forecast { background: #f3e8fb; color: #6a1b9a; }
+
   /* ── Store Map Tab ── */
   #store-map-leaflet { width: 100%; height: 620px; border-radius: 8px; z-index: 0; }
   .store-map-legend { background: #fff; padding: 12px 14px; border-radius: 8px;
@@ -401,6 +428,7 @@
     <button class="tab-btn"        onclick="switchTab('geolift',this)">🧪 GeoLift</button>
     <button class="tab-btn"        onclick="switchTab('endcap',this)">🎯 Endcap</button>
     <button class="tab-btn"        onclick="switchTab('trial',this)">🔁 Trial &amp; Repeat</button>
+    <button class="tab-btn"        onclick="switchTab('forecast',this)">🔮 Forecast</button>
   </div>
 
   <!-- ── Tab 1: Metrics ─────────────────────────────────────────────────── -->
@@ -1112,6 +1140,96 @@
       </div>
     </div>
   </div>
+
+  <!-- ── Tab: Forecast ─────────────────────────────────────────────────────── -->
+  <div id="tab-forecast" class="tab-panel">
+    <div style="background:#fff;border-radius:12px;padding:14px 18px;margin-bottom:14px;font-size:0.82rem;color:#555;border-left:4px solid #9c27b0">
+      <strong style="color:#222">5-year monthly forecast.</strong>
+      Historical months: <em>new units</em> = POS units × (Luminate new transactions ÷ total transactions).
+      Forecast months: new units decay compound monthly; repeats accumulate from prior cohorts at +2, +4, +6… months
+      with multiplicative cycle decay. ASP &amp; gross-profit-per-unit are fixed by size and shown in the assumption panel.
+    </div>
+
+    <!-- Assumption Panel -->
+    <div class="forecast-assumptions" id="forecast-assumptions">
+      <div class="fa-group">
+        <label class="fa-label">New-trialer monthly decay</label>
+        <div class="fa-input-row">
+          <input type="number" id="fa-decay-new" value="3" step="0.1" min="0" max="100">
+          <span class="fa-unit">% / month</span>
+        </div>
+        <div class="fa-hint">Each month's new trialers = prior month × (1 − decay).</div>
+      </div>
+      <div class="fa-group">
+        <label class="fa-label">Initial repeat rate at +2 months</label>
+        <div class="fa-input-row">
+          <input type="number" id="fa-repeat-initial" value="50" step="0.5" min="0" max="100">
+          <span class="fa-unit">% of cohort</span>
+        </div>
+        <div class="fa-hint">Share of new trialers who return 2 months later.</div>
+      </div>
+      <div class="fa-group">
+        <label class="fa-label">Repeat decay per 2-month cycle</label>
+        <div class="fa-input-row">
+          <input type="number" id="fa-repeat-decay" value="5" step="0.5" min="0" max="100">
+          <span class="fa-unit">% / cycle</span>
+        </div>
+        <div class="fa-hint">+4 mo = initial × (1 − decay), +6 mo = × (1 − decay)², …</div>
+      </div>
+      <div class="fa-group fa-ref">
+        <label class="fa-label">Per-unit economics (fixed)</label>
+        <div class="fa-ref-grid">
+          <div><span class="fa-ref-tag tag-15">15 lb</span> ASP $9.18 · GP $3.02</div>
+          <div><span class="fa-ref-tag tag-34">34 lb</span> ASP $12.98 · GP $4.95</div>
+        </div>
+        <div class="fa-hint">Wholesale revenue and gross profit are derived from total units × per-size rates.</div>
+      </div>
+      <div class="fa-actions">
+        <button class="ctrl-btn" onclick="resetForecastAssumptions()">↺ Reset to defaults</button>
+      </div>
+    </div>
+
+    <!-- KPI Row -->
+    <div class="kpi-row" id="forecast-kpi-row"></div>
+
+    <!-- Charts -->
+    <div class="chart-grid">
+      <div class="chart-card"><h3>Total Monthly Units (by SKU)</h3><div id="chart-fc-units-sku" class="chart-div"></div></div>
+      <div class="chart-card"><h3>Total Monthly Units (by Size)</h3><div id="chart-fc-units-size" class="chart-div"></div></div>
+      <div class="chart-card"><h3>New vs Repeat Units</h3><div id="chart-fc-newrepeat" class="chart-div"></div></div>
+      <div class="chart-card"><h3>Wholesale Revenue ($)</h3><div id="chart-fc-wholesale" class="chart-div"></div></div>
+      <div class="chart-card"><h3>Gross Profit ($)</h3><div id="chart-fc-gp" class="chart-div"></div></div>
+      <div class="chart-card"><h3>New Trialers per Month (cohort source)</h3><div id="chart-fc-new" class="chart-div"></div></div>
+    </div>
+
+    <!-- Table -->
+    <div class="metrics-table-card">
+      <h3>Monthly Forecast Detail</h3>
+      <div style="font-size:0.75rem;color:#888;margin-bottom:10px">
+        Historical months show actual POS units split via Luminate. Forecast months are model output.
+        Click <span style="color:#0057e7;font-weight:700">Copy</span> on any column to grab Month × Series × value as TSV.
+      </div>
+      <div style="display:flex;gap:14px;align-items:center;margin-bottom:8px;font-size:0.78rem;color:#555">
+        <label><input type="checkbox" id="fc-show-history" checked onchange="renderForecastTable()"> Show historical months</label>
+        <label><input type="checkbox" id="fc-collapse-years" onchange="renderForecastTable()"> Collapse to annual totals</label>
+      </div>
+      <div style="max-height:600px;overflow-y:auto">
+        <table id="forecast-table">
+          <thead>
+            <tr>
+              <th>Series</th>
+              <th><div>New Units</div><button class="copy-metric-btn" onclick="copyForecastMetric(event,'new')">Copy</button></th>
+              <th><div>Repeat Units</div><button class="copy-metric-btn" onclick="copyForecastMetric(event,'repeat')">Copy</button></th>
+              <th><div>Total Units</div><button class="copy-metric-btn" onclick="copyForecastMetric(event,'total')">Copy</button></th>
+              <th><div>Wholesale $</div><button class="copy-metric-btn" onclick="copyForecastMetric(event,'wholesale')">Copy</button></th>
+              <th><div>Gross Profit $</div><button class="copy-metric-btn" onclick="copyForecastMetric(event,'gp')">Copy</button></th>
+            </tr>
+          </thead>
+          <tbody id="forecast-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1212,6 +1330,7 @@ let geoliftInit      = false;
 let endcapInit       = false;
 let trialInit        = false;
 let monthlyInit      = false;
+let forecastInit     = false;
 
 function switchTab(name, btn) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -1295,6 +1414,13 @@ function switchTab(name, btn) {
     if (!monthlyInit) { initMonthly(); monthlyInit = true; }
     else setTimeout(() => {
       ["chart-m-usw","chart-m-adj-usw","chart-m-instock","chart-m-units","chart-m-retail","chart-m-wholesale"]
+        .forEach(id => { const el = document.getElementById(id); if (el) Plotly.Plots.resize(el); });
+    }, 50);
+  }
+  if (name === "forecast") {
+    if (!forecastInit) { initForecast(); forecastInit = true; }
+    else setTimeout(() => {
+      ["chart-fc-units-sku","chart-fc-units-size","chart-fc-newrepeat","chart-fc-wholesale","chart-fc-gp","chart-fc-new"]
         .forEach(id => { const el = document.getElementById(id); if (el) Plotly.Plots.resize(el); });
     }, 50);
   }
@@ -2041,6 +2167,504 @@ function copyMonthlyMetric(evt, key) {
   };
   const onOk   = () => flash("copied", "✓ Copied", 1500);
   const onFail = () => flash("failed", "Failed",   2000);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(onOk).catch(() => fallbackCopy(text, onOk, onFail));
+  } else {
+    fallbackCopy(text, onOk, onFail);
+  }
+}
+
+// ══ Tab: Forecast ═════════════════════════════════════════════════════════════
+// 5-year monthly forecast per SKU + per-size + total.
+//
+// Historical phase (months with complete POS data + Luminate coverage):
+//   new_units(M, SKU)    = pos_units(M, SKU) × (luminate_new_txns / total_txns)
+//   repeat_units(M, SKU) = pos_units(M, SKU) − new_units(M, SKU)
+//
+// Forecast phase (60 months after last complete historical month):
+//   new_units(M, SKU)    = new_units(M-1, SKU) × (1 − d_new)            ← compound monthly decay
+//   repeat_units(M, SKU) = Σ over cohorts at idx M-2, M-4, M-6, …
+//                            of cohort_new × r_initial × (1 − r_decay)^(k-1)
+//   total_units(M)       = new + repeat
+//
+// Wholesale $ and gross profit $ apply per-size rates to total_units.
+const FC_ASP   = { "15": 9.18,  "34": 12.98 };
+const FC_GP    = { "15": 3.02,  "34":  4.95 };
+const FC_HORIZON_MONTHS = 60;
+const FC_SHORT_TO_LONG = Object.fromEntries(Object.entries(SKU_SHORT).map(([l, s]) => [s, l]));
+
+function fcSkuSize(longSku) {
+  // "CATALYST15ORIG" / "CATALYST15UNSCEN" → "15"; "CATALYST34LBORIGINAL" / "CATALYSTPET34LBUNSCE" → "34"
+  return /15/.test(longSku) ? "15" : "34";
+}
+
+function fcNextMonthKey(key) {
+  const [y, m] = key.split("-").map(Number);
+  return m === 12 ? `${y+1}-01` : `${y}-${String(m+1).padStart(2,"0")}`;
+}
+
+function fcMonthLabel(key) {
+  const [y, m] = key.split("-").map(Number);
+  return `${MONTH_SHORT_NAMES[m-1]} ${String(y).slice(2)}`;
+}
+
+function fcBuildLuminateMonthlyShares() {
+  // Returns { "2026-02": { "15O": new_share, ... } } — share = newTxns / (newTxns + repeatTxns).
+  const tr = DATA.trial_repeat;
+  if (!tr || !tr.weeks) return {};
+  const byMonth = {};
+  ["15O","15U","34O","34U"].forEach(sku => {
+    const prod = tr.products && tr.products[sku];
+    if (!prod) return;
+    const nr = trialWeeklyNewVsRepeat(prod);
+    tr.weeks.forEach((iso, i) => {
+      const [y, m] = iso.split("-");
+      const key = `${y}-${m}`;
+      if (!byMonth[key]) byMonth[key] = {};
+      if (!byMonth[key][sku]) byMonth[key][sku] = { newTxns: 0, repeatTxns: 0 };
+      byMonth[key][sku].newTxns    += nr.newTxns[i]    || 0;
+      byMonth[key][sku].repeatTxns += nr.repeatTxns[i] || 0;
+    });
+  });
+  // Reduce to shares
+  const shares = {};
+  Object.keys(byMonth).forEach(k => {
+    shares[k] = {};
+    Object.keys(byMonth[k]).forEach(sku => {
+      const d = byMonth[k][sku];
+      const tot = d.newTxns + d.repeatTxns;
+      shares[k][sku] = tot > 0 ? d.newTxns / tot : null;
+    });
+  });
+  return shares;
+}
+
+function fcReadAssumptions() {
+  return {
+    d_new:     (parseFloat(document.getElementById("fa-decay-new").value)     || 0) / 100,
+    r_initial: (parseFloat(document.getElementById("fa-repeat-initial").value)|| 0) / 100,
+    r_decay:   (parseFloat(document.getElementById("fa-repeat-decay").value)  || 0) / 100,
+  };
+}
+
+function resetForecastAssumptions() {
+  document.getElementById("fa-decay-new").value      = "3";
+  document.getElementById("fa-repeat-initial").value = "50";
+  document.getElementById("fa-repeat-decay").value   = "5";
+  refreshForecast();
+}
+
+// Cached: built once at init.
+let FC_HISTORICAL = null;   // { months: [...keys], byMonth: { key: { sku: {new,repeat,total,share} } } }
+let FC_RESULT     = null;   // { months, historicalCount, bySku: {new,repeat,total}, byKey: {...derived} }
+
+function fcBuildHistorical() {
+  // Use the Monthly tab's rollup for POS units; pair with Luminate shares.
+  if (!MONTHLY_ROLLUP) MONTHLY_ROLLUP = buildMonthlyRollup();
+  const monthly = MONTHLY_ROLLUP;
+  const shares  = fcBuildLuminateMonthlyShares();
+
+  // Latest available share per SKU (carry-forward fallback for months missing Luminate)
+  const latestShare = {};
+  const sortedShareMonths = Object.keys(shares).sort();
+  sortedShareMonths.forEach(k => {
+    ["15O","15U","34O","34U"].forEach(s => {
+      if (shares[k][s] != null) latestShare[s] = shares[k][s];
+    });
+  });
+
+  const months = [];
+  const byMonth = {};
+  monthly.months.forEach(key => {
+    const mo = monthly.byMonth[key];
+    if (mo.isPartial) return;   // only complete calendar months count as historical
+    months.push(key);
+    byMonth[key] = {};
+    DATA.skus.forEach(longSku => {
+      const shortSku = SKU_SHORT[longSku];
+      const total = (mo.series[longSku] && mo.series[longSku].pos_qty) || 0;
+      let share = (shares[key] || {})[shortSku];
+      if (share == null) share = latestShare[shortSku];   // fallback
+      if (share == null) share = 1.0;                      // no Luminate at all → 100% new
+      const newUnits    = total * share;
+      const repeatUnits = total - newUnits;
+      byMonth[key][longSku] = { newUnits, repeatUnits, total, share };
+    });
+  });
+  return { months, byMonth };
+}
+
+function fcBuildForecast(assumptions) {
+  if (!FC_HISTORICAL) FC_HISTORICAL = fcBuildHistorical();
+  const hist = FC_HISTORICAL;
+  const { d_new, r_initial, r_decay } = assumptions;
+
+  const months   = hist.months.slice();
+  const newBy    = {};
+  const repeatBy = {};
+  const totalBy  = {};
+  DATA.skus.forEach(s => { newBy[s] = []; repeatBy[s] = []; totalBy[s] = []; });
+
+  // Seed with historical
+  hist.months.forEach(key => {
+    DATA.skus.forEach(sku => {
+      const d = hist.byMonth[key][sku];
+      newBy[sku].push(d.newUnits);
+      repeatBy[sku].push(d.repeatUnits);
+      totalBy[sku].push(d.total);
+    });
+  });
+
+  // Forecast
+  let cursor = months[months.length - 1];
+  for (let f = 0; f < FC_HORIZON_MONTHS; f++) {
+    cursor = fcNextMonthKey(cursor);
+    months.push(cursor);
+    DATA.skus.forEach(sku => {
+      const arr = newBy[sku];
+      const prevNew = arr[arr.length - 1] || 0;
+      const newVal  = prevNew * (1 - d_new);
+      arr.push(newVal);
+
+      const newIdx = arr.length - 1;
+      let rep = 0;
+      for (let k = 1; ; k++) {
+        const cohortIdx = newIdx - 2 * k;
+        if (cohortIdx < 0) break;
+        const cohortNew = arr[cohortIdx] || 0;
+        const rate = r_initial * Math.pow(1 - r_decay, k - 1);
+        rep += cohortNew * rate;
+      }
+      repeatBy[sku].push(rep);
+      totalBy[sku].push(newVal + rep);
+    });
+  }
+
+  // Derive per-month wholesale $ and GP $ + size rollups + grand total
+  const derived = months.map((key, i) => {
+    const out = { key, label: fcMonthLabel(key), isForecast: i >= hist.months.length, bySku: {}, bySize: { "15": {new:0,repeat:0,total:0,wholesale:0,gp:0},
+                                                                                                              "34": {new:0,repeat:0,total:0,wholesale:0,gp:0} },
+                  total: {new:0,repeat:0,total:0,wholesale:0,gp:0} };
+    DATA.skus.forEach(sku => {
+      const size = fcSkuSize(sku);
+      const n = newBy[sku][i] || 0;
+      const r = repeatBy[sku][i] || 0;
+      const t = totalBy[sku][i] || 0;
+      const w = t * FC_ASP[size];
+      const g = t * FC_GP[size];
+      out.bySku[sku] = { new: n, repeat: r, total: t, wholesale: w, gp: g };
+      out.bySize[size].new += n; out.bySize[size].repeat += r; out.bySize[size].total += t;
+      out.bySize[size].wholesale += w; out.bySize[size].gp += g;
+      out.total.new += n; out.total.repeat += r; out.total.total += t;
+      out.total.wholesale += w; out.total.gp += g;
+    });
+    return out;
+  });
+
+  return {
+    months,
+    historicalCount: hist.months.length,
+    bySku: { new: newBy, repeat: repeatBy, total: totalBy },
+    derived,
+  };
+}
+
+function refreshForecast() {
+  FC_RESULT = fcBuildForecast(fcReadAssumptions());
+  renderForecastKPIs();
+  renderForecastCharts();
+  renderForecastTable();
+}
+
+function initForecast() {
+  const tr = DATA.trial_repeat;
+  if (!tr || !tr.weeks) {
+    document.getElementById("tab-forecast").innerHTML =
+      '<div style="padding:40px;text-align:center;color:#888">Forecast requires Luminate Trial &amp; Repeat data ' +
+      '(Catalyst Trial and Repeat Report.xlsx).</div>';
+    return;
+  }
+  if (!DATA.weeks || DATA.weeks.length === 0) {
+    document.getElementById("tab-forecast").innerHTML =
+      '<div style="padding:40px;text-align:center;color:#888">Forecast requires weekly POS data.</div>';
+    return;
+  }
+  ["fa-decay-new","fa-repeat-initial","fa-repeat-decay"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("input", refreshForecast);
+  });
+  refreshForecast();
+}
+
+// ── KPIs ─────────────────────────────────────────────────────────────────────
+function renderForecastKPIs() {
+  const container = document.getElementById("forecast-kpi-row");
+  container.innerHTML = "";
+  const r = FC_RESULT;
+  const hc = r.historicalCount;
+  const forecast = r.derived.slice(hc);                 // forecast-only
+  const yr1 = forecast.slice(0, 12);
+  const sum = arr => arr.reduce((s, m) => s + m.total.total, 0);
+  const sumWhole = arr => arr.reduce((s, m) => s + m.total.wholesale, 0);
+  const sumGp = arr => arr.reduce((s, m) => s + m.total.gp, 0);
+
+  const cards = [
+    { color: "#9c27b0", label: "5-yr Forecast Units",     val: sum(forecast),       fmt: v => Math.round(v).toLocaleString() },
+    { color: "#0057e7", label: "5-yr Wholesale $",        val: sumWhole(forecast),  fmt: v => "$" + Math.round(v).toLocaleString() },
+    { color: "#2e7d32", label: "5-yr Gross Profit $",     val: sumGp(forecast),     fmt: v => "$" + Math.round(v).toLocaleString() },
+    { color: "#e67300", label: "Year-1 Forecast Units",   val: sum(yr1),            fmt: v => Math.round(v).toLocaleString() },
+    { color: "#1565c0", label: "Year-1 Wholesale $",      val: sumWhole(yr1),       fmt: v => "$" + Math.round(v).toLocaleString() },
+    { color: "#333",    label: "Year-1 Gross Profit $",   val: sumGp(yr1),          fmt: v => "$" + Math.round(v).toLocaleString() },
+  ];
+  cards.forEach(c => {
+    const card = document.createElement("div");
+    card.className = "kpi-card";
+    card.style.borderLeftColor = c.color;
+    card.innerHTML = `<div class="kpi-label">${c.label}</div>
+      <div class="kpi-value">${c.fmt(c.val)}</div>
+      <div class="kpi-sub">${forecast.length ? forecast[0].label + " → " + forecast[forecast.length-1].label : "no forecast"}</div>`;
+    container.appendChild(card);
+  });
+}
+
+// ── Charts ───────────────────────────────────────────────────────────────────
+function renderForecastCharts() {
+  const r = FC_RESULT;
+  const xLabels = r.derived.map(m => m.label);
+  const hc = r.historicalCount;
+  const cfg = { responsive: true, displayModeBar: false };
+
+  // Shaded forecast region + divider line
+  const dividerX = hc > 0 ? hc - 0.5 : -0.5;
+  const shapes = [
+    { type: "rect", xref: "x", yref: "paper",
+      x0: dividerX, x1: xLabels.length - 0.5, y0: 0, y1: 1,
+      fillcolor: "rgba(156, 39, 176, 0.06)", line: { width: 0 }, layer: "below" },
+    { type: "line", xref: "x", yref: "paper",
+      x0: dividerX, x1: dividerX, y0: 0, y1: 1,
+      line: { color: "#9c27b0", width: 2, dash: "dash" }, layer: "above" },
+  ];
+  const annotations = [
+    { x: dividerX, y: 1.02, xref: "x", yref: "paper", text: "Forecast →",
+      showarrow: false, font: { size: 11, color: "#9c27b0" }, xanchor: "left", yanchor: "bottom" },
+  ];
+
+  const base = {
+    ...PLOTLY_LAYOUT_BASE,
+    margin: { t: 30, b: 100, l: 70, r: 30 },
+    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, type: "category" },
+    shapes, annotations,
+  };
+
+  // 1) Units by SKU (lines)
+  const skuTraces = DATA.skus.map(sku => ({
+    x: xLabels,
+    y: r.derived.map(m => m.bySku[sku].total),
+    name: SKU_SHORT[sku] || sku,
+    type: "scatter", mode: "lines",
+    line: { color: SKU_COLORS[sku], width: 2 },
+    hovertemplate: (SKU_SHORT[sku] || sku) + ": %{y:,.0f}<extra></extra>",
+  }));
+  skuTraces.push({
+    x: xLabels, y: r.derived.map(m => m.total.total), name: "Total",
+    type: "scatter", mode: "lines", line: { color: "#333", width: 3, dash: "dot" },
+    hovertemplate: "Total: %{y:,.0f}<extra></extra>",
+  });
+  Plotly.newPlot("chart-fc-units-sku", skuTraces,
+    { ...base, yaxis: { ...base.yaxis, title: "Units / month" } }, cfg);
+
+  // 2) Units by Size (stacked area)
+  const sizeTraces = [
+    {
+      x: xLabels, y: r.derived.map(m => m.bySize["15"].total),
+      name: "15 lb", type: "scatter", mode: "none", stackgroup: "size",
+      fillcolor: "rgba(0, 87, 231, 0.55)",
+      hovertemplate: "15 lb: %{y:,.0f}<extra></extra>",
+    },
+    {
+      x: xLabels, y: r.derived.map(m => m.bySize["34"].total),
+      name: "34 lb", type: "scatter", mode: "none", stackgroup: "size",
+      fillcolor: "rgba(230, 115, 0, 0.55)",
+      hovertemplate: "34 lb: %{y:,.0f}<extra></extra>",
+    },
+  ];
+  Plotly.newPlot("chart-fc-units-size", sizeTraces,
+    { ...base, yaxis: { ...base.yaxis, title: "Units / month" } }, cfg);
+
+  // 3) New vs Repeat (stacked area, totals)
+  const nrTraces = [
+    {
+      x: xLabels, y: r.derived.map(m => m.total.new),
+      name: "New trialers", type: "scatter", mode: "none", stackgroup: "nr",
+      fillcolor: "rgba(0, 168, 107, 0.55)",
+      hovertemplate: "New: %{y:,.0f}<extra></extra>",
+    },
+    {
+      x: xLabels, y: r.derived.map(m => m.total.repeat),
+      name: "Repeat", type: "scatter", mode: "none", stackgroup: "nr",
+      fillcolor: "rgba(230, 50, 33, 0.55)",
+      hovertemplate: "Repeat: %{y:,.0f}<extra></extra>",
+    },
+  ];
+  Plotly.newPlot("chart-fc-newrepeat", nrTraces,
+    { ...base, yaxis: { ...base.yaxis, title: "Units / month" } }, cfg);
+
+  // 4) Wholesale $ stacked by size
+  const wholeTraces = [
+    { x: xLabels, y: r.derived.map(m => m.bySize["15"].wholesale),
+      name: "15 lb", type: "scatter", mode: "none", stackgroup: "w",
+      fillcolor: "rgba(0, 87, 231, 0.55)",
+      hovertemplate: "15 lb: $%{y:,.0f}<extra></extra>" },
+    { x: xLabels, y: r.derived.map(m => m.bySize["34"].wholesale),
+      name: "34 lb", type: "scatter", mode: "none", stackgroup: "w",
+      fillcolor: "rgba(230, 115, 0, 0.55)",
+      hovertemplate: "34 lb: $%{y:,.0f}<extra></extra>" },
+  ];
+  Plotly.newPlot("chart-fc-wholesale", wholeTraces,
+    { ...base, yaxis: { ...base.yaxis, title: "$ / month", tickprefix: "$", tickformat: ",.0f" } }, cfg);
+
+  // 5) Gross profit by size, stacked
+  const gpTraces = [
+    { x: xLabels, y: r.derived.map(m => m.bySize["15"].gp),
+      name: "15 lb", type: "scatter", mode: "none", stackgroup: "g",
+      fillcolor: "rgba(0, 87, 231, 0.55)",
+      hovertemplate: "15 lb: $%{y:,.0f}<extra></extra>" },
+    { x: xLabels, y: r.derived.map(m => m.bySize["34"].gp),
+      name: "34 lb", type: "scatter", mode: "none", stackgroup: "g",
+      fillcolor: "rgba(230, 115, 0, 0.55)",
+      hovertemplate: "34 lb: $%{y:,.0f}<extra></extra>" },
+  ];
+  Plotly.newPlot("chart-fc-gp", gpTraces,
+    { ...base, yaxis: { ...base.yaxis, title: "$ / month", tickprefix: "$", tickformat: ",.0f" } }, cfg);
+
+  // 6) New trialers per month per SKU (cohort visualization)
+  const newTraces = DATA.skus.map(sku => ({
+    x: xLabels,
+    y: r.derived.map(m => m.bySku[sku].new),
+    name: SKU_SHORT[sku] || sku,
+    type: "scatter", mode: "lines",
+    line: { color: SKU_COLORS[sku], width: 2 },
+    hovertemplate: (SKU_SHORT[sku] || sku) + ": %{y:,.0f}<extra></extra>",
+  }));
+  Plotly.newPlot("chart-fc-new", newTraces,
+    { ...base, yaxis: { ...base.yaxis, title: "New trialers / month" } }, cfg);
+}
+
+// ── Table ────────────────────────────────────────────────────────────────────
+function renderForecastTable() {
+  const tbody = document.getElementById("forecast-tbody");
+  tbody.innerHTML = "";
+  const r = FC_RESULT;
+  const showHist = document.getElementById("fc-show-history").checked;
+  const collapse = document.getElementById("fc-collapse-years").checked;
+  const hc = r.historicalCount;
+
+  // Build rows: either monthly or yearly-collapsed.
+  let groups;
+  if (collapse) {
+    // Group derived rows by year. Historical and forecast years may overlap (rare); we just key by year.
+    const byYear = {};
+    r.derived.forEach((m, i) => {
+      const yr = m.key.slice(0, 4);
+      if (!byYear[yr]) byYear[yr] = { label: "FY " + yr, isForecast: i >= hc, isMixed: false, agg: m };
+      if (byYear[yr].agg !== m) {
+        // accumulate
+        const a = byYear[yr].agg;
+        // First time: clone the structure
+        if (byYear[yr]._cloned !== true) {
+          byYear[yr]._cloned = true;
+          byYear[yr].agg = {
+            label: byYear[yr].label,
+            isForecast: byYear[yr].isForecast,
+            bySku: Object.fromEntries(DATA.skus.map(s => [s, { ...a.bySku[s] }])),
+            bySize: { "15": { ...a.bySize["15"] }, "34": { ...a.bySize["34"] } },
+            total: { ...a.total },
+          };
+        }
+        DATA.skus.forEach(s => {
+          ["new","repeat","total","wholesale","gp"].forEach(k => {
+            byYear[yr].agg.bySku[s][k] += m.bySku[s][k];
+          });
+        });
+        ["15","34"].forEach(sz => ["new","repeat","total","wholesale","gp"].forEach(k => {
+          byYear[yr].agg.bySize[sz][k] += m.bySize[sz][k];
+        }));
+        ["new","repeat","total","wholesale","gp"].forEach(k => byYear[yr].agg.total[k] += m.total[k]);
+        if ((i >= hc) !== byYear[yr].isForecast) byYear[yr].isMixed = true;
+      }
+    });
+    groups = Object.values(byYear).map(g => ({ label: g.label, isForecast: g.isForecast, isMixed: g.isMixed, m: g.agg }));
+  } else {
+    groups = r.derived
+      .map((m, i) => ({ label: m.label, isForecast: i >= hc, isMixed: false, m }))
+      .filter(g => showHist || g.isForecast);
+  }
+
+  const fmtUnits = v => v == null ? "—" : Math.round(v).toLocaleString();
+  const fmtDollars = v => v == null ? "—" : "$" + Math.round(v).toLocaleString();
+
+  const rowDef = (label, d, cls) => {
+    const tr = document.createElement("tr");
+    if (cls) tr.className = cls;
+    tr.innerHTML =
+      `<td>${label}</td>` +
+      `<td>${fmtUnits(d.new)}</td>` +
+      `<td>${fmtUnits(d.repeat)}</td>` +
+      `<td>${fmtUnits(d.total)}</td>` +
+      `<td>${fmtDollars(d.wholesale)}</td>` +
+      `<td>${fmtDollars(d.gp)}</td>`;
+    return tr;
+  };
+
+  groups.forEach(g => {
+    const headTr = document.createElement("tr");
+    headTr.className = "fc-month-header" + (g.isForecast ? " fc-forecast" : "");
+    const td = document.createElement("td");
+    td.colSpan = 6;
+    let tag = g.isForecast ? '<span style="color:#9c27b0;font-weight:500"> · forecast</span>'
+                           : '<span style="color:#888;font-weight:500"> · historical</span>';
+    if (g.isMixed) tag = '<span style="color:#b26500;font-weight:500"> · mixed</span>';
+    td.innerHTML = g.label + tag;
+    headTr.appendChild(td);
+    tbody.appendChild(headTr);
+
+    DATA.skus.forEach(sku => {
+      tbody.appendChild(rowDef(SKU_SHORT[sku] || sku, g.m.bySku[sku]));
+    });
+    tbody.appendChild(rowDef("15 lb total", g.m.bySize["15"], "fc-row-size"));
+    tbody.appendChild(rowDef("34 lb total", g.m.bySize["34"], "fc-row-size"));
+    tbody.appendChild(rowDef("All SKUs",    g.m.total,        "fc-row-total"));
+  });
+}
+
+// ── Copy a column to clipboard as TSV ─────────────────────────────────────────
+function copyForecastMetric(evt, key) {
+  if (!FC_RESULT) return;
+  const r = FC_RESULT;
+  const hc = r.historicalCount;
+  const showHist = document.getElementById("fc-show-history").checked;
+  const months = r.derived.filter((_, i) => showHist || i >= hc);
+  const skuShort = DATA.skus.map(s => SKU_SHORT[s] || s);
+
+  const header = ["Month", ...skuShort, "15lb", "34lb", "Total"].join("\t");
+  const fmt = v => key === "wholesale" || key === "gp"
+    ? String(Math.round(v || 0))
+    : String(Math.round(v || 0));
+  const rows = months.map(m => {
+    const skuVals = DATA.skus.map(s => fmt(m.bySku[s][key]));
+    return [m.label, ...skuVals, fmt(m.bySize["15"][key]), fmt(m.bySize["34"][key]), fmt(m.total[key])].join("\t");
+  });
+  const text = [header, ...rows].join("\n");
+
+  const btn = (evt && evt.currentTarget) || null;
+  const label = btn ? btn.textContent : "Copy";
+  const flash = (cls, txt, ms) => {
+    if (!btn) return;
+    btn.classList.add(cls); btn.textContent = txt;
+    setTimeout(() => { btn.classList.remove(cls); btn.textContent = label; }, ms);
+  };
+  const onOk = () => flash("copied", "✓ Copied", 1500);
+  const onFail = () => flash("failed", "Failed", 2000);
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(onOk).catch(() => fallbackCopy(text, onOk, onFail));
   } else {
