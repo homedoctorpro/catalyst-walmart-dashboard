@@ -1466,7 +1466,7 @@
         </div>
         <div class="rt-sync-actions">
           <button class="rt-btn" onclick="rtFetchFromSheet(true)" title="Force a pull from the Sheet now">↻ Pull from Sheet now</button>
-          <button class="rt-btn" onclick="rtMigrateToSheet()" title="Send everything in this browser's localStorage to the Sheet (overwrites matching rows)">⬆ Push all local edits to Sheet</button>
+          <button class="rt-btn primary" onclick="rtPushAllRetailers()" title="Replace the Sheet with all 52 retailers — store counts, channels, U/S/W, opportunity formulas, and your edits">⬆ Push ALL retailers to Sheet (rebuild)</button>
         </div>
         <div style="font-size:0.72rem;color:#888;margin-top:10px;line-height:1.4">
           Last-write-wins. Co-edits within the polling window can overwrite each other silently.
@@ -5673,31 +5673,35 @@ async function rtFetchFromSheet(showFeedback) {
   }
 }
 
+function rtBuildSheetItem(r) {
+  const o = RT_OVERRIDES[r.id] || {};
+  return {
+    retailerId:   r.id,
+    retailerName: r.name,
+    channel:      RT_CHANNELS[r.channel].name,
+    usStores:     r.stores,
+    defaultUsw:   rtChannelDefault(r.channel),
+    fields: {
+      repFirm:   o.repFirm   != null ? o.repFirm   : null,
+      status:    o.status    != null ? o.status    : null,
+      nextSteps: o.nextSteps != null ? o.nextSteps : null,
+      usw:       (o.usw != null && o.usw !== "") ? o.usw : null,
+    },
+  };
+}
+
 async function rtPushToSheet(retailerId) {
   if (!rtSyncEnabled()) return;
   const r = RT_RETAILERS.find(x => x.id === retailerId);
   if (!r) return;
-  const o = RT_OVERRIDES[retailerId] || {};
-  // Send all four editable fields explicitly — null for cleared
-  const fields = {
-    repFirm:   o.repFirm   != null ? o.repFirm   : null,
-    status:    o.status    != null ? o.status    : null,
-    nextSteps: o.nextSteps != null ? o.nextSteps : null,
-    usw:       (o.usw != null && o.usw !== "") ? o.usw : null,
-  };
+  const item = rtBuildSheetItem(r);
   RT_INFLIGHT++;
   rtSetSyncStatus("syncing", "Saving…");
   try {
     const res = await fetch(RT_SYNC_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({
-        action: "upsert",
-        retailerId,
-        retailerName: r.name,
-        channel: RT_CHANNELS[r.channel].name,
-        fields,
-      }),
+      body: JSON.stringify({ action: "upsert", item }),
       redirect: "follow",
     });
     if (!res.ok) throw new Error("HTTP " + res.status);
@@ -5713,48 +5717,41 @@ async function rtPushToSheet(retailerId) {
   }
 }
 
-async function rtMigrateToSheet() {
+async function rtPushAllRetailers() {
   if (!rtSyncEnabled()) { alert("Connect a Google Sheet first."); return; }
-  const ids = Object.keys(RT_OVERRIDES);
-  if (!ids.length) { alert("No local edits to push."); return; }
-  if (!confirm("Push " + ids.length + " local retailer edits to the Sheet?\n\nMatching rows in the Sheet will be overwritten. New rows will be added.")) return;
-  const items = ids.map(id => {
-    const r = RT_RETAILERS.find(x => x.id === id);
-    if (!r) return null;
-    const o = RT_OVERRIDES[id];
-    return {
-      retailerId: id,
-      retailerName: r.name,
-      channel: RT_CHANNELS[r.channel].name,
-      fields: {
-        repFirm:   o.repFirm   != null ? o.repFirm   : null,
-        status:    o.status    != null ? o.status    : null,
-        nextSteps: o.nextSteps != null ? o.nextSteps : null,
-        usw:       (o.usw != null && o.usw !== "") ? o.usw : null,
-      },
-    };
-  }).filter(Boolean);
+  const items = RT_RETAILERS.map(rtBuildSheetItem);
+  if (!confirm("Push all " + items.length + " retailers to the Sheet?\n\n" +
+               "This REPLACES the entire Retailers sheet with the dashboard's current view " +
+               "(store counts, channels, U/S/W, opportunity formulas, and your edits). " +
+               "Any rows you've added in the Sheet that aren't in the dashboard will be removed.")) return;
 
   RT_INFLIGHT++;
-  rtSetSyncStatus("syncing", "Pushing " + items.length + " items…");
+  rtSetSyncStatus("syncing", "Pushing " + items.length + " retailers…");
   try {
     const res = await fetch(RT_SYNC_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "bulkupsert", items }),
+      body: JSON.stringify({ action: "bulkreplace", items }),
       redirect: "follow",
     });
     if (!res.ok) throw new Error("HTTP " + res.status);
     const j = await res.json();
     if (!j.ok) throw new Error(j.error || "unknown error");
+    if (j.data) {
+      RT_OVERRIDES = j.data;
+      localStorage.setItem(RT_STORAGE_KEY, JSON.stringify(RT_OVERRIDES));
+      rtRenderTable();
+    }
     RT_LAST_SYNC_AT = new Date();
     RT_INFLIGHT = Math.max(0, RT_INFLIGHT - 1);
-    rtSetSyncStatus("saved", "Pushed " + j.count + " items · just now");
-    alert("Pushed " + j.count + " items to the Sheet.");
+    rtSetSyncStatus("saved", "Pushed " + j.count + " retailers · just now");
+    alert("Pushed " + j.count + " retailers to the Sheet.");
   } catch (err) {
     RT_INFLIGHT = Math.max(0, RT_INFLIGHT - 1);
-    rtSetSyncStatus("error", "Migration failed: " + err.message);
-    alert("Migration failed: " + err.message);
+    rtSetSyncStatus("error", "Push failed: " + err.message);
+    alert("Push failed: " + err.message +
+          "\n\nIf you just updated the Apps Script code, make sure you also did " +
+          "Deploy → Manage deployments → pencil-edit → Version: New version → Deploy.");
   }
 }
 

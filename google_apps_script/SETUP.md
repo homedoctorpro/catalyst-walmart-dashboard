@@ -47,9 +47,9 @@ Copy it. This is the endpoint your dashboard will talk to.
 - Paste the URL into the input, click **Connect**.
 - The status dot should turn green and say "Synced".
 
-### 8. Seed the Sheet with your current edits
-- In the sync bar, click **⬆ Push all local edits to Sheet**.
-- This copies your in-browser rep firm / status / next steps / U/S/W overrides into the Sheet as the starting state.
+### 8. Seed the Sheet with all 52 retailers
+- In the sync bar, click **⬆ Push ALL retailers to Sheet (rebuild)**.
+- This wipes the Sheet and writes all 52 retailers with store counts, channels, U/S/W, opportunity formulas, and any edits you've made.
 - From now on the Sheet is the source of truth.
 
 You're done.
@@ -67,32 +67,43 @@ You're done.
 
 The Sheet has these columns:
 
-| Column | Edit? | Notes |
-|---|---|---|
-| `retailer_id` | ❌ | Stable ID — don't change. |
-| `retailer_name` | ❌ | Mirrors the dashboard name (gets overwritten on push). |
-| `channel` | ❌ | Mirrors the dashboard channel (gets overwritten on push). |
-| `rep_firm` | ✅ | Free text. The dashboard dropdown shows `Unassigned / PSE / Brian Schlager`; you can put any string here and the dashboard will display it, but only those three appear in the dropdown choices. Blank = Unassigned. |
-| `status` | ✅ | One of: `in`, `pitched`, `target`, `declined` (or blank). |
-| `next_steps` | ✅ | Free text. |
-| `usw_override` | ✅ | Number — overrides the channel default U/S/W. Leave blank to use the channel default. |
-| `updated_at` | ❌ | Auto-stamped on every write. |
+| Col | Field | Edit? | Notes |
+|---|---|---|---|
+| A | `retailer_id` | ❌ | Stable ID — don't change. |
+| B | `retailer_name` | ❌ | Mirrors the dashboard (overwritten on push). |
+| C | `channel` | ❌ | Mirrors the dashboard (overwritten on push). |
+| D | `us_stores` | ❌ | Store count (overwritten on push). |
+| E | `default_usw` | ❌ | Channel default U/S/W (overwritten on push). |
+| F | `usw_override` | ✅ | Number — overrides the channel default. Blank = use default. |
+| G | `effective_usw` | ❌ | Formula: `=IF(F="",E,F)` — auto-updates when you edit F. |
+| H | `annual_units` | ❌ | Formula: `=D*G*52` |
+| I | `wholesale_opp` | ❌ | Formula: `=H*$10` |
+| J | `retail_opp` | ❌ | Formula: `=H*$20` |
+| K | `rep_firm` | ✅ | Free text. The dashboard dropdown shows `Unassigned / PSE / Brian Schlager`; you can type any value here and it shows in the dashboard, but only those three appear in the dropdown choices. Blank = Unassigned. |
+| L | `status` | ✅ | One of: `in`, `pitched`, `target`, `declined` (or blank). |
+| M | `next_steps` | ✅ | Free text. |
+| N | `updated_at` | ❌ | Auto-stamped on every write. |
 
-Rows you delete in the Sheet effectively clear that retailer's overrides (the dashboard re-creates them as defaults).
+A `TOTAL` row at the bottom sums stores, units, wholesale $, and retail $.
 
-Rows the dashboard hasn't touched won't appear in the Sheet yet — they get added the first time you edit them in the dashboard or run **Push all local edits**.
+The opportunity columns (G–J) are live Sheet formulas. When you change `usw_override` in column F, the dollar columns recompute automatically — and the dashboard reads the override on next pull.
+
+Rows you delete in the Sheet effectively clear that retailer's overrides (the dashboard re-creates them as defaults from RT_RETAILERS). To get the retailer back as a fresh row, click **Push ALL retailers to Sheet** again.
 
 ---
 
 ## Updating the script later
 
-If you change `retailers_sync.gs`:
+If `retailers_sync.gs` is updated in the repo (e.g. a new column was added):
 
-1. Open the Sheet → Extensions → Apps Script.
-2. Edit the code, hit Save.
-3. **Deploy → Manage deployments** → pencil-edit your existing deployment → **Version: New version** → **Deploy**.
+1. Copy the latest `retailers_sync.gs` content from the repo.
+2. Open your Sheet → Extensions → Apps Script.
+3. Select-all in the editor and paste over the existing code.
+4. Hit **💾 Save**.
+5. **Deploy → Manage deployments** → pencil-edit your existing deployment → **Version: New version** → **Deploy**. (Apps Script pins the web app URL to a specific version, so you have to redeploy for changes to take effect.)
+6. Back in the dashboard, click **⬆ Push ALL retailers to Sheet** so the Sheet picks up the new schema.
 
-This keeps the same URL working, no need to re-paste anywhere.
+The web app URL stays the same — no need to re-paste it.
 
 ---
 
