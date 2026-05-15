@@ -422,6 +422,95 @@
   .gl-badge-youtube { background:#fce8e6; color:#c62828; }
   .gl-badge-control { background:#f0f0f0; color:#444; }
   @media (max-width: 900px) { .geolift-groups-row { grid-template-columns:1fr; } }
+
+  /* ── Retailers Tab ── */
+  .rt-explainer { background:#fff; border-radius:12px; padding:14px 18px; margin-bottom:14px;
+                  font-size:0.82rem; color:#555; border-left:4px solid #00a86b; line-height:1.45; }
+  .rt-explainer strong { color:#222; }
+  .rt-kpi-row { display:grid; grid-template-columns: repeat(5, 1fr); gap:14px; margin-bottom:16px; }
+  .rt-kpi { background:#fff; border-radius:12px; padding:14px 16px; box-shadow:0 2px 8px rgba(0,0,0,0.08);
+            border-left:4px solid #00a86b; }
+  .rt-kpi-label { font-size:0.72rem; font-weight:700; color:#888; text-transform:uppercase;
+                  letter-spacing:0.05em; margin-bottom:5px; }
+  .rt-kpi-value { font-size:1.45rem; font-weight:800; color:#1a1a2e; line-height:1; }
+  .rt-kpi-sub { font-size:0.7rem; color:#aaa; margin-top:5px; }
+
+  .rt-controls { background:#fff; border-radius:12px; padding:14px 18px; margin-bottom:14px;
+                 box-shadow:0 2px 8px rgba(0,0,0,0.08); display:flex; flex-wrap:wrap; gap:12px;
+                 align-items:center; }
+  .rt-controls-label { font-size:0.78rem; font-weight:700; color:#444; text-transform:uppercase;
+                       letter-spacing:0.05em; margin-right:4px; }
+  .rt-ch-chip { display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; color:#333;
+                cursor:pointer; background:#f5f5f5; padding:4px 10px; border-radius:20px;
+                border:2px solid transparent; transition:all 0.15s; user-select:none; font-weight:600; }
+  .rt-ch-chip input { width:13px; height:13px; cursor:pointer; }
+  .rt-ch-chip:has(input:checked) { background:#e8f0fe; }
+  .rt-ch-dot { display:inline-block; width:9px; height:9px; border-radius:50%; }
+  .rt-spacer { flex:1; }
+  .rt-btn { padding:8px 14px; border:2px solid #e0e0e0; background:#fff; border-radius:8px;
+            cursor:pointer; font-size:0.8rem; font-weight:600; color:#444; font-family:inherit;
+            transition:all 0.15s; }
+  .rt-btn:hover { border-color:#0057e7; color:#0057e7; }
+  .rt-btn.primary { background:#0057e7; color:#fff; border-color:#0057e7; }
+  .rt-btn.primary:hover { background:#0041b5; border-color:#0041b5; color:#fff; }
+  .rt-btn.danger:hover { border-color:#d32f2f; color:#d32f2f; }
+
+  .rt-defaults { background:#fff; border-radius:12px; padding:14px 18px; margin-bottom:14px;
+                 box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+  .rt-defaults-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .rt-defaults-head h3 { font-size:0.8rem; font-weight:700; color:#666; text-transform:uppercase;
+                         letter-spacing:0.06em; }
+  .rt-defaults-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:10px; }
+  .rt-defaults-card { background:#fafafa; border-radius:8px; padding:8px 12px; border-left:4px solid #999; }
+  .rt-defaults-card .rt-dc-label { font-size:0.72rem; font-weight:700; color:#444; text-transform:uppercase;
+                                   letter-spacing:0.03em; margin-bottom:3px; }
+  .rt-defaults-card input { width:80px; padding:4px 8px; border:2px solid #e0e0e0; border-radius:6px;
+                            font-size:0.92rem; font-weight:700; color:#0057e7; font-family:inherit; }
+  .rt-defaults-card input:focus { outline:none; border-color:#0057e7; }
+  .rt-defaults-card .rt-dc-unit { font-size:0.7rem; color:#888; margin-left:4px; }
+
+  .rt-table-card { background:#fff; border-radius:12px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+  .rt-table-wrap { overflow-x:auto; }
+  .rt-tbl { width:100%; border-collapse:collapse; font-size:0.82rem; }
+  .rt-tbl th { background:#f5f5f5; padding:9px 10px; text-align:right; font-weight:700; color:#444;
+               border-bottom:2px solid #e0e0e0; white-space:nowrap; position:sticky; top:0; z-index:1;
+               cursor:pointer; user-select:none; }
+  .rt-tbl th:hover { background:#eaeaea; }
+  .rt-tbl th:nth-child(1), .rt-tbl th:nth-child(2),
+  .rt-tbl th:nth-child(8), .rt-tbl th:nth-child(9), .rt-tbl th:nth-child(10) { text-align:left; }
+  .rt-tbl td { padding:6px 10px; border-bottom:1px solid #f0f0f0; text-align:right; vertical-align:middle; }
+  .rt-tbl td:nth-child(1), .rt-tbl td:nth-child(2),
+  .rt-tbl td:nth-child(8), .rt-tbl td:nth-child(9), .rt-tbl td:nth-child(10) { text-align:left; }
+  .rt-tbl tr:hover td { background:#f8f9ff; }
+  .rt-tbl .rt-retailer-name { font-weight:600; color:#1a1a2e; }
+  .rt-tbl .rt-channel-row td { background:#f0f4ff; color:#0057e7; font-weight:700; font-size:0.78rem;
+                               padding:7px 10px; border-top:2px solid #d0d8f0; text-transform:uppercase;
+                               letter-spacing:0.05em; }
+  .rt-tbl .rt-grand-row td { background:#1a1a2e; color:#fff; font-weight:800; padding:9px 10px;
+                             border-top:2px solid #1a1a2e; }
+  .rt-tbl .rt-usw-input { width:64px; padding:3px 6px; border:1px solid #e0e0e0; border-radius:4px;
+                          font-size:0.82rem; text-align:right; font-family:inherit; color:#0057e7;
+                          font-weight:600; }
+  .rt-tbl .rt-usw-input:focus { outline:none; border-color:#0057e7; }
+  .rt-tbl .rt-usw-input.is-override { background:#fff8e1; border-color:#ffb300; }
+  .rt-tbl .rt-text-input { width:100%; min-width:140px; padding:4px 8px; border:1px solid #e0e0e0;
+                           border-radius:4px; font-size:0.82rem; font-family:inherit; }
+  .rt-tbl .rt-text-input:focus { outline:none; border-color:#0057e7; }
+  .rt-tbl .rt-text-input.has-value { background:#f0fdf4; border-color:#a5d6a7; }
+  .rt-tbl select.rt-status-select { padding:3px 6px; border:1px solid #e0e0e0; border-radius:4px;
+                                    font-size:0.78rem; font-family:inherit; background:#fff;
+                                    font-weight:600; }
+  .rt-tbl select.rt-status-select:focus { outline:none; border-color:#0057e7; }
+  .rt-status-pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:0.7rem;
+                    font-weight:700; text-transform:uppercase; letter-spacing:0.03em; }
+  .rt-status-in       { background:#c8e6c9; color:#1b5e20; }
+  .rt-status-pitched  { background:#fff3cd; color:#856404; }
+  .rt-status-target   { background:#e3f2fd; color:#0d47a1; }
+  .rt-status-declined { background:#ffe0e0; color:#b71c1c; }
+  .rt-status-neutral  { background:#f0f0f0; color:#666; }
+  .rt-ch-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:0.7rem;
+                 font-weight:700; color:#fff; }
+  .rt-hidden { display:none; }
 </style>
 </head>
 <body>
@@ -460,6 +549,7 @@
     <button class="tab-btn"        onclick="switchTab('endcap',this)">🎯 Endcap</button>
     <button class="tab-btn"        onclick="switchTab('trial',this)">🔁 Trial &amp; Repeat</button>
     <button class="tab-btn"        onclick="switchTab('forecast',this)">🔮 Forecast</button>
+    <button class="tab-btn"        onclick="switchTab('retailers',this)">🤝 Retailers</button>
   </div>
 
   <!-- ── Tab 1: Metrics ─────────────────────────────────────────────────── -->
@@ -1293,6 +1383,90 @@
       </div>
     </div>
   </div>
+
+  <!-- ── Tab: Retailers ─────────────────────────────────────────────────────── -->
+  <div id="tab-retailers" class="tab-panel">
+    <div class="rt-explainer">
+      <strong>National retailer opportunity map.</strong>
+      All US retailers that might carry Catalyst Pet cat litter, grouped by channel.
+      Annual unit opportunity = <em>Store Count × U/S/W × 52 weeks</em>. At <strong>$10 wholesale / $20 retail per unit</strong>.
+      U/S/W defaults are by channel — edit any cell to override (yellow = overridden). Assign rep firms,
+      set status, and write next steps inline. Your edits save to this browser; use <strong>Export JSON</strong> to
+      back up or share, <strong>Import JSON</strong> to restore.
+    </div>
+
+    <!-- KPI Row -->
+    <div class="rt-kpi-row">
+      <div class="rt-kpi" style="border-left-color:#0057e7">
+        <div class="rt-kpi-label"># Retailers Tracked</div>
+        <div class="rt-kpi-value" id="rt-kpi-retailers">—</div>
+        <div class="rt-kpi-sub">Across all channels</div>
+      </div>
+      <div class="rt-kpi" style="border-left-color:#1565c0">
+        <div class="rt-kpi-label">Total US Stores</div>
+        <div class="rt-kpi-value" id="rt-kpi-stores">—</div>
+        <div class="rt-kpi-sub">Sum of store counts</div>
+      </div>
+      <div class="rt-kpi" style="border-left-color:#00a86b">
+        <div class="rt-kpi-label">Total Annual Units Opp</div>
+        <div class="rt-kpi-value" id="rt-kpi-units">—</div>
+        <div class="rt-kpi-sub">Stores × U/S/W × 52</div>
+      </div>
+      <div class="rt-kpi" style="border-left-color:#9c27b0">
+        <div class="rt-kpi-label">Annual Wholesale $ Opp</div>
+        <div class="rt-kpi-value" id="rt-kpi-wholesale">—</div>
+        <div class="rt-kpi-sub">@ $10 / unit</div>
+      </div>
+      <div class="rt-kpi" style="border-left-color:#e67300">
+        <div class="rt-kpi-label">Annual Retail $ Opp</div>
+        <div class="rt-kpi-value" id="rt-kpi-retail">—</div>
+        <div class="rt-kpi-sub">@ $20 / unit</div>
+      </div>
+    </div>
+
+    <!-- Channel Default U/S/W -->
+    <div class="rt-defaults">
+      <div class="rt-defaults-head">
+        <h3>Channel default U/S/W (units / store / week)</h3>
+        <button class="rt-btn" onclick="resetRetailerDefaults()">↺ Reset defaults</button>
+      </div>
+      <div class="rt-defaults-grid" id="rt-defaults-grid"></div>
+    </div>
+
+    <!-- Controls -->
+    <div class="rt-controls">
+      <span class="rt-controls-label">Channels:</span>
+      <div id="rt-channel-chips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      <span class="rt-spacer"></span>
+      <button class="rt-btn" onclick="exportRetailerData()" title="Download your edits as JSON">⬇ Export JSON</button>
+      <button class="rt-btn" onclick="document.getElementById('rt-import-file').click()" title="Restore edits from a JSON file">⬆ Import JSON</button>
+      <input type="file" id="rt-import-file" accept=".json,application/json" style="display:none" onchange="importRetailerData(event)">
+      <button class="rt-btn danger" onclick="clearRetailerData()" title="Clear all edits">✕ Clear edits</button>
+    </div>
+
+    <!-- Retailer Table -->
+    <div class="rt-table-card">
+      <div class="rt-table-wrap">
+        <table class="rt-tbl" id="rt-tbl">
+          <thead>
+            <tr>
+              <th>Retailer</th>
+              <th>Channel</th>
+              <th title="Approx. US store count">US Stores</th>
+              <th title="Units per store per week — channel default unless overridden">U/S/W</th>
+              <th title="Stores × U/S/W × 52">Annual Units</th>
+              <th title="Annual Units × $10/unit">Wholesale $ Opp</th>
+              <th title="Annual Units × $20/unit">Retail $ Opp</th>
+              <th>Status</th>
+              <th>Rep Firm</th>
+              <th>Next Steps</th>
+            </tr>
+          </thead>
+          <tbody id="rt-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1394,6 +1568,7 @@ let endcapInit       = false;
 let trialInit        = false;
 let monthlyInit      = false;
 let forecastInit     = false;
+let retailersInit    = false;
 
 function switchTab(name, btn) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -1487,6 +1662,9 @@ function switchTab(name, btn) {
        "chart-fc-usw-new","chart-fc-usw-repeat","chart-fc-usw-total"]
         .forEach(id => { const el = document.getElementById(id); if (el) Plotly.Plots.resize(el); });
     }, 50);
+  }
+  if (name === "retailers") {
+    if (!retailersInit) { initRetailers(); retailersInit = true; }
   }
 }
 
@@ -4830,6 +5008,392 @@ function renderTrialSummaryTable() {
       <td>$${pc.toFixed(2)}</td>
     </tr>`;
   }).join("");
+}
+
+// ══ Tab: Retailers ════════════════════════════════════════════════════════════
+const RT_STORAGE_KEY = "catalyst_retailers_v1";
+const RT_DEFAULTS_KEY = "catalyst_retailer_channel_defaults_v1";
+const RT_WHOLESALE_PRICE = 10;
+const RT_RETAIL_PRICE = 20;
+const RT_WEEKS_PER_YEAR = 52;
+
+const RT_CHANNELS = {
+  mass:     { name: "Mass",            color: "#0057e7", defaultUSW: 1.0,
+              note: "Big-box discount stores — broad cat-owner foot traffic." },
+  pet:      { name: "Pet Specialty",   color: "#e91e63", defaultUSW: 2.0,
+              note: "Dedicated pet shoppers; highest litter velocity per store." },
+  grocery:  { name: "Grocery",         color: "#00a86b", defaultUSW: 0.5,
+              note: "Limited litter set; premium pellet is a niche SKU." },
+  club:     { name: "Club",            color: "#9c27b0", defaultUSW: 3.0,
+              note: "Low door count but high per-store volume per visit." },
+  farm:     { name: "Farm & Rural",    color: "#8d6e63", defaultUSW: 1.5,
+              note: "Rural shoppers over-index on natural/premium cat litter." },
+  hardware: { name: "Hardware / Home", color: "#e67300", defaultUSW: 0.35,
+              note: "Pet aisles small; litter is occasional add-on." },
+  drug:     { name: "Drug",            color: "#1565c0", defaultUSW: 0.2,
+              note: "Convenience-only pet aisle; low litter affinity." },
+  dollar:   { name: "Dollar / Value",  color: "#f57c00", defaultUSW: 0.3,
+              note: "Price-driven shoppers; bag size mismatch for 15/34 lb." },
+};
+const RT_CHANNEL_ORDER = ["mass","pet","club","farm","grocery","hardware","drug","dollar"];
+
+const RT_RETAILERS = [
+  // Mass
+  { id: "walmart",          name: "Walmart",                       channel: "mass",     stores: 4615, defaultStatus: "in" },
+  { id: "target",           name: "Target",                        channel: "mass",     stores: 1950 },
+  { id: "meijer",           name: "Meijer",                        channel: "mass",     stores: 270 },
+
+  // Pet Specialty
+  { id: "petsmart",         name: "PetSmart",                      channel: "pet",      stores: 1650 },
+  { id: "petco",            name: "Petco",                         channel: "pet",      stores: 1500 },
+  { id: "pet-supplies-plus",name: "Pet Supplies Plus",             channel: "pet",      stores: 770 },
+  { id: "pet-supermarket",  name: "Pet Supermarket",               channel: "pet",      stores: 215 },
+  { id: "earthwise-pet",    name: "Earthwise Pet",                 channel: "pet",      stores: 200 },
+  { id: "hollywood-feed",   name: "Hollywood Feed",                channel: "pet",      stores: 150 },
+  { id: "pet-people",       name: "Pet People / Healthy Pet",      channel: "pet",      stores: 45 },
+  { id: "kahoots",          name: "Kahoot's Pet Store",            channel: "pet",      stores: 30 },
+  { id: "tomlinsons",       name: "Tomlinson's Feed",              channel: "pet",      stores: 25 },
+  { id: "kriser",           name: "Kriser's Natural Pet",          channel: "pet",      stores: 25 },
+
+  // Club
+  { id: "costco",           name: "Costco",                        channel: "club",     stores: 600 },
+  { id: "sams-club",        name: "Sam's Club",                    channel: "club",     stores: 600 },
+  { id: "bjs",              name: "BJ's Wholesale Club",           channel: "club",     stores: 245 },
+
+  // Farm & Rural
+  { id: "tractor-supply",   name: "Tractor Supply",                channel: "farm",     stores: 2300 },
+  { id: "rural-king",       name: "Rural King",                    channel: "farm",     stores: 130 },
+  { id: "bomgaars",         name: "Bomgaars",                      channel: "farm",     stores: 110 },
+  { id: "atwoods",          name: "Atwoods Ranch & Home",          channel: "farm",     stores: 70 },
+  { id: "fleet-farm",       name: "Mills Fleet Farm",              channel: "farm",     stores: 50 },
+  { id: "farm-fleet",       name: "Blain's Farm & Fleet",          channel: "farm",     stores: 45 },
+  { id: "murdochs",         name: "Murdoch's Ranch & Home",        channel: "farm",     stores: 35 },
+  { id: "cal-ranch",        name: "C-A-L Ranch Stores",            channel: "farm",     stores: 30 },
+  { id: "big-r",            name: "Big R Stores",                  channel: "farm",     stores: 30 },
+
+  // Grocery
+  { id: "kroger",           name: "Kroger (all banners)",          channel: "grocery",  stores: 2750 },
+  { id: "aldi",             name: "Aldi US",                       channel: "grocery",  stores: 2400 },
+  { id: "albertsons",       name: "Albertsons / Safeway",          channel: "grocery",  stores: 2270 },
+  { id: "ahold",            name: "Ahold Delhaize (Stop&Shop, Food Lion, GIANT, Hannaford)", channel: "grocery", stores: 2000 },
+  { id: "publix",           name: "Publix",                        channel: "grocery",  stores: 1390 },
+  { id: "trader-joes",      name: "Trader Joe's",                  channel: "grocery",  stores: 565 },
+  { id: "whole-foods",      name: "Whole Foods Market",            channel: "grocery",  stores: 530 },
+  { id: "heb",              name: "H-E-B",                         channel: "grocery",  stores: 430 },
+  { id: "sprouts",          name: "Sprouts Farmers Market",        channel: "grocery",  stores: 415 },
+  { id: "hyvee",            name: "Hy-Vee",                        channel: "grocery",  stores: 280 },
+  { id: "giant-eagle",      name: "Giant Eagle",                   channel: "grocery",  stores: 200 },
+  { id: "winco",            name: "WinCo Foods",                   channel: "grocery",  stores: 145 },
+  { id: "wegmans",          name: "Wegmans",                       channel: "grocery",  stores: 110 },
+
+  // Hardware / Home Improvement
+  { id: "ace",              name: "Ace Hardware (co-op)",          channel: "hardware", stores: 4800 },
+  { id: "true-value",       name: "True Value (Do it Best)",       channel: "hardware", stores: 4500 },
+  { id: "do-it-best",       name: "Do it Best (members)",          channel: "hardware", stores: 4000 },
+  { id: "home-depot",       name: "Home Depot",                    channel: "hardware", stores: 2000 },
+  { id: "lowes",            name: "Lowe's",                        channel: "hardware", stores: 1750 },
+  { id: "menards",          name: "Menards",                       channel: "hardware", stores: 350 },
+
+  // Drug
+  { id: "cvs",              name: "CVS Pharmacy",                  channel: "drug",     stores: 9000 },
+  { id: "walgreens",        name: "Walgreens",                     channel: "drug",     stores: 8600 },
+  { id: "rite-aid",         name: "Rite Aid",                      channel: "drug",     stores: 1200 },
+
+  // Dollar / Value
+  { id: "dollar-general",   name: "Dollar General",                channel: "dollar",   stores: 20000 },
+  { id: "dollar-tree",      name: "Dollar Tree",                   channel: "dollar",   stores: 8000 },
+  { id: "family-dollar",    name: "Family Dollar",                 channel: "dollar",   stores: 8000 },
+  { id: "five-below",       name: "Five Below",                    channel: "dollar",   stores: 1800 },
+  { id: "big-lots",         name: "Big Lots",                      channel: "dollar",   stores: 1300 },
+];
+
+const RT_STATUS_OPTIONS = [
+  { v: "",         label: "—",            cls: "rt-status-neutral" },
+  { v: "in",       label: "Currently In", cls: "rt-status-in" },
+  { v: "pitched",  label: "Pitched",      cls: "rt-status-pitched" },
+  { v: "target",   label: "Target",       cls: "rt-status-target" },
+  { v: "declined", label: "Declined",     cls: "rt-status-declined" },
+];
+
+let RT_OVERRIDES = {};         // { retailerId: { usw, repFirm, nextSteps, status } }
+let RT_CHANNEL_DEFAULTS = {};  // { channelKey: USW }
+const RT_VISIBLE_CHANNELS = new Set(RT_CHANNEL_ORDER);
+
+function rtLoad() {
+  try {
+    RT_OVERRIDES = JSON.parse(localStorage.getItem(RT_STORAGE_KEY) || "{}") || {};
+  } catch { RT_OVERRIDES = {}; }
+  try {
+    RT_CHANNEL_DEFAULTS = JSON.parse(localStorage.getItem(RT_DEFAULTS_KEY) || "{}") || {};
+  } catch { RT_CHANNEL_DEFAULTS = {}; }
+}
+function rtSave() {
+  localStorage.setItem(RT_STORAGE_KEY, JSON.stringify(RT_OVERRIDES));
+  localStorage.setItem(RT_DEFAULTS_KEY, JSON.stringify(RT_CHANNEL_DEFAULTS));
+}
+function rtChannelDefault(ch) {
+  return (RT_CHANNEL_DEFAULTS[ch] != null) ? RT_CHANNEL_DEFAULTS[ch] : RT_CHANNELS[ch].defaultUSW;
+}
+function rtRowUsw(r) {
+  const o = RT_OVERRIDES[r.id];
+  if (o && o.usw != null && o.usw !== "") return Number(o.usw);
+  return rtChannelDefault(r.channel);
+}
+function rtRowStatus(r) {
+  const o = RT_OVERRIDES[r.id];
+  if (o && o.status != null) return o.status;
+  return r.defaultStatus || "";
+}
+function rtRowField(r, field) {
+  const o = RT_OVERRIDES[r.id];
+  return (o && o[field] != null) ? o[field] : "";
+}
+function rtSetOverride(id, field, value) {
+  RT_OVERRIDES[id] = RT_OVERRIDES[id] || {};
+  if (value === "" || value == null) delete RT_OVERRIDES[id][field];
+  else RT_OVERRIDES[id][field] = value;
+  if (Object.keys(RT_OVERRIDES[id]).length === 0) delete RT_OVERRIDES[id];
+  rtSave();
+}
+function rtFmt$(v) {
+  if (!isFinite(v)) return "$0";
+  if (v >= 1e9) return "$" + (v/1e9).toFixed(2) + "B";
+  if (v >= 1e6) return "$" + (v/1e6).toFixed(2) + "M";
+  if (v >= 1e3) return "$" + (v/1e3).toFixed(1) + "K";
+  return "$" + Math.round(v).toLocaleString();
+}
+function rtFmtUnits(v) {
+  if (!isFinite(v)) return "0";
+  if (v >= 1e6) return (v/1e6).toFixed(2) + "M";
+  if (v >= 1e3) return (v/1e3).toFixed(0) + "K";
+  return Math.round(v).toLocaleString();
+}
+function rtStatusOpt(v) {
+  return RT_STATUS_OPTIONS.find(o => o.v === v) || RT_STATUS_OPTIONS[0];
+}
+
+function initRetailers() {
+  rtLoad();
+  rtRenderChannelChips();
+  rtRenderDefaultsPanel();
+  rtRenderTable();
+}
+
+function rtRenderChannelChips() {
+  const host = document.getElementById("rt-channel-chips");
+  host.innerHTML = RT_CHANNEL_ORDER.map(ch => {
+    const c = RT_CHANNELS[ch];
+    const checked = RT_VISIBLE_CHANNELS.has(ch) ? "checked" : "";
+    return `<label class="rt-ch-chip">
+              <input type="checkbox" ${checked} onchange="rtToggleChannel('${ch}', this.checked)">
+              <span class="rt-ch-dot" style="background:${c.color}"></span>
+              <span>${c.name}</span>
+            </label>`;
+  }).join("");
+}
+function rtToggleChannel(ch, on) {
+  if (on) RT_VISIBLE_CHANNELS.add(ch);
+  else RT_VISIBLE_CHANNELS.delete(ch);
+  rtRenderTable();
+}
+
+function rtRenderDefaultsPanel() {
+  const grid = document.getElementById("rt-defaults-grid");
+  grid.innerHTML = RT_CHANNEL_ORDER.map(ch => {
+    const c = RT_CHANNELS[ch];
+    const v = rtChannelDefault(ch);
+    return `<div class="rt-defaults-card" style="border-left-color:${c.color}">
+              <div class="rt-dc-label">${c.name}</div>
+              <input type="number" step="0.1" min="0" value="${v}"
+                     onchange="rtSetChannelDefault('${ch}', this.value)">
+              <span class="rt-dc-unit">U/S/W</span>
+            </div>`;
+  }).join("");
+}
+function rtSetChannelDefault(ch, val) {
+  const n = Number(val);
+  if (!isFinite(n) || n < 0) return;
+  if (n === RT_CHANNELS[ch].defaultUSW) delete RT_CHANNEL_DEFAULTS[ch];
+  else RT_CHANNEL_DEFAULTS[ch] = n;
+  rtSave();
+  rtRenderTable();
+}
+function resetRetailerDefaults() {
+  RT_CHANNEL_DEFAULTS = {};
+  rtSave();
+  rtRenderDefaultsPanel();
+  rtRenderTable();
+}
+
+function rtRenderTable() {
+  const tbody = document.getElementById("rt-tbody");
+  let html = "";
+  let grandStores = 0, grandUnits = 0;
+
+  RT_CHANNEL_ORDER.forEach(ch => {
+    if (!RT_VISIBLE_CHANNELS.has(ch)) return;
+    const c = RT_CHANNELS[ch];
+    const rows = RT_RETAILERS.filter(r => r.channel === ch);
+    if (!rows.length) return;
+
+    // Channel header row with subtotal
+    let chStores = 0, chUnits = 0;
+    rows.forEach(r => {
+      chStores += r.stores;
+      chUnits += r.stores * rtRowUsw(r) * RT_WEEKS_PER_YEAR;
+    });
+    grandStores += chStores;
+    grandUnits += chUnits;
+
+    html += `<tr class="rt-channel-row">
+      <td colspan="2">
+        <span class="rt-ch-badge" style="background:${c.color}">${c.name}</span>
+        <span style="font-weight:500;margin-left:8px;text-transform:none;letter-spacing:0;color:#555;font-size:0.75rem">${c.note}</span>
+      </td>
+      <td>${chStores.toLocaleString()}</td>
+      <td>—</td>
+      <td>${rtFmtUnits(chUnits)}</td>
+      <td>${rtFmt$(chUnits * RT_WHOLESALE_PRICE)}</td>
+      <td>${rtFmt$(chUnits * RT_RETAIL_PRICE)}</td>
+      <td colspan="3"></td>
+    </tr>`;
+
+    // Sort retailers by store count desc within channel
+    rows.sort((a,b) => b.stores - a.stores).forEach(r => {
+      const usw = rtRowUsw(r);
+      const isOverride = RT_OVERRIDES[r.id] && RT_OVERRIDES[r.id].usw != null && RT_OVERRIDES[r.id].usw !== "";
+      const annualUnits = r.stores * usw * RT_WEEKS_PER_YEAR;
+      const status = rtRowStatus(r);
+      const statusOpt = rtStatusOpt(status);
+      const repFirm = rtRowField(r, "repFirm");
+      const nextSteps = rtRowField(r, "nextSteps");
+
+      html += `<tr data-rid="${r.id}">
+        <td><span class="rt-retailer-name">${r.name}</span></td>
+        <td><span class="rt-ch-badge" style="background:${c.color}">${c.name}</span></td>
+        <td>${r.stores.toLocaleString()}</td>
+        <td>
+          <input type="number" step="0.1" min="0" value="${usw}"
+                 class="rt-usw-input ${isOverride ? 'is-override' : ''}"
+                 onchange="rtUpdateUsw('${r.id}', this.value, this)"
+                 ${isOverride ? `title="Overridden (channel default ${rtChannelDefault(r.channel)}). Clear to revert."` : `title="Channel default. Edit to override."`}>
+        </td>
+        <td>${rtFmtUnits(annualUnits)}</td>
+        <td><strong>${rtFmt$(annualUnits * RT_WHOLESALE_PRICE)}</strong></td>
+        <td>${rtFmt$(annualUnits * RT_RETAIL_PRICE)}</td>
+        <td>
+          <select class="rt-status-select" onchange="rtUpdateStatus('${r.id}', this.value)">
+            ${RT_STATUS_OPTIONS.map(o => `<option value="${o.v}" ${o.v === status ? "selected" : ""}>${o.label}</option>`).join("")}
+          </select>
+          ${status ? `<span class="rt-status-pill ${statusOpt.cls}" style="margin-left:6px">${statusOpt.label}</span>` : ""}
+        </td>
+        <td>
+          <input type="text" placeholder="Rep firm…" value="${rtEsc(repFirm)}"
+                 class="rt-text-input ${repFirm ? 'has-value' : ''}"
+                 onchange="rtUpdateText('${r.id}', 'repFirm', this.value, this)">
+        </td>
+        <td>
+          <input type="text" placeholder="Next steps…" value="${rtEsc(nextSteps)}"
+                 class="rt-text-input ${nextSteps ? 'has-value' : ''}"
+                 onchange="rtUpdateText('${r.id}', 'nextSteps', this.value, this)">
+        </td>
+      </tr>`;
+    });
+  });
+
+  // Grand total row
+  html += `<tr class="rt-grand-row">
+    <td colspan="2">TOTAL (visible channels)</td>
+    <td>${grandStores.toLocaleString()}</td>
+    <td>—</td>
+    <td>${rtFmtUnits(grandUnits)}</td>
+    <td>${rtFmt$(grandUnits * RT_WHOLESALE_PRICE)}</td>
+    <td>${rtFmt$(grandUnits * RT_RETAIL_PRICE)}</td>
+    <td colspan="3"></td>
+  </tr>`;
+
+  tbody.innerHTML = html;
+
+  // KPIs
+  document.getElementById("rt-kpi-retailers").textContent =
+    RT_RETAILERS.filter(r => RT_VISIBLE_CHANNELS.has(r.channel)).length.toLocaleString();
+  document.getElementById("rt-kpi-stores").textContent = grandStores.toLocaleString();
+  document.getElementById("rt-kpi-units").textContent = rtFmtUnits(grandUnits);
+  document.getElementById("rt-kpi-wholesale").textContent = rtFmt$(grandUnits * RT_WHOLESALE_PRICE);
+  document.getElementById("rt-kpi-retail").textContent = rtFmt$(grandUnits * RT_RETAIL_PRICE);
+}
+
+function rtEsc(s) {
+  if (s == null) return "";
+  return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function rtUpdateUsw(id, val, el) {
+  const n = (val === "" ? null : Number(val));
+  if (n != null && (!isFinite(n) || n < 0)) { el.value = rtRowUsw({id, channel: RT_RETAILERS.find(r=>r.id===id).channel}); return; }
+  // If matches channel default, clear override to revert to default styling
+  const r = RT_RETAILERS.find(x => x.id === id);
+  if (n != null && n === rtChannelDefault(r.channel)) {
+    rtSetOverride(id, "usw", null);
+  } else {
+    rtSetOverride(id, "usw", n);
+  }
+  rtRenderTable();
+}
+function rtUpdateStatus(id, val) {
+  rtSetOverride(id, "status", val || null);
+  rtRenderTable();
+}
+function rtUpdateText(id, field, val, el) {
+  rtSetOverride(id, field, val.trim() || null);
+  if (val.trim()) el.classList.add("has-value");
+  else el.classList.remove("has-value");
+}
+
+function exportRetailerData() {
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    version: 1,
+    channelDefaults: RT_CHANNEL_DEFAULTS,
+    overrides: RT_OVERRIDES,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `catalyst-retailers-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function importRetailerData(evt) {
+  const file = evt.target.files && evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.overrides && typeof data.overrides === "object") RT_OVERRIDES = data.overrides;
+      if (data.channelDefaults && typeof data.channelDefaults === "object") RT_CHANNEL_DEFAULTS = data.channelDefaults;
+      rtSave();
+      rtRenderDefaultsPanel();
+      rtRenderTable();
+      alert("Retailer data imported.");
+    } catch (err) {
+      alert("Import failed: " + err.message);
+    }
+  };
+  reader.readAsText(file);
+  evt.target.value = "";
+}
+function clearRetailerData() {
+  if (!confirm("Clear all rep-firm / next-steps / U/S/W overrides? Channel defaults will also reset. This cannot be undone.")) return;
+  RT_OVERRIDES = {};
+  RT_CHANNEL_DEFAULTS = {};
+  rtSave();
+  rtRenderDefaultsPanel();
+  rtRenderTable();
 }
 
 // ── Must be last ──────────────────────────────────────────────────────────────
