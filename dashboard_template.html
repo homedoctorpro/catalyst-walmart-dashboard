@@ -455,6 +455,21 @@
   .rt-btn.primary:hover { background:#0041b5; border-color:#0041b5; color:#fff; }
   .rt-btn.danger:hover { border-color:#d32f2f; color:#d32f2f; }
 
+  .rt-summary { background:#fff; border-radius:12px; padding:16px 18px; margin-bottom:14px;
+                box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+  .rt-summary > h3 { font-size:0.8rem; font-weight:700; color:#666; text-transform:uppercase;
+                     letter-spacing:0.06em; margin-bottom:12px; }
+  .rt-summary-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(190px,1fr));
+                     gap:10px; margin-bottom:14px; }
+  .rt-summary-card { background:#fafafa; border-radius:8px; padding:10px 12px; border-left:4px solid #999; }
+  .rt-sc-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .rt-sc-name { font-size:0.78rem; font-weight:700; color:#222; text-transform:uppercase;
+                letter-spacing:0.03em; }
+  .rt-sc-pct { font-size:0.7rem; font-weight:700; color:#666; background:#fff; padding:1px 6px;
+               border-radius:8px; border:1px solid #e0e0e0; }
+  .rt-sc-main { font-size:1.15rem; font-weight:800; color:#1a1a2e; line-height:1; margin-bottom:4px; }
+  .rt-sc-sub { font-size:0.7rem; color:#888; }
+  .rt-summary-chart { width:100%; height:260px; }
   .rt-defaults { background:#fff; border-radius:12px; padding:14px 18px; margin-bottom:14px;
                  box-shadow:0 2px 8px rgba(0,0,0,0.08); }
   .rt-defaults-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
@@ -485,9 +500,11 @@
   .rt-tbl .rt-retailer-name { font-weight:600; color:#1a1a2e; }
   .rt-tbl .rt-channel-row td { background:#f0f4ff; color:#0057e7; font-weight:700; font-size:0.78rem;
                                padding:7px 10px; border-top:2px solid #d0d8f0; text-transform:uppercase;
-                               letter-spacing:0.05em; }
+                               letter-spacing:0.05em; text-align:right; }
+  .rt-tbl .rt-channel-row td:first-child { text-align:left; }
   .rt-tbl .rt-grand-row td { background:#1a1a2e; color:#fff; font-weight:800; padding:9px 10px;
-                             border-top:2px solid #1a1a2e; }
+                             border-top:2px solid #1a1a2e; text-align:right; }
+  .rt-tbl .rt-grand-row td:first-child { text-align:left; }
   .rt-tbl .rt-usw-input { width:64px; padding:3px 6px; border:1px solid #e0e0e0; border-radius:4px;
                           font-size:0.82rem; text-align:right; font-family:inherit; color:#0057e7;
                           font-weight:600; }
@@ -501,6 +518,11 @@
                                     font-size:0.78rem; font-family:inherit; background:#fff;
                                     font-weight:600; }
   .rt-tbl select.rt-status-select:focus { outline:none; border-color:#0057e7; }
+  .rt-tbl select.rt-rep-select { padding:4px 8px; border:1px solid #e0e0e0; border-radius:4px;
+                                 font-size:0.82rem; font-family:inherit; background:#fff;
+                                 font-weight:600; min-width:130px; color:#666; }
+  .rt-tbl select.rt-rep-select.has-value { background:#f0fdf4; border-color:#a5d6a7; color:#1b5e20; }
+  .rt-tbl select.rt-rep-select:focus { outline:none; border-color:#0057e7; }
   .rt-status-pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:0.7rem;
                     font-weight:700; text-transform:uppercase; letter-spacing:0.03em; }
   .rt-status-in       { background:#c8e6c9; color:#1b5e20; }
@@ -1422,6 +1444,13 @@
         <div class="rt-kpi-value" id="rt-kpi-retail">—</div>
         <div class="rt-kpi-sub">@ $20 / unit</div>
       </div>
+    </div>
+
+    <!-- Channel Opportunity Summary -->
+    <div class="rt-summary">
+      <h3>Opportunity by Channel</h3>
+      <div class="rt-summary-grid" id="rt-summary-grid"></div>
+      <div id="chart-rt-channel-opp" class="rt-summary-chart"></div>
     </div>
 
     <!-- Channel Default U/S/W -->
@@ -5115,6 +5144,9 @@ const RT_STATUS_OPTIONS = [
   { v: "declined", label: "Declined",     cls: "rt-status-declined" },
 ];
 
+const RT_REP_FIRM_OPTIONS = ["Unassigned", "PSE", "Brian Schlager"];
+const RT_REP_FIRM_DEFAULT = "Unassigned";
+
 let RT_OVERRIDES = {};         // { retailerId: { usw, repFirm, nextSteps, status } }
 let RT_CHANNEL_DEFAULTS = {};  // { channelKey: USW }
 const RT_VISIBLE_CHANNELS = new Set(RT_CHANNEL_ORDER);
@@ -5177,6 +5209,7 @@ function initRetailers() {
   rtRenderChannelChips();
   rtRenderDefaultsPanel();
   rtRenderTable();
+  rtRenderSummary();
 }
 
 function rtRenderChannelChips() {
@@ -5223,6 +5256,86 @@ function resetRetailerDefaults() {
   rtSave();
   rtRenderDefaultsPanel();
   rtRenderTable();
+}
+
+function rtChannelStats() {
+  // Returns { byChannel: {ch: {stores, units, wholesale, retail, retailers}}, grand: {...} }
+  const byChannel = {};
+  let gStores = 0, gUnits = 0;
+  RT_CHANNEL_ORDER.forEach(ch => {
+    const rows = RT_RETAILERS.filter(r => r.channel === ch);
+    let stores = 0, units = 0;
+    rows.forEach(r => {
+      stores += r.stores;
+      units += r.stores * rtRowUsw(r) * RT_WEEKS_PER_YEAR;
+    });
+    byChannel[ch] = {
+      stores, units,
+      wholesale: units * RT_WHOLESALE_PRICE,
+      retail: units * RT_RETAIL_PRICE,
+      retailers: rows.length,
+      visible: RT_VISIBLE_CHANNELS.has(ch),
+    };
+    if (RT_VISIBLE_CHANNELS.has(ch)) { gStores += stores; gUnits += units; }
+  });
+  return {
+    byChannel,
+    grand: { stores: gStores, units: gUnits,
+             wholesale: gUnits * RT_WHOLESALE_PRICE, retail: gUnits * RT_RETAIL_PRICE },
+  };
+}
+
+function rtRenderSummary() {
+  const stats = rtChannelStats();
+  const totalWholesale = stats.grand.wholesale || 1;
+  const grid = document.getElementById("rt-summary-grid");
+
+  // Sort by wholesale opp desc for the cards (visible channels first, hidden dimmed below)
+  const sorted = RT_CHANNEL_ORDER.slice().sort((a,b) => stats.byChannel[b].wholesale - stats.byChannel[a].wholesale);
+
+  grid.innerHTML = sorted.map(ch => {
+    const c = RT_CHANNELS[ch];
+    const s = stats.byChannel[ch];
+    const pct = stats.grand.wholesale > 0 && s.visible ? (s.wholesale / stats.grand.wholesale * 100) : 0;
+    const dimmed = s.visible ? "" : "opacity:0.4;";
+    return `<div class="rt-summary-card" style="border-left-color:${c.color};${dimmed}">
+              <div class="rt-sc-head">
+                <span class="rt-sc-name" style="color:${c.color}">${c.name}</span>
+                <span class="rt-sc-pct">${s.visible ? pct.toFixed(1) + "%" : "hidden"}</span>
+              </div>
+              <div class="rt-sc-main">${rtFmt$(s.wholesale)}</div>
+              <div class="rt-sc-sub">${s.retailers} retailers · ${s.stores.toLocaleString()} stores · ${rtFmtUnits(s.units)} units/yr · ${rtFmt$(s.retail)} retail</div>
+            </div>`;
+  }).join("");
+
+  // Horizontal bar chart of wholesale $ opp by channel
+  const visChannels = sorted.filter(ch => stats.byChannel[ch].visible);
+  const yLabels = visChannels.map(ch => RT_CHANNELS[ch].name).reverse();
+  const xVals  = visChannels.map(ch => stats.byChannel[ch].wholesale).reverse();
+  const colors = visChannels.map(ch => RT_CHANNELS[ch].color).reverse();
+  const text   = visChannels.map(ch => rtFmt$(stats.byChannel[ch].wholesale)).reverse();
+
+  const trace = {
+    type: "bar",
+    orientation: "h",
+    x: xVals,
+    y: yLabels,
+    text: text,
+    textposition: "outside",
+    cliponaxis: false,
+    marker: { color: colors },
+    hovertemplate: "<b>%{y}</b><br>Wholesale $ Opp: %{x:$,.0f}<extra></extra>",
+  };
+  const layout = {
+    margin: { t: 10, r: 110, b: 35, l: 130 },
+    xaxis: { title: "Annual Wholesale $ Opportunity", tickformat: "$.2s", gridcolor: "#f0f0f0" },
+    yaxis: { automargin: true },
+    font: { family: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif", size: 11 },
+    height: 260,
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+  };
+  Plotly.react("chart-rt-channel-opp", [trace], layout, { displayModeBar: false, responsive: true });
 }
 
 function rtRenderTable() {
@@ -5288,9 +5401,10 @@ function rtRenderTable() {
           ${status ? `<span class="rt-status-pill ${statusOpt.cls}" style="margin-left:6px">${statusOpt.label}</span>` : ""}
         </td>
         <td>
-          <input type="text" placeholder="Rep firm…" value="${rtEsc(repFirm)}"
-                 class="rt-text-input ${repFirm ? 'has-value' : ''}"
-                 onchange="rtUpdateText('${r.id}', 'repFirm', this.value, this)">
+          <select class="rt-rep-select ${repFirm && repFirm !== RT_REP_FIRM_DEFAULT ? 'has-value' : ''}"
+                  onchange="rtUpdateRepFirm('${r.id}', this.value, this)">
+            ${RT_REP_FIRM_OPTIONS.map(o => `<option value="${o}" ${o === (repFirm || RT_REP_FIRM_DEFAULT) ? "selected" : ""}>${o}</option>`).join("")}
+          </select>
         </td>
         <td>
           <input type="text" placeholder="Next steps…" value="${rtEsc(nextSteps)}"
@@ -5321,6 +5435,9 @@ function rtRenderTable() {
   document.getElementById("rt-kpi-units").textContent = rtFmtUnits(grandUnits);
   document.getElementById("rt-kpi-wholesale").textContent = rtFmt$(grandUnits * RT_WHOLESALE_PRICE);
   document.getElementById("rt-kpi-retail").textContent = rtFmt$(grandUnits * RT_RETAIL_PRICE);
+
+  // Keep the by-channel summary in sync
+  if (document.getElementById("rt-summary-grid")) rtRenderSummary();
 }
 
 function rtEsc(s) {
@@ -5346,6 +5463,13 @@ function rtUpdateStatus(id, val) {
 function rtUpdateText(id, field, val, el) {
   rtSetOverride(id, field, val.trim() || null);
   if (val.trim()) el.classList.add("has-value");
+  else el.classList.remove("has-value");
+}
+function rtUpdateRepFirm(id, val, el) {
+  // Unassigned is the default — treat as no override
+  const stored = (val === RT_REP_FIRM_DEFAULT) ? null : val;
+  rtSetOverride(id, "repFirm", stored);
+  if (stored) el.classList.add("has-value");
   else el.classList.remove("has-value");
 }
 
