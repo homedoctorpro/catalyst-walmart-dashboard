@@ -534,6 +534,18 @@
                  font-weight:700; color:#fff; }
   .rt-hidden { display:none; }
 
+  /* ── Retailers: Sources card ── */
+  .rt-sources { background:#fff; border-radius:12px; padding:18px 22px; margin-top:16px;
+                box-shadow:0 2px 8px rgba(0,0,0,0.08); font-size:0.82rem; color:#444; line-height:1.55; }
+  .rt-sources h3 { font-size:0.8rem; font-weight:700; color:#666; text-transform:uppercase;
+                   letter-spacing:0.06em; margin-bottom:10px; }
+  .rt-sources dl { display:grid; grid-template-columns:170px 1fr; gap:7px 14px; margin:0; }
+  .rt-sources dt { font-weight:700; color:#222; }
+  .rt-sources dd { margin:0; color:#555; }
+  .rt-sources dd em { color:#888; font-style:italic; }
+  .rt-sources .rt-sources-foot { font-size:0.72rem; color:#999; margin-top:12px;
+                                  padding-top:10px; border-top:1px solid #f0f0f0; }
+
   /* ── Retailers: Google Sheet Sync Bar ── */
   .rt-sync-details { background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.08);
                      margin-bottom:14px; overflow:hidden; border:1px solid transparent; }
@@ -1551,6 +1563,68 @@
           </thead>
           <tbody id="rt-tbody"></tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- Sources & Methodology -->
+    <div class="rt-sources">
+      <h3>Sources &amp; Methodology</h3>
+      <dl>
+        <dt>Named-retailer store counts</dt>
+        <dd>
+          Company 10-K filings, investor presentations, and corporate fact sheets where available
+          (Walmart, Target, Costco, Sam's Club, Tractor Supply, Kroger, Albertsons, Publix, BJ's,
+          PetSmart, Petco, Pet Supplies Plus, Dollar General, Dollar Tree, Five Below, Home Depot,
+          Lowe's, etc., FY2025 filings).
+          Private chains and co-ops use the most recent published number from company websites or
+          trade press (Wegmans, H-E-B, Hy-Vee, Hollywood Feed, Pet Supermarket, Earthwise Pet,
+          Ace Hardware, Do it Best, True Value, Menards, Meijer, Rural King, Bomgaars, Atwoods,
+          Fleet Farm, Murdoch's, etc.).
+        </dd>
+
+        <dt>"Remaining Pet Specialty" (~7,000 doors)</dt>
+        <dd>
+          Long-tail estimate of regional pet specialty chains (Pet Food Express, Mud Bay, Pet Club,
+          Bentley's Pet Stuff, Centinela Feed, Healthy Spot, Pet Pros, Bark Avenue, etc.) plus
+          independent pet stores. Reconciled against APPA industry overviews, Pet Industry
+          Distributors Association tallies, and independent-pet-retailer trade groups (~9,000–12,000
+          total US pet specialty doors).
+        </dd>
+
+        <dt>"Remaining Grocery" (~10,000 doors)</dt>
+        <dd>
+          Regional supermarket chains (SpartanNash banners, Save Mart, Schnucks, Big Y, Stater Bros,
+          Brookshire's, Ingles, Tops, Weis, Bashas', Smart &amp; Final, Lunds &amp; Byerlys, etc.)
+          plus independent supermarkets. Cross-checked against FMI's <em>Food Industry Almanac</em>
+          and Progressive Grocer's annual chain rankings.
+        </dd>
+
+        <dt>Channel default U/S/W</dt>
+        <dd>
+          Starting estimates indexed off Walmart's actual Catalyst U/S/W (this dashboard's Metrics
+          tab) and channel-level pet-litter velocity benchmarks. Mass 1.0 · Pet Specialty 2.0 ·
+          Club 3.0 · Farm &amp; Rural 1.5 · Grocery 0.5 · Hardware/Home 0.35 · Drug 0.2 ·
+          Dollar/Value 0.3. <em>All editable; override per retailer in the U/S/W column.</em>
+        </dd>
+
+        <dt>Unit economics</dt>
+        <dd>
+          $10 wholesale and $20 retail per unit — blended assumption across 15 lb and 34 lb SKUs
+          for opportunity sizing. Actual Walmart wholesale is $9.18 (15 lb) and $12.98 (34 lb)
+          per the Forecast tab's assumptions panel.
+        </dd>
+
+        <dt>Walmart sales data</dt>
+        <dd>
+          All other tabs (Metrics, Monthly, Sales Map, OOS, Store Data, Inventory, Endcap, Trial &amp;
+          Repeat, Forecast) are sourced from Walmart's weekly Luminate / Retail Link reports — the
+          14 Excel files in this repo (202601–202614).
+        </dd>
+      </dl>
+      <div class="rt-sources-foot">
+        Store counts and estimates current as of 2026-05. The Retailers tab is for opportunity sizing
+        and account planning — not a guarantee of distribution. Adjust U/S/W per retailer in the
+        table to model your own assumptions; bumping a row to "Currently In" turns it green.
       </div>
     </div>
   </div>
