@@ -358,24 +358,20 @@ def extract_ecomm_data(df):
 
 def compute_ecomm_weekly(ecomm_l52_raw, ecomm_lw_raw):
     """
-    Build weekly ecomm data:
-      - For L52WK sheets: week-over-week delta vs the immediately preceding
+    Build weekly ecomm data, preferring LW sheets per-product over L52WK deltas:
+      - L52WK sheets contribute week-over-week deltas vs the immediately preceding
         L52WK week.  The 'span' field records how many calendar weeks the
-        delta covers (>1 when there's a gap in the data).
-      - For LW sheets: use directly (span=1).
+        delta covers (>1 when there's a gap in L52WK coverage).
+      - LW sheets are direct 1-week observations and take precedence per-product —
+        they overlay on top of L52WK deltas so any product present in both uses
+        the LW value (span=1).  L52WK fills in any products LW didn't report
+        (e.g. Feline Fresh when the LW sheet is Catalyst-only).
 
     Returns {week: {short_name: {"brand", "r", "u", "span"}}}
     """
     weekly = {}
 
-    # Direct LW observations first
-    for week, prods in ecomm_lw_raw.items():
-        week_out = {}
-        for short, d in prods.items():
-            week_out[short] = {**d, "span": 1}
-        weekly[week] = week_out
-
-    # L52WK deltas
+    # L52WK deltas first (lower precedence)
     l52_weeks = sorted(ecomm_l52_raw.keys())
     for i in range(1, len(l52_weeks)):
         week     = l52_weeks[i]
@@ -397,6 +393,13 @@ def compute_ecomm_weekly(ecomm_l52_raw, ecomm_lw_raw):
             u_delta = (u_c - u_p) if (u_c is not None and u_p is not None) else u_c
             week_out[short] = {"brand": brand, "r": r_delta, "u": u_delta, "span": span}
         weekly[week] = week_out
+
+    # LW observations overlay on top — LW always wins per-product (span=1)
+    for week, prods in ecomm_lw_raw.items():
+        existing = weekly.get(week, {})
+        for short, d in prods.items():
+            existing[short] = {**d, "span": 1}
+        weekly[week] = existing
 
     return weekly
 

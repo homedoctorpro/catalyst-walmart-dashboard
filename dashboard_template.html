@@ -933,9 +933,7 @@
       <div class="chart-card">
         <h3>Weekly Ecomm Retail $ — by Brand</h3>
         <div id="chart-ecomm-weekly" class="chart-div" style="height:300px"></div>
-        <p style="font-size:0.72rem;color:#999;margin-top:4px">
-          ⚠️ Week 6 bar spans 5 calendar weeks (no L52 data for wks 2–5); all others = 1 week.
-        </p>
+        <p id="ecomm-weekly-note" style="font-size:0.72rem;color:#999;margin-top:4px"></p>
       </div>
       <div class="chart-card">
         <h3>L52-Week Cumulative Ecomm $ — Brand Trend</h3>
@@ -3391,6 +3389,13 @@ function initEcomm() {
       .filter(d => d.brand === brand)
       .reduce((s, d) => s + (d.r || 0), 0);
   }
+  // Brand-specific span: a week may show Catalyst (1-wk, from LW sheet) alongside
+  // Feline Fresh (N-wk, from L52WK delta) when the LW sheet is Catalyst-only.
+  function brandSpan(week, brand) {
+    const wData = DATA.ecomm_weekly[week] || {};
+    const ss = Object.values(wData).filter(d => d.brand === brand).map(d => d.span);
+    return ss.length ? Math.max(...ss) : 1;
+  }
 
   // ── KPI Cards ────────────────────────────────────────────────────────────
   const latestWkly  = weeklyWeeks[weeklyWeeks.length - 1];
@@ -3415,55 +3420,64 @@ function initEcomm() {
     kpiContainer.appendChild(card);
   }
 
-  const catLatest  = brandTotal(latestWkly, "Catalyst");
-  const catPrev    = prevWkly ? brandTotal(prevWkly, "Catalyst") : null;
-  const ffLatest   = brandTotal(latestWkly, "Feline Fresh");
-  const ffPrev     = prevWkly ? brandTotal(prevWkly, "Feline Fresh") : null;
-  const catL52     = brandTotalL52(latestL52, "Catalyst");
-  const ffL52      = brandTotalL52(latestL52, "Feline Fresh");
-  const catWoW     = (catPrev && catPrev > 0) ? (catLatest - catPrev) / catPrev * 100 : null;
-  const ffWoW      = (ffPrev && ffPrev > 0)   ? (ffLatest  - ffPrev)  / ffPrev  * 100 : null;
+  const catLatest    = brandTotal(latestWkly, "Catalyst");
+  const catPrev      = prevWkly ? brandTotal(prevWkly, "Catalyst") : null;
+  const ffLatest     = brandTotal(latestWkly, "Feline Fresh");
+  const ffPrev       = prevWkly ? brandTotal(prevWkly, "Feline Fresh") : null;
+  const catL52       = brandTotalL52(latestL52, "Catalyst");
+  const ffL52        = brandTotalL52(latestL52, "Feline Fresh");
+  const catSpanCur   = brandSpan(latestWkly, "Catalyst");
+  const ffSpanCur    = brandSpan(latestWkly, "Feline Fresh");
+  const catSpanPrev  = prevWkly ? brandSpan(prevWkly, "Catalyst") : null;
+  const ffSpanPrev   = prevWkly ? brandSpan(prevWkly, "Feline Fresh") : null;
+  // Only show a WoW % when both weeks have the same span (apples-to-apples).
+  const catWoW = (catPrev && catPrev > 0 && catSpanCur === catSpanPrev)
+    ? (catLatest - catPrev) / catPrev * 100 : null;
+  const ffWoW  = (ffPrev  && ffPrev  > 0 && ffSpanCur  === ffSpanPrev)
+    ? (ffLatest  - ffPrev)  / ffPrev  * 100 : null;
+  const spanTag = s => ` (${s} wk${s > 1 ? "s" : ""})`;
 
   const fmtD = v => "$" + Math.round(v).toLocaleString();
-  mkKpi("Catalyst Weekly Ecomm $", fmtD(catLatest), weekLabel(latestWkly) + " (1 wk)", "#0057e7", catWoW);
-  mkKpi("FF Weekly Ecomm $",       fmtD(ffLatest),  weekLabel(latestWkly) + " (1 wk)", "#2e7d32", ffWoW);
+  mkKpi("Catalyst Weekly Ecomm $", fmtD(catLatest), weekLabel(latestWkly) + spanTag(catSpanCur), "#0057e7", catWoW);
+  mkKpi("FF Weekly Ecomm $",       fmtD(ffLatest),  weekLabel(latestWkly) + spanTag(ffSpanCur),  "#2e7d32", ffWoW);
   mkKpi("Catalyst L52 Total $",    fmtD(catL52),    weekLabel(latestL52) + " cumul.", "#0057e7", null);
   mkKpi("FF L52 Total $",          fmtD(ffL52),     weekLabel(latestL52) + " cumul.", "#2e7d32", null);
   // Catalyst units this week
   const catUnitsLatest = Object.values(DATA.ecomm_weekly[latestWkly] || {})
     .filter(d => d.brand === "Catalyst").reduce((s, d) => s + (d.u || 0), 0);
-  mkKpi("Catalyst Units (wk)", catUnitsLatest.toLocaleString(), weekLabel(latestWkly), "#0057e7", null);
+  mkKpi("Catalyst Units (wk)", catUnitsLatest.toLocaleString(), weekLabel(latestWkly) + spanTag(catSpanCur), "#0057e7", null);
 
   // ── Chart 1: Weekly Ecomm $ by Brand (grouped bars) ──────────────────────
-  const wklyLabels = weeklyWeeks.map(weekLabel);
+  const catSpans = weeklyWeeks.map(w => brandSpan(w, "Catalyst"));
+  const ffSpans  = weeklyWeeks.map(w => brandSpan(w, "Feline Fresh"));
+  const maxSpans = weeklyWeeks.map((w, i) => Math.max(catSpans[i], ffSpans[i]));
+
+  const wklyLabels = weeklyWeeks.map((w, i) =>
+    maxSpans[i] > 1 ? `${weekLabel(w)}<br>(up to ${maxSpans[i]}-wk total)` : weekLabel(w)
+  );
   const catVals = weeklyWeeks.map(w => brandTotal(w, "Catalyst"));
   const ffVals  = weeklyWeeks.map(w => brandTotal(w, "Feline Fresh"));
-  const spans   = weeklyWeeks.map(w => {
-    const d = Object.values(DATA.ecomm_weekly[w] || {})[0];
-    return d ? d.span : 1;
-  });
-  const wklyText = weeklyWeeks.map((w, i) =>
-    spans[i] > 1 ? `${weekLabel(w)}<br>(${spans[i]}-wk total)` : weekLabel(w)
-  );
 
   Plotly.newPlot("chart-ecomm-weekly", [
     {
       name: "Catalyst", type: "bar", x: wklyLabels, y: catVals,
       marker: {
-        color: weeklyWeeks.map((_, i) => spans[i] > 1 ? "rgba(0,87,231,0.4)" : "#0057e7"),
+        color: catSpans.map(s => s > 1 ? "rgba(0,87,231,0.4)" : "#0057e7"),
       },
       text: catVals.map(v => "$" + Math.round(v).toLocaleString()),
       textposition: "outside", textfont: { size: 10 },
-      hovertemplate: "%{x}<br>Catalyst: $%{y:,.0f}<extra></extra>",
+      customdata: catSpans,
+      hovertemplate: "%{x}<br>Catalyst: $%{y:,.0f} (%{customdata}-wk)<extra></extra>",
     },
     {
       name: "Feline Fresh", type: "bar", x: wklyLabels, y: ffVals,
       marker: {
-        color: weeklyWeeks.map((_, i) => spans[i] > 1 ? "rgba(46,125,50,0.4)" : "#2e7d32"),
+        color: ffSpans.map(s => s > 1 ? "rgba(46,125,50,0.4)" : "#2e7d32"),
       },
       text: ffVals.map(v => "$" + Math.round(v).toLocaleString()),
       textposition: "outside", textfont: { size: 10 },
-      hovertemplate: "%{x}<br>FF: $%{y:,.0f}<extra></extra>",
+      customdata: ffSpans,
+      hovertemplate: "%{x}<br>FF: $%{y:,.0f} (%{customdata}-wk)<extra></extra>",
     },
   ], {
     ...PLOTLY_LAYOUT_BASE,
@@ -3471,6 +3485,25 @@ function initEcomm() {
     yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: "Retail $", tickprefix: "$" },
     legend: { orientation: "h", y: -0.45, yanchor: "top", x: 0.5, xanchor: "center", font: { size: 10 } },
   }, cfg);
+
+  // Dynamic span note below the weekly chart
+  const spanNotes = [];
+  weeklyWeeks.forEach((w, i) => {
+    if (catSpans[i] === ffSpans[i]) {
+      if (maxSpans[i] > 1) spanNotes.push(`${weekLabel(w)}: ${maxSpans[i]}-wk total (both brands)`);
+    } else {
+      const parts = [];
+      if (catSpans[i] > 1) parts.push(`Catalyst ${catSpans[i]}-wk`);
+      if (ffSpans[i]  > 1) parts.push(`FF ${ffSpans[i]}-wk`);
+      if (parts.length) spanNotes.push(`${weekLabel(w)}: ${parts.join(", ")} total`);
+    }
+  });
+  const noteEl = document.getElementById("ecomm-weekly-note");
+  if (noteEl) {
+    noteEl.innerHTML = spanNotes.length
+      ? `⚠️ ${spanNotes.join("; ")} — all other bars = 1 week.`
+      : "";
+  }
 
   // ── Chart 2: L52 Cumulative Trend by Brand ────────────────────────────────
   const l52Labels = l52Weeks.map(weekLabel);
@@ -3498,11 +3531,13 @@ function initEcomm() {
   }, cfg);
 
   // ── Chart 3: Catalyst SKU weekly breakdown ────────────────────────────────
-  // Only show span=1 weeks for this chart (per-week accuracy needed)
-  const singleSpanWeeks = weeklyWeeks.filter(w => {
-    const d = Object.values(DATA.ecomm_weekly[w] || {})[0];
-    return !d || d.span === 1;
-  });
+  // Only show weeks where every Catalyst product has span=1 (per-week accuracy needed)
+  const singleSpanWeeks = weeklyWeeks.filter(w =>
+    catalystProducts.every(p => {
+      const d = DATA.ecomm_weekly[w]?.[p];
+      return !d || d.span === 1;
+    })
+  );
   const skuLabels = singleSpanWeeks.map(weekLabel);
 
   Plotly.newPlot("chart-ecomm-catalyst-sku",
@@ -3527,12 +3562,13 @@ function initEcomm() {
     ...ff_products.sort(),
   ];
 
-  // Header
+  // Header — show max span per week (per-product spans can vary within a week)
   const thead = document.getElementById("ecomm-thead-row");
   thead.innerHTML = `<th>Product</th><th>Brand</th>` +
     weeklyWeeks.map(w => {
-      const span = (Object.values(DATA.ecomm_weekly[w] || {})[0] || {}).span || 1;
-      const note = span > 1 ? ` (${span}wk)` : "";
+      const spans = Object.values(DATA.ecomm_weekly[w] || {}).map(d => d.span || 1);
+      const maxS = spans.length ? Math.max(...spans) : 1;
+      const note = maxS > 1 ? ` (up to ${maxS}wk)` : "";
       return `<th>${weekLabel(w)}${note}</th>`;
     }).join("");
 
