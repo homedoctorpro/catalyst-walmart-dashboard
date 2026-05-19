@@ -3420,43 +3420,47 @@ function initEcomm() {
     kpiContainer.appendChild(card);
   }
 
-  const catLatest    = brandTotal(latestWkly, "Catalyst");
-  const catPrev      = prevWkly ? brandTotal(prevWkly, "Catalyst") : null;
-  const ffLatest     = brandTotal(latestWkly, "Feline Fresh");
-  const ffPrev       = prevWkly ? brandTotal(prevWkly, "Feline Fresh") : null;
-  const catL52       = brandTotalL52(latestL52, "Catalyst");
-  const ffL52        = brandTotalL52(latestL52, "Feline Fresh");
   const catSpanCur   = brandSpan(latestWkly, "Catalyst");
   const ffSpanCur    = brandSpan(latestWkly, "Feline Fresh");
   const catSpanPrev  = prevWkly ? brandSpan(prevWkly, "Catalyst") : null;
   const ffSpanPrev   = prevWkly ? brandSpan(prevWkly, "Feline Fresh") : null;
-  // Only show a WoW % when both weeks have the same span (apples-to-apples).
-  const catWoW = (catPrev && catPrev > 0 && catSpanCur === catSpanPrev)
-    ? (catLatest - catPrev) / catPrev * 100 : null;
-  const ffWoW  = (ffPrev  && ffPrev  > 0 && ffSpanCur  === ffSpanPrev)
-    ? (ffLatest  - ffPrev)  / ffPrev  * 100 : null;
-  const spanTag = s => ` (${s} wk${s > 1 ? "s" : ""})`;
+  // KPI values are per-week averages (totals divided by span) for apples-to-apples comparison.
+  const catLatest    = brandTotal(latestWkly, "Catalyst")     / catSpanCur;
+  const catPrev      = prevWkly ? brandTotal(prevWkly, "Catalyst")     / catSpanPrev : null;
+  const ffLatest     = brandTotal(latestWkly, "Feline Fresh") / ffSpanCur;
+  const ffPrev       = prevWkly ? brandTotal(prevWkly, "Feline Fresh") / ffSpanPrev  : null;
+  const catL52       = brandTotalL52(latestL52, "Catalyst");
+  const ffL52        = brandTotalL52(latestL52, "Feline Fresh");
+  const catWoW = (catPrev && catPrev > 0) ? (catLatest - catPrev) / catPrev * 100 : null;
+  const ffWoW  = (ffPrev  && ffPrev  > 0) ? (ffLatest  - ffPrev)  / ffPrev  * 100 : null;
+  const spanTag = s => s > 1 ? ` (${s}-wk avg)` : " (1 wk)";
 
   const fmtD = v => "$" + Math.round(v).toLocaleString();
   mkKpi("Catalyst Weekly Ecomm $", fmtD(catLatest), weekLabel(latestWkly) + spanTag(catSpanCur), "#0057e7", catWoW);
   mkKpi("FF Weekly Ecomm $",       fmtD(ffLatest),  weekLabel(latestWkly) + spanTag(ffSpanCur),  "#2e7d32", ffWoW);
   mkKpi("Catalyst L52 Total $",    fmtD(catL52),    weekLabel(latestL52) + " cumul.", "#0057e7", null);
   mkKpi("FF L52 Total $",          fmtD(ffL52),     weekLabel(latestL52) + " cumul.", "#2e7d32", null);
-  // Catalyst units this week
-  const catUnitsLatest = Object.values(DATA.ecomm_weekly[latestWkly] || {})
+  // Catalyst units this week (also per-week avg)
+  const catUnitsTotal = Object.values(DATA.ecomm_weekly[latestWkly] || {})
     .filter(d => d.brand === "Catalyst").reduce((s, d) => s + (d.u || 0), 0);
+  const catUnitsLatest = Math.round(catUnitsTotal / catSpanCur);
   mkKpi("Catalyst Units (wk)", catUnitsLatest.toLocaleString(), weekLabel(latestWkly) + spanTag(catSpanCur), "#0057e7", null);
 
   // ── Chart 1: Weekly Ecomm $ by Brand (grouped bars) ──────────────────────
+  // For weeks where the L52WK delta covers multiple calendar weeks (gap in
+  // Walmart's L52WK coverage), normalize to per-week average so the bar
+  // height is comparable to true 1-week bars.
   const catSpans = weeklyWeeks.map(w => brandSpan(w, "Catalyst"));
   const ffSpans  = weeklyWeeks.map(w => brandSpan(w, "Feline Fresh"));
   const maxSpans = weeklyWeeks.map((w, i) => Math.max(catSpans[i], ffSpans[i]));
 
   const wklyLabels = weeklyWeeks.map((w, i) =>
-    maxSpans[i] > 1 ? `${weekLabel(w)}<br>(up to ${maxSpans[i]}-wk total)` : weekLabel(w)
+    maxSpans[i] > 1 ? `${weekLabel(w)}<br>(${maxSpans[i]}-wk avg)` : weekLabel(w)
   );
-  const catVals = weeklyWeeks.map(w => brandTotal(w, "Catalyst"));
-  const ffVals  = weeklyWeeks.map(w => brandTotal(w, "Feline Fresh"));
+  const catTotals = weeklyWeeks.map(w => brandTotal(w, "Catalyst"));
+  const ffTotals  = weeklyWeeks.map(w => brandTotal(w, "Feline Fresh"));
+  const catVals   = catTotals.map((v, i) => v / catSpans[i]);   // per-week avg
+  const ffVals    = ffTotals.map((v, i)  => v / ffSpans[i]);
 
   Plotly.newPlot("chart-ecomm-weekly", [
     {
@@ -3466,8 +3470,9 @@ function initEcomm() {
       },
       text: catVals.map(v => "$" + Math.round(v).toLocaleString()),
       textposition: "outside", textfont: { size: 10 },
-      customdata: catSpans,
-      hovertemplate: "%{x}<br>Catalyst: $%{y:,.0f} (%{customdata}-wk)<extra></extra>",
+      customdata: catSpans.map((s, i) => [s, catTotals[i]]),
+      hovertemplate: "%{x}<br>Catalyst: $%{y:,.0f}/wk avg" +
+        " (over %{customdata[0]} wk, total $%{customdata[1]:,.0f})<extra></extra>",
     },
     {
       name: "Feline Fresh", type: "bar", x: wklyLabels, y: ffVals,
@@ -3476,13 +3481,14 @@ function initEcomm() {
       },
       text: ffVals.map(v => "$" + Math.round(v).toLocaleString()),
       textposition: "outside", textfont: { size: 10 },
-      customdata: ffSpans,
-      hovertemplate: "%{x}<br>FF: $%{y:,.0f} (%{customdata}-wk)<extra></extra>",
+      customdata: ffSpans.map((s, i) => [s, ffTotals[i]]),
+      hovertemplate: "%{x}<br>FF: $%{y:,.0f}/wk avg" +
+        " (over %{customdata[0]} wk, total $%{customdata[1]:,.0f})<extra></extra>",
     },
   ], {
     ...PLOTLY_LAYOUT_BASE,
     barmode: "group",
-    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: "Retail $", tickprefix: "$" },
+    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: "Retail $ (per wk)", tickprefix: "$" },
     legend: { orientation: "h", y: -0.45, yanchor: "top", x: 0.5, xanchor: "center", font: { size: 10 } },
   }, cfg);
 
@@ -3490,18 +3496,18 @@ function initEcomm() {
   const spanNotes = [];
   weeklyWeeks.forEach((w, i) => {
     if (catSpans[i] === ffSpans[i]) {
-      if (maxSpans[i] > 1) spanNotes.push(`${weekLabel(w)}: ${maxSpans[i]}-wk total (both brands)`);
+      if (maxSpans[i] > 1) spanNotes.push(`${weekLabel(w)}: ${maxSpans[i]}-wk avg (both brands)`);
     } else {
       const parts = [];
       if (catSpans[i] > 1) parts.push(`Catalyst ${catSpans[i]}-wk`);
       if (ffSpans[i]  > 1) parts.push(`FF ${ffSpans[i]}-wk`);
-      if (parts.length) spanNotes.push(`${weekLabel(w)}: ${parts.join(", ")} total`);
+      if (parts.length) spanNotes.push(`${weekLabel(w)}: ${parts.join(", ")} avg`);
     }
   });
   const noteEl = document.getElementById("ecomm-weekly-note");
   if (noteEl) {
     noteEl.innerHTML = spanNotes.length
-      ? `⚠️ ${spanNotes.join("; ")} — all other bars = 1 week.`
+      ? `⚠️ Faded bars are per-week averages of multi-week L52WK deltas (no LW data for gap weeks). ${spanNotes.join("; ")}.`
       : "";
   }
 
@@ -3563,23 +3569,28 @@ function initEcomm() {
   ];
 
   // Header — show max span per week (per-product spans can vary within a week)
+  // All cell values are per-week averages (raw L52WK delta / span) for comparability.
   const thead = document.getElementById("ecomm-thead-row");
   thead.innerHTML = `<th>Product</th><th>Brand</th>` +
     weeklyWeeks.map(w => {
       const spans = Object.values(DATA.ecomm_weekly[w] || {}).map(d => d.span || 1);
       const maxS = spans.length ? Math.max(...spans) : 1;
-      const note = maxS > 1 ? ` (up to ${maxS}wk)` : "";
+      const note = maxS > 1 ? ` <span style="font-weight:400;color:#888">(${maxS}-wk avg)</span>` : "";
       return `<th>${weekLabel(w)}${note}</th>`;
     }).join("");
 
-  // Rows
+  // Rows — values are normalized to per-week average per product (r / span)
   const tbody = document.getElementById("ecomm-tbody");
   tbody.innerHTML = "";
   const fmtCell = v => v != null ? "$" + Math.round(v).toLocaleString() : "—";
 
   orderedProds.forEach(prod => {
     const brand = (Object.values(DATA.ecomm_weekly).map(w => w[prod]).find(x => x) || {}).brand || "";
-    const vals  = weeklyWeeks.map(w => (DATA.ecomm_weekly[w]?.[prod]?.r) ?? null);
+    const vals  = weeklyWeeks.map(w => {
+      const d = DATA.ecomm_weekly[w]?.[prod];
+      if (!d || d.r == null) return null;
+      return d.r / (d.span || 1);
+    });
     if (vals.every(v => v === null || v === 0)) return; // skip all-zero rows
     const tr = document.createElement("tr");
     tr.innerHTML = `<td>${prod}</td><td style="color:${BRAND_COLOR[brand]||'#444'};font-weight:600">${brand}</td>` +
@@ -3587,13 +3598,13 @@ function initEcomm() {
     tbody.appendChild(tr);
   });
 
-  // Brand sub-total rows
+  // Brand sub-total rows (per-week avg — total / brand span)
   ["Catalyst", "Feline Fresh"].forEach(brand => {
-    const vals = weeklyWeeks.map(w => brandTotal(w, brand));
+    const vals = weeklyWeeks.map(w => brandTotal(w, brand) / brandSpan(w, brand));
     const tr = document.createElement("tr");
     tr.style.fontWeight = "700";
     tr.style.background = "#f0f4ff";
-    tr.innerHTML = `<td>${brand} Total</td><td style="color:${BRAND_COLOR[brand]}">${brand}</td>` +
+    tr.innerHTML = `<td>${brand} (per wk avg)</td><td style="color:${BRAND_COLOR[brand]}">${brand}</td>` +
       vals.map(v => `<td style="color:${BRAND_COLOR[brand]}">$${Math.round(v).toLocaleString()}</td>`).join("");
     tbody.appendChild(tr);
   });
