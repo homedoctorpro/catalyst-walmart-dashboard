@@ -1330,7 +1330,7 @@
   <!-- ── Tab: Forecast ─────────────────────────────────────────────────────── -->
   <div id="tab-forecast" class="tab-panel">
     <div style="background:#fff;border-radius:12px;padding:14px 18px;margin-bottom:14px;font-size:0.82rem;color:#555;border-left:4px solid #9c27b0">
-      <strong style="color:#222">Monthly forecast through Jun 2031.</strong>
+      <strong style="color:#222">Monthly forecast through Jun 2032.</strong>
       Historical months: <em>new units</em> = POS units × (Luminate new transactions ÷ total transactions).
       Forecast months: new units decay <strong>toward a floor</strong> each month (so the line plateaus rather than going to zero);
       repeats accumulate from prior cohorts at +2, +4, +6… months with multiplicative cycle decay.
@@ -2568,7 +2568,7 @@ function copyMonthlyMetric(evt) {
 }
 
 // ══ Tab: Forecast ═════════════════════════════════════════════════════════════
-// Monthly forecast per SKU + per-size + total, through Jun 2031.
+// Monthly forecast per SKU + per-size + total, through Jun 2032.
 //
 // Historical phase (months with complete POS data + Luminate coverage):
 //   new_units(M, SKU)    = pos_units(M, SKU) × (luminate_new_txns / total_txns)
@@ -2583,7 +2583,7 @@ function copyMonthlyMetric(evt) {
 // Wholesale $ and gross profit $ apply per-size rates to total_units.
 const FC_ASP   = { "15": 9.18,  "34": 12.98 };
 const FC_GP    = { "15": 3.02,  "34":  4.95 };
-const FC_HORIZON_MONTHS = 62;   // May 2026 → Jun 2031 (covers FY27–FY31 in full)
+const FC_HORIZON_MONTHS = 74;   // May 2026 → Jun 2032 (covers FY27–FY32 in full)
 const FC_SHORT_TO_LONG = Object.fromEntries(Object.entries(SKU_SHORT).map(([l, s]) => [s, l]));
 
 // Indicated U/S/W: derive store-placement counts from the latest reporting week,
