@@ -343,6 +343,10 @@
   .fa-ref-tag.tag-15 { background: #0057e7; }
   .fa-ref-tag.tag-34 { background: #e67300; }
   .fa-actions { display: flex; align-items: end; }
+  .fc-presets { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .fc-presets-label { font-size: 0.78rem; font-weight: 700; color: #6a1b9a; text-transform: uppercase;
+                      letter-spacing: 0.03em; }
+  .fc-presets-hint { font-size: 0.72rem; color: #999; }
   .fc-row-size  { background: #f6f9ff; font-weight: 600; }
   .fc-row-total { background: #eef3ff; font-weight: 700; color: #0057e7; }
 
@@ -1338,11 +1342,20 @@
     </div>
 
     <!-- Assumption Panel -->
+    <!-- Scenario presets — one click sets the four assumptions below -->
+    <div class="fc-presets">
+      <span class="fc-presets-label">Scenario:</span>
+      <button class="pill-btn theme-fc" data-fcpreset="downside" onclick="applyForecastPreset('downside')">Downside</button>
+      <button class="pill-btn theme-fc" data-fcpreset="base"     onclick="applyForecastPreset('base')">Base case</button>
+      <button class="pill-btn theme-fc" data-fcpreset="upside"   onclick="applyForecastPreset('upside')">Upside</button>
+      <span class="fc-presets-hint">One click sets the four assumptions below; edit any value for a custom scenario.</span>
+    </div>
+
     <div class="forecast-assumptions" id="forecast-assumptions">
       <div class="fa-group">
         <label class="fa-label">New-trialer monthly decay</label>
         <div class="fa-input-row">
-          <input type="number" id="fa-decay-new" value="3" step="0.1" min="0" max="100">
+          <input type="number" id="fa-decay-new" value="2" step="0.1" min="0" max="100">
           <span class="fa-unit">% / month</span>
         </div>
         <div class="fa-hint">Decay toward the floor: new_t+1 = floor + (new_t − floor) × (1 − decay).</div>
@@ -1350,7 +1363,7 @@
       <div class="fa-group">
         <label class="fa-label">Long-run new-trialer floor</label>
         <div class="fa-input-row">
-          <input type="number" id="fa-new-floor" value="30" step="1" min="0" max="100">
+          <input type="number" id="fa-new-floor" value="50" step="1" min="0" max="100">
           <span class="fa-unit">% of starting level</span>
         </div>
         <div class="fa-hint">Plateau new trialers can decay to. 0% → decays to zero (old behavior). 100% → no decay.</div>
@@ -2666,8 +2679,8 @@ function fcReadAssumptions() {
 }
 
 function resetForecastAssumptions() {
-  document.getElementById("fa-decay-new").value      = "3";
-  document.getElementById("fa-new-floor").value      = "30";
+  document.getElementById("fa-decay-new").value      = "2";
+  document.getElementById("fa-new-floor").value      = "50";
   document.getElementById("fa-repeat-initial").value = "50";
   document.getElementById("fa-repeat-decay").value   = "5";
   refreshForecast();
@@ -2798,11 +2811,46 @@ function fcBuildForecast(assumptions) {
   };
 }
 
+// Scenario presets: each sets the four assumption inputs in one click.
+const FC_PRESETS = {
+  downside: { decay: 3, floor: 30, repeat: 50, rdecay: 7.5 },
+  base:     { decay: 2, floor: 50, repeat: 50, rdecay: 5   },
+  upside:   { decay: 1, floor: 85, repeat: 60, rdecay: 4   },
+};
+
+function applyForecastPreset(name) {
+  const p = FC_PRESETS[name];
+  if (!p) return;
+  document.getElementById("fa-decay-new").value      = p.decay;
+  document.getElementById("fa-new-floor").value      = p.floor;
+  document.getElementById("fa-repeat-initial").value = p.repeat;
+  document.getElementById("fa-repeat-decay").value   = p.rdecay;
+  refreshForecast();
+}
+
+// Highlight the preset matching the current inputs (none if the user has a custom mix).
+function fcSyncPresetActive() {
+  const cur = {
+    decay:  parseFloat(document.getElementById("fa-decay-new").value),
+    floor:  parseFloat(document.getElementById("fa-new-floor").value),
+    repeat: parseFloat(document.getElementById("fa-repeat-initial").value),
+    rdecay: parseFloat(document.getElementById("fa-repeat-decay").value),
+  };
+  let match = null;
+  for (const [name, p] of Object.entries(FC_PRESETS)) {
+    if (p.decay === cur.decay && p.floor === cur.floor &&
+        p.repeat === cur.repeat && p.rdecay === cur.rdecay) { match = name; break; }
+  }
+  document.querySelectorAll(".pill-btn.theme-fc[data-fcpreset]").forEach(b =>
+    b.classList.toggle("active", b.dataset.fcpreset === match));
+}
+
 function refreshForecast() {
   FC_RESULT = fcBuildForecast(fcReadAssumptions());
   renderForecastKPIs();
   renderForecastCharts();
   renderForecastTable();
+  fcSyncPresetActive();
 }
 
 function initForecast() {
