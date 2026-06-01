@@ -1056,6 +1056,14 @@
       </div>
     </div>
 
+    <!-- Assortment depth: avg SKUs per carrying store -->
+    <div class="chart-grid" style="grid-template-columns: 1fr; margin-top:18px">
+      <div class="chart-card">
+        <h3>Avg Catalyst SKUs per Carrying Store — Week over Week <span style="font-weight:400;color:#888;font-size:0.8rem">(assortment depth: total SKU-doors ÷ unique carrying stores)</span></h3>
+        <div id="chart-dist-depth" class="chart-div" style="height:260px"></div>
+      </div>
+    </div>
+
     <!-- WoW net change (gains/losses) -->
     <div class="chart-grid" style="grid-template-columns: 1fr; margin-top:18px">
       <div class="chart-card">
@@ -1861,7 +1869,7 @@ function switchTab(name, btn) {
   if (name === "distribution") {
     if (!distributionInit) { initDistribution(); distributionInit = true; }
     else setTimeout(() => {
-      ["chart-dist-trend","chart-dist-wow"].forEach(id => {
+      ["chart-dist-trend","chart-dist-depth","chart-dist-wow"].forEach(id => {
         const el = document.getElementById(id); if (el) Plotly.Plots.resize(el);
       });
     }, 50);
@@ -4023,6 +4031,21 @@ function initDistribution() {
     Plotly.react("chart-dist-trend", trendTraces, {
       ...PLOTLY_LAYOUT_BASE,
       yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: "Stores " + noun, tickformat: "," },
+    }, cfg);
+
+    // Assortment depth: avg SKUs per carrying store (all SKUs, ignores chip filter)
+    const depthY = storeWeeks.map(w => {
+      const anyN = countAt(w, ANY);
+      return anyN ? DATA.skus.reduce((a, s) => a + countAt(w, s), 0) / anyN : null;
+    });
+    Plotly.react("chart-dist-depth", [{
+      x: xLabels, y: depthY, name: "Avg SKUs/store",
+      type: "scatter", mode: "lines+markers",
+      line: { color: "#0057e7", width: 3 }, marker: { color: "#0057e7", size: 6 },
+      hovertemplate: "%{y:.2f} SKUs/store<extra></extra>",
+    }], {
+      ...PLOTLY_LAYOUT_BASE,
+      yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: "Avg SKUs per store", tickformat: ".2f" },
     }, cfg);
 
     const wowWeeks = storeWeeks.slice(1);
