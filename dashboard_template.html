@@ -4106,6 +4106,24 @@ function initDistribution() {
       tr.innerHTML = cells;
       tbody.appendChild(tr);
     });
+
+    // Summary row: latest vs initial (first week) — absolute + % change
+    const firstW = storeWeeks[0];
+    const sumTr = document.createElement("tr");
+    sumTr.style.cssText = "font-weight:700;border-top:2px solid #333;background:#fafafa";
+    let sumCells = `<td>Δ vs ${weekLabel(firstW)}</td>`;
+    series.forEach(s => {
+      const base = countAt(firstW, s);
+      const abs  = countAt(latestW, s) - base;
+      const pct  = base ? (abs / base * 100) : null;
+      const col  = abs > 0 ? "#2e7d32" : (abs < 0 ? "#d32f2f" : "#555");
+      const sign = abs > 0 ? "+" : (abs < 0 ? "−" : "±");
+      const pctStr = pct == null ? "—" : `${sign}${Math.abs(pct).toFixed(1)}%`;
+      sumCells += `<td style="color:${col}">${sign}${Math.abs(abs).toLocaleString()}` +
+        `<span style="font-size:0.72rem;font-weight:600"> (${pctStr})</span></td>`;
+    });
+    sumTr.innerHTML = sumCells;
+    tbody.appendChild(sumTr);
   }
 
   function renderAll() { renderKpis(); rebuildDistCharts(); renderChangeCards(); renderTable(); }
