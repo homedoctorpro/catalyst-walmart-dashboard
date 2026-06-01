@@ -1030,14 +1030,20 @@
   <!-- ── Tab: Distribution ────────────────────────────────────────────────── -->
   <div id="tab-distribution" class="tab-panel">
     <p style="font-size:0.82rem; color:#666; margin:4px 2px 0; line-height:1.45">
-      <b>Distribution</b> = number of stores physically stocking each SKU each week (on-hand inventory &gt; 0).
-      <b>Any SKU</b> counts unique stores carrying at least one Catalyst product. WoW change of stores stocking
-      flags distribution <span style="color:#2e7d32;font-weight:700">gains</span> and
+      <b>Authorized</b> = stores Walmart lists as carrying the SKU (the count we <i>should</i> be in) —
+      <b>including stores currently at zero inventory</b>.
+      <b>Holding inventory</b> = the subset physically stocking it now (on-hand &gt; 0); the gap between the
+      two is authorized stores sitting empty (OOS at shelf).
+      <b>Any SKU</b> counts unique stores for at least one Catalyst product. WoW change flags distribution
+      <span style="color:#2e7d32;font-weight:700">gains</span> and
       <span style="color:#d32f2f;font-weight:700">losses</span>.
     </p>
 
+    <!-- Metric mode toggle -->
+    <div id="dist-metric-toggle" style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap"></div>
+
     <!-- KPI row: latest-week store counts per SKU + Any, with WoW gain/loss -->
-    <div class="kpi-row" id="dist-kpi-row" style="grid-template-columns: repeat(5, 1fr)"></div>
+    <div class="kpi-row" id="dist-kpi-row" style="grid-template-columns: repeat(5, 1fr); margin-top:12px"></div>
 
     <!-- SKU chip filter -->
     <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap" id="dist-sku-chips"></div>
@@ -3871,7 +3877,7 @@ function initInventory() {
   });
 }
 
-// ══ Tab: Distribution (stores stocking over time) ════════════════════════════
+// ══ Tab: Distribution (stores authorized / stocking over time) ═══════════════
 function initDistribution() {
   const cfg        = { responsive: true, displayModeBar: false };
   const storeWeeks = DATA.store_weeks;            // weeks with by-store data
@@ -3879,54 +3885,77 @@ function initDistribution() {
   const latestW    = storeWeeks[storeWeeks.length - 1];
   const prevW      = storeWeeks.length >= 2 ? storeWeeks[storeWeeks.length - 2] : null;
 
-  // "Stocked" = store holds on-hand inventory (>0) of that SKU this week.
-  // Compute, per week, the set of stores stocking each SKU + the union ("Any").
   const ANY = "Any";
   const series = [ANY, ...DATA.skus];
   const seriesColor = s => (s === ANY ? "#333" : SKU_COLORS[s]);
   const seriesLabel = s => (s === ANY ? "Any SKU" : (SKU_SHORT[s] || s));
 
-  // storeSets[week][series] = Set(store_num)
-  const storeSets = {};
-  storeWeeks.forEach(w => {
-    const wData = DATA.weekly_stores[w] || {};
-    const sets = {}; series.forEach(s => sets[s] = new Set());
-    Object.entries(wData).forEach(([sn, sdata]) => {
-      let carriesAny = false;
-      DATA.skus.forEach(sku => {
-        const oh = ((sdata.skus || {})[sku] || {}).on_hand || 0;
-        if (oh > 0) { sets[sku].add(sn); carriesAny = true; }
+  // Two definitions of "in distribution":
+  //   authorized = store is listed for the SKU in Walmart's report (row exists),
+  //                INCLUDING stores currently at zero inventory ("should be in").
+  //   instock    = the subset physically holding on-hand inventory (on_hand > 0).
+  // sets[mode][week][series] = Set(store_num)
+  function buildSets(mode) {
+    const out = {};
+    storeWeeks.forEach(w => {
+      const wData = DATA.weekly_stores[w] || {};
+      const sets = {}; series.forEach(s => sets[s] = new Set());
+      Object.entries(wData).forEach(([sn, sdata]) => {
+        let any = false;
+        DATA.skus.forEach(sku => {
+          const rec = (sdata.skus || {})[sku];
+          if (!rec) return;                                  // not listed for this SKU
+          const inDist = mode === "authorized" ? true : ((rec.on_hand || 0) > 0);
+          if (inDist) { sets[sku].add(sn); any = true; }
+        });
+        if (any) sets[ANY].add(sn);
       });
-      if (carriesAny) sets[ANY].add(sn);
+      out[w] = sets;
     });
-    storeSets[w] = sets;
-  });
-  const countAt = (w, s) => (storeSets[w] ? storeSets[w][s].size : 0);
+    return out;
+  }
+  const SETS = { authorized: buildSets("authorized"), instock: buildSets("instock") };
+  const MODE_LABEL = { authorized: "Authorized", instock: "Holding inventory" };
+  let mode = "authorized";
+  let storeSets = SETS[mode];
+  const countAt    = (w, s) => (storeSets[w] ? storeSets[w][s].size : 0);
+  const countIn    = (m, w, s) => (SETS[m][w] ? SETS[m][w][s].size : 0);
 
-  // ── KPI cards: latest-week count + WoW gain/loss ────────────────────────────
-  const kpiContainer = document.getElementById("dist-kpi-row");
-  kpiContainer.innerHTML = "";
-  series.forEach(s => {
-    const cur  = countAt(latestW, s);
-    const prev = prevW ? countAt(prevW, s) : null;
-    let chgHtml = "";
-    if (prev != null) {
-      const d = cur - prev;
-      const color = d > 0 ? "#2e7d32" : (d < 0 ? "#d32f2f" : "#555");
-      const sign  = d > 0 ? "+" : (d < 0 ? "−" : "±");
-      chgHtml = `<span class="kpi-chg" style="color:${color}">${sign}${Math.abs(d)} WoW</span>`;
-    }
-    const card = document.createElement("div");
-    card.className = "kpi-card";
-    card.style.borderLeftColor = seriesColor(s);
-    card.innerHTML = `<div class="kpi-label">${seriesLabel(s)} — Stores Stocking</div>
-      <div class="kpi-value">${cur.toLocaleString()}${chgHtml}</div>
-      <div class="kpi-sub">${weekLabel(latestW)}</div>`;
-    kpiContainer.appendChild(card);
+  const storeLabel = sn => {
+    const st = DATA.stores[sn] || {};
+    const city = st.city ? String(st.city).replace(/\b\w/g, c => c.toUpperCase()) : "";
+    const where = [city, st.state].filter(Boolean).join(", ");
+    return `#${sn}${where ? " (" + where + ")" : ""}`;
+  };
+
+  const visible = new Set(series);
+
+  // ── Metric mode toggle ──────────────────────────────────────────────────────
+  const toggle = document.getElementById("dist-metric-toggle");
+  toggle.innerHTML = `<span style="font-size:0.8rem;color:#666;font-weight:600">Count stores:</span>`;
+  const modeBtns = {};
+  [["authorized","Authorized (should be in)"],["instock","Holding inventory (on-hand > 0)"]].forEach(([m, txt]) => {
+    const b = document.createElement("button");
+    b.textContent = txt;
+    b.style.cssText = "cursor:pointer;font-size:0.8rem;border-radius:16px;padding:5px 14px;border:2px solid #0057e7;background:#fff;color:#0057e7;font-weight:600";
+    b.addEventListener("click", () => {
+      if (mode === m) return;
+      mode = m; storeSets = SETS[mode];
+      Object.entries(modeBtns).forEach(([mm, bb]) => {
+        const on = mm === mode;
+        bb.style.background = on ? "#0057e7" : "#fff";
+        bb.style.color      = on ? "#fff"    : "#0057e7";
+      });
+      renderAll();
+    });
+    modeBtns[m] = b;
+    toggle.appendChild(b);
   });
+  // initial active styling
+  modeBtns.authorized.style.background = "#0057e7";
+  modeBtns.authorized.style.color = "#fff";
 
   // ── SKU chip filter ─────────────────────────────────────────────────────────
-  const visible = new Set(series);
   const chipContainer = document.getElementById("dist-sku-chips");
   chipContainer.innerHTML = "";
   series.forEach(s => {
@@ -3947,11 +3976,41 @@ function initDistribution() {
     chipContainer.appendChild(lbl);
   });
 
+  // ── KPI cards: latest-week count + WoW gain/loss (+ empty-store gap) ─────────
+  function renderKpis() {
+    const kpiContainer = document.getElementById("dist-kpi-row");
+    kpiContainer.innerHTML = "";
+    series.forEach(s => {
+      const cur  = countAt(latestW, s);
+      const prev = prevW ? countAt(prevW, s) : null;
+      let chgHtml = "";
+      if (prev != null) {
+        const d = cur - prev;
+        const color = d > 0 ? "#2e7d32" : (d < 0 ? "#d32f2f" : "#555");
+        const sign  = d > 0 ? "+" : (d < 0 ? "−" : "±");
+        chgHtml = `<span class="kpi-chg" style="color:${color}">${sign}${Math.abs(d)} WoW</span>`;
+      }
+      // In authorized mode, surface how many of those are sitting at zero inventory.
+      let sub = weekLabel(latestW);
+      if (mode === "authorized") {
+        const empty = countIn("authorized", latestW, s) - countIn("instock", latestW, s);
+        sub += ` · <span style="color:#d32f2f">${empty.toLocaleString()} at 0 inv</span>`;
+      }
+      const card = document.createElement("div");
+      card.className = "kpi-card";
+      card.style.borderLeftColor = seriesColor(s);
+      card.innerHTML = `<div class="kpi-label">${seriesLabel(s)} — ${MODE_LABEL[mode]}</div>
+        <div class="kpi-value">${cur.toLocaleString()}${chgHtml}</div>
+        <div class="kpi-sub">${sub}</div>`;
+      kpiContainer.appendChild(card);
+    });
+  }
+
   // ── Trend + WoW net-change charts ───────────────────────────────────────────
   function rebuildDistCharts() {
     const shown = series.filter(s => visible.has(s));
+    const noun = mode === "authorized" ? "authorized" : "stocking";
 
-    // Trend (lines)
     const trendTraces = shown.map(s => ({
       x: xLabels,
       y: storeWeeks.map(w => countAt(w, s)),
@@ -3963,10 +4022,9 @@ function initDistribution() {
     }));
     Plotly.react("chart-dist-trend", trendTraces, {
       ...PLOTLY_LAYOUT_BASE,
-      yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: "Stores stocking", tickformat: "," },
+      yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: "Stores " + noun, tickformat: "," },
     }, cfg);
 
-    // WoW net change (bars) — week-over-week delta in store count
     const wowWeeks = storeWeeks.slice(1);
     const wowLabels = wowWeeks.map(weekLabel);
     const wowTraces = shown.map(s => ({
@@ -3983,23 +4041,18 @@ function initDistribution() {
       yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: "Net store change vs prior week", tickformat: ",", zeroline: true, zerolinecolor: "#bbb", zerolinewidth: 1 },
     }, cfg);
   }
-  rebuildDistCharts();
 
   // ── Latest-week gain/loss detail cards ──────────────────────────────────────
-  const storeLabel = sn => {
-    const st = DATA.stores[sn] || {};
-    const city = st.city ? String(st.city).replace(/\b\w/g, c => c.toUpperCase()) : "";
-    const where = [city, st.state].filter(Boolean).join(", ");
-    return `#${sn}${where ? " (" + where + ")" : ""}`;
-  };
-  const changeTitle = document.getElementById("dist-change-title");
-  const changeCards = document.getElementById("dist-change-cards");
-  changeCards.innerHTML = "";
-  if (!prevW) {
-    changeTitle.textContent = "Latest Week Distribution Changes";
-    changeCards.innerHTML = `<div style="color:#888">No prior week available.</div>`;
-  } else {
-    changeTitle.textContent = `Distribution Changes — ${weekLabel(latestW)} vs ${weekLabel(prevW)}`;
+  function renderChangeCards() {
+    const changeTitle = document.getElementById("dist-change-title");
+    const changeCards = document.getElementById("dist-change-cards");
+    changeCards.innerHTML = "";
+    if (!prevW) {
+      changeTitle.textContent = "Latest Week Distribution Changes";
+      changeCards.innerHTML = `<div style="color:#888">No prior week available.</div>`;
+      return;
+    }
+    changeTitle.textContent = `Distribution Changes (${MODE_LABEL[mode]}) — ${weekLabel(latestW)} vs ${weekLabel(prevW)}`;
     series.forEach(s => {
       const cur = storeSets[latestW][s], prev = storeSets[prevW][s];
       const gained = [...cur].filter(sn => !prev.has(sn));
@@ -4027,31 +4080,36 @@ function initDistribution() {
     });
   }
 
-  // ── Weekly store-count table (with WoW Δ on latest row) ──────────────────────
-  const thRow = document.getElementById("dist-thead-row");
-  thRow.innerHTML = `<th>Week</th>` + series.map(s =>
-    `<th style="color:${seriesColor(s)}">${seriesLabel(s)}</th>`).join("");
-  const tbody = document.getElementById("dist-tbody");
-  tbody.innerHTML = "";
-  storeWeeks.forEach((w, i) => {
-    const tr = document.createElement("tr");
-    if (w === latestW) { tr.style.fontWeight = "700"; tr.style.background = "#f0f4ff"; }
-    let cells = `<td>${weekLabel(w)}</td>`;
-    series.forEach(s => {
-      const c = countAt(w, s);
-      let deltaHtml = "";
-      if (i > 0) {
-        const d = c - countAt(storeWeeks[i - 1], s);
-        if (d !== 0) {
-          const col = d > 0 ? "#2e7d32" : "#d32f2f";
-          deltaHtml = ` <span style="font-size:0.72rem;color:${col}">(${d > 0 ? "+" : "−"}${Math.abs(d)})</span>`;
+  // ── Weekly store-count table (with WoW Δ) ───────────────────────────────────
+  function renderTable() {
+    const thRow = document.getElementById("dist-thead-row");
+    thRow.innerHTML = `<th>Week</th>` + series.map(s =>
+      `<th style="color:${seriesColor(s)}">${seriesLabel(s)}</th>`).join("");
+    const tbody = document.getElementById("dist-tbody");
+    tbody.innerHTML = "";
+    storeWeeks.forEach((w, i) => {
+      const tr = document.createElement("tr");
+      if (w === latestW) { tr.style.fontWeight = "700"; tr.style.background = "#f0f4ff"; }
+      let cells = `<td>${weekLabel(w)}</td>`;
+      series.forEach(s => {
+        const c = countAt(w, s);
+        let deltaHtml = "";
+        if (i > 0) {
+          const d = c - countAt(storeWeeks[i - 1], s);
+          if (d !== 0) {
+            const col = d > 0 ? "#2e7d32" : "#d32f2f";
+            deltaHtml = ` <span style="font-size:0.72rem;color:${col}">(${d > 0 ? "+" : "−"}${Math.abs(d)})</span>`;
+          }
         }
-      }
-      cells += `<td>${c.toLocaleString()}${deltaHtml}</td>`;
+        cells += `<td>${c.toLocaleString()}${deltaHtml}</td>`;
+      });
+      tr.innerHTML = cells;
+      tbody.appendChild(tr);
     });
-    tr.innerHTML = cells;
-    tbody.appendChild(tr);
-  });
+  }
+
+  function renderAll() { renderKpis(); rebuildDistCharts(); renderChangeCards(); renderTable(); }
+  renderAll();
 }
 
 // ══ SKU Filters (Maps) ════════════════════════════════════════════════════════
