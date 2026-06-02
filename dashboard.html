@@ -1125,6 +1125,15 @@
       </div>
     </div>
 
+    <!-- Overlay: every snapshot's forward plan on one chart (by calendar arrival week) -->
+    <div class="chart-grid" style="grid-template-columns: 1fr; margin-top:18px">
+      <div class="chart-card">
+        <h3>Forward Arrival Plan — All Snapshots Overlaid
+          <span style="font-weight:400;color:#888;font-size:0.8rem">(each line = one report's forward plan; x = calendar arrival week. Where lines overlap, see how a given week's plan was revised. Newest in bold blue; respects SKU chips.)</span></h3>
+        <div id="chart-sp-overlay" class="chart-div" style="height:360px"></div>
+      </div>
+    </div>
+
     <!-- Snapshot totals table -->
     <div class="data-table-card" style="margin-top:18px">
       <h3>Planned Supply by Snapshot &amp; SKU (units, with Δ vs prior snapshot)</h3>
@@ -1925,7 +1934,7 @@ function switchTab(name, btn) {
   if (name === "supply") {
     if (!supplyInit) { initSupply(); supplyInit = true; }
     else setTimeout(() => {
-      ["chart-sp-trend","chart-sp-arrival"].forEach(id => {
+      ["chart-sp-trend","chart-sp-arrival","chart-sp-overlay"].forEach(id => {
         const el = document.getElementById(id); if (el) Plotly.Plots.resize(el);
       });
     }, 50);
@@ -4273,7 +4282,7 @@ function initSupply() {
     cb.addEventListener("change", () => {
       if (cb.checked) visible.add(s); else visible.delete(s);
       lbl.style.background = cb.checked ? color + "22" : "#f5f5f5";
-      renderTrend(); renderArrival();
+      renderTrend(); renderArrival(); renderOverlay();
     });
     lbl.appendChild(cb);
     lbl.appendChild(document.createTextNode(seriesLabel(s)));
@@ -4327,6 +4336,39 @@ function initSupply() {
     }, cfg);
   }
 
+  // ── Overlay: every snapshot's forward plan on one chart (calendar arrival wk) ─
+  function renderOverlay() {
+    const shownSkus = DATA.skus.filter(s => visible.has(s));
+    const allWk = new Set();
+    snaps.forEach(w => Object.keys(sp.arrival[w] || {}).forEach(k => allWk.add(k)));
+    const weeksSorted = [...allWk].sort();          // ISO dates sort chronologically
+    const x = weeksSorted.map(arrLabel);
+    const n = snaps.length;
+    const traces = snaps.map((w, i) => {
+      const arr = sp.arrival[w] || {};
+      const isLatest = w === latestW;
+      const light = 84 - (n > 1 ? i / (n - 1) : 0) * 52;   // oldest light → newest dark
+      return {
+        x,
+        y: weeksSorted.map(wk => {
+          const b = arr[wk];
+          return b ? shownSkus.reduce((a, s) => a + (b[s] || 0), 0) : null;
+        }),
+        name: weekLabel(w),
+        type: "scatter", mode: isLatest ? "lines+markers" : "lines",
+        line:   { color: isLatest ? "#0057e7" : `hsl(214,65%,${light}%)`, width: isLatest ? 3 : 1.5 },
+        marker: isLatest ? { color: "#0057e7", size: 5 } : { size: 0 },
+        connectgaps: true,
+        hovertemplate: "wk of %{x}<br>" + weekLabel(w) + ": %{y:,} units<extra></extra>",
+      };
+    });
+    Plotly.react("chart-sp-overlay", traces, {
+      ...PLOTLY_LAYOUT_BASE,
+      xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: "Scheduled arrival week", tickangle: -45, automargin: true },
+      yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: "Planned units arriving", tickformat: "," },
+    }, cfg);
+  }
+
   // ── Snapshot totals table (Δ vs prior snapshot + Δ vs first) ─────────────────
   function renderTable() {
     const thRow = document.getElementById("sp-thead-row");
@@ -4372,7 +4414,7 @@ function initSupply() {
     tbody.appendChild(sumTr);
   }
 
-  renderKpis(); renderTrend(); renderArrival(); renderTable();
+  renderKpis(); renderTrend(); renderArrival(); renderOverlay(); renderTable();
 }
 
 // ══ SKU Filters (Maps) ════════════════════════════════════════════════════════
