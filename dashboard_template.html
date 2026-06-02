@@ -613,6 +613,7 @@
     <button class="tab-btn"        onclick="switchTab('markdowns',this)">🏷️ Markdowns</button>
     <button class="tab-btn"        onclick="switchTab('ecomm',this)">🛒 Ecomm</button>
     <button class="tab-btn"        onclick="switchTab('inventory',this)">📦 Inventory</button>
+    <button class="tab-btn"        onclick="switchTab('supply',this)">🚚 Supply Plan</button>
     <button class="tab-btn"        onclick="switchTab('geolift',this)">🧪 GeoLift</button>
     <button class="tab-btn"        onclick="switchTab('endcap',this)">🎯 Endcap</button>
     <button class="tab-btn"        onclick="switchTab('trial',this)">🔁 Trial &amp; Repeat</button>
@@ -1085,6 +1086,52 @@
         <table class="data-tbl" id="dist-table">
           <thead><tr id="dist-thead-row"></tr></thead>
           <tbody id="dist-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tab: Supply Plan ─────────────────────────────────────────────────── -->
+  <div id="tab-supply" class="tab-panel">
+    <p style="font-size:0.82rem; color:#666; margin:4px 2px 0; line-height:1.45">
+      Each weekly report carries a rolling <b>~25-week (≈6-month) forward supply plan</b> — scheduled
+      inbound orders (Order Each Qty) by arrival date, per SKU. This tab tracks how that plan changes
+      <b>snapshot to snapshot</b>. The total-book line shifts partly because the window rolls forward
+      one week each report (it drops the nearest arrival week and adds one ~6 months out).
+    </p>
+
+    <!-- KPI row: latest snapshot total planned units per SKU + Δ vs prior snapshot -->
+    <div class="kpi-row" id="sp-kpi-row" style="grid-template-columns: repeat(5, 1fr); margin-top:12px"></div>
+
+    <!-- SKU chip filter -->
+    <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap" id="sp-sku-chips"></div>
+
+    <!-- Trend: total forward plan per SKU across report snapshots -->
+    <div class="chart-grid" style="grid-template-columns: 1fr; margin-top:18px">
+      <div class="chart-card">
+        <h3>Total Planned Supply (full forward book) by SKU — across Report Snapshots</h3>
+        <div id="chart-sp-trend" class="chart-div" style="height:340px"></div>
+      </div>
+    </div>
+
+    <!-- Forward arrival schedule for a chosen snapshot -->
+    <div class="chart-grid" style="grid-template-columns: 1fr; margin-top:18px">
+      <div class="chart-card">
+        <h3 style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+          Forward Arrival Schedule — planned units by arrival week
+          <select id="sp-snapshot-select" style="font-size:0.8rem; padding:3px 8px; border-radius:6px; border:1px solid #ccc"></select>
+        </h3>
+        <div id="chart-sp-arrival" class="chart-div" style="height:320px"></div>
+      </div>
+    </div>
+
+    <!-- Snapshot totals table -->
+    <div class="data-table-card" style="margin-top:18px">
+      <h3>Planned Supply by Snapshot &amp; SKU (units, with Δ vs prior snapshot)</h3>
+      <div class="data-table-scroll">
+        <table class="data-tbl" id="sp-table">
+          <thead><tr id="sp-thead-row"></tr></thead>
+          <tbody id="sp-tbody"></tbody>
         </table>
       </div>
     </div>
@@ -1800,6 +1847,7 @@ let markdownsInit    = false;
 let ecommInit        = false;
 let inventoryInit    = false;
 let distributionInit = false;
+let supplyInit       = false;
 let geoliftInit      = false;
 let endcapInit       = false;
 let trialInit        = false;
@@ -1870,6 +1918,14 @@ function switchTab(name, btn) {
     if (!distributionInit) { initDistribution(); distributionInit = true; }
     else setTimeout(() => {
       ["chart-dist-trend","chart-dist-depth","chart-dist-wow"].forEach(id => {
+        const el = document.getElementById(id); if (el) Plotly.Plots.resize(el);
+      });
+    }, 50);
+  }
+  if (name === "supply") {
+    if (!supplyInit) { initSupply(); supplyInit = true; }
+    else setTimeout(() => {
+      ["chart-sp-trend","chart-sp-arrival"].forEach(id => {
         const el = document.getElementById(id); if (el) Plotly.Plots.resize(el);
       });
     }, 50);
@@ -4151,6 +4207,172 @@ function initDistribution() {
 
   function renderAll() { renderKpis(); rebuildDistCharts(); renderChangeCards(); renderTable(); }
   renderAll();
+}
+
+// ══ Tab: Supply Plan (forward inbound supply by SKU, across snapshots) ═══════
+function initSupply() {
+  const cfg = { responsive: true, displayModeBar: false };
+  const sp  = DATA.supply_plan || { snapshots: [], by_sku: {}, arrival: {} };
+  const snaps = sp.snapshots || [];
+  const TOTAL = "Total";
+  const series = [TOTAL, ...DATA.skus];
+  const seriesColor = s => (s === TOTAL ? "#333" : SKU_COLORS[s]);
+  const seriesLabel = s => (s === TOTAL ? "All SKUs" : (SKU_SHORT[s] || s));
+  const xLabels = snaps.map(weekLabel);
+
+  const countAt = (w, s) => {
+    const bk = sp.by_sku[w] || {};
+    return s === TOTAL ? DATA.skus.reduce((a, k) => a + (bk[k] || 0), 0) : (bk[s] || 0);
+  };
+  const arrLabel = iso => { const [, m, d] = iso.split("-"); return `${+m}/${+d}`; };
+
+  if (!snaps.length) {
+    document.getElementById("sp-kpi-row").innerHTML =
+      `<div style="color:#888;padding:8px">No Supply Plan sheets found in the weekly reports.</div>`;
+    return;
+  }
+
+  const latestW = snaps[snaps.length - 1];
+  const prevW   = snaps.length >= 2 ? snaps[snaps.length - 2] : null;
+  const visible = new Set(series);
+
+  // ── KPI cards ───────────────────────────────────────────────────────────────
+  function renderKpis() {
+    const c = document.getElementById("sp-kpi-row");
+    c.innerHTML = "";
+    series.forEach(s => {
+      const cur  = countAt(latestW, s);
+      const prev = prevW ? countAt(prevW, s) : null;
+      let chgHtml = "";
+      if (prev != null && prev !== 0) {
+        const pct = (cur - prev) / prev * 100;
+        const color = pct >= 0 ? "#2e7d32" : "#d32f2f";
+        chgHtml = `<span class="kpi-chg" style="color:${color}">${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%</span>`;
+      }
+      const card = document.createElement("div");
+      card.className = "kpi-card";
+      card.style.borderLeftColor = seriesColor(s);
+      card.innerHTML = `<div class="kpi-label">${seriesLabel(s)} — Planned Units</div>
+        <div class="kpi-value">${cur.toLocaleString()}${chgHtml}</div>
+        <div class="kpi-sub">${weekLabel(latestW)} snapshot · full ~6-mo book</div>`;
+      c.appendChild(card);
+    });
+  }
+
+  // ── SKU chips ─────────────────────────────────────────────────────────────--
+  const chipC = document.getElementById("sp-sku-chips");
+  chipC.innerHTML = "";
+  series.forEach(s => {
+    const lbl = document.createElement("label");
+    lbl.style.cssText = "display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:0.82rem;border-radius:16px;padding:4px 12px;border:2px solid transparent";
+    const color = seriesColor(s);
+    lbl.style.borderColor = color;
+    lbl.style.background = color + "22";
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.checked = true;
+    cb.addEventListener("change", () => {
+      if (cb.checked) visible.add(s); else visible.delete(s);
+      lbl.style.background = cb.checked ? color + "22" : "#f5f5f5";
+      renderTrend(); renderArrival();
+    });
+    lbl.appendChild(cb);
+    lbl.appendChild(document.createTextNode(seriesLabel(s)));
+    chipC.appendChild(lbl);
+  });
+
+  // ── Trend: full forward book per SKU across snapshots ────────────────────────
+  function renderTrend() {
+    const shown = series.filter(s => visible.has(s));
+    const traces = shown.map(s => ({
+      x: xLabels,
+      y: snaps.map(w => countAt(w, s)),
+      name: seriesLabel(s),
+      type: "scatter", mode: "lines+markers",
+      line:   { color: seriesColor(s), width: s === TOTAL ? 3 : 1.8 },
+      marker: { color: seriesColor(s), size: s === TOTAL ? 7 : 5 },
+      connectgaps: true,
+      hovertemplate: "%{y:,} units<extra>" + seriesLabel(s) + "</extra>",
+    }));
+    Plotly.react("chart-sp-trend", traces, {
+      ...PLOTLY_LAYOUT_BASE,
+      yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: "Planned units (forward book)", tickformat: "," },
+    }, cfg);
+  }
+
+  // ── Forward arrival schedule (stacked by SKU) for the selected snapshot ──────
+  const sel = document.getElementById("sp-snapshot-select");
+  sel.innerHTML = snaps.map(w =>
+    `<option value="${w}"${w === latestW ? " selected" : ""}>${weekLabel(w)}</option>`).join("");
+  sel.addEventListener("change", renderArrival);
+
+  function renderArrival() {
+    const w = sel.value || latestW;
+    const arr = sp.arrival[w] || {};
+    const weeksSorted = Object.keys(arr).sort();          // ISO dates sort chronologically
+    const x = weeksSorted.map(arrLabel);
+    const shownSkus = DATA.skus.filter(s => visible.has(s));
+    const traces = shownSkus.map(s => ({
+      name: SKU_SHORT[s] || s,
+      type: "bar",
+      x,
+      y: weeksSorted.map(wk => (arr[wk] || {})[s] || 0),
+      marker: { color: SKU_COLORS[s] },
+      hovertemplate: "wk of %{x}<br>" + (SKU_SHORT[s] || s) + ": %{y:,} units<extra></extra>",
+    }));
+    Plotly.react("chart-sp-arrival", traces, {
+      ...PLOTLY_LAYOUT_BASE,
+      barmode: "stack",
+      xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: "Scheduled arrival week", tickangle: -45, automargin: true },
+      yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: "Planned units arriving", tickformat: "," },
+    }, cfg);
+  }
+
+  // ── Snapshot totals table (Δ vs prior snapshot + Δ vs first) ─────────────────
+  function renderTable() {
+    const thRow = document.getElementById("sp-thead-row");
+    thRow.innerHTML = `<th>Report Snapshot</th>` + series.map(s =>
+      `<th style="color:${seriesColor(s)}">${seriesLabel(s)}</th>`).join("");
+    const tbody = document.getElementById("sp-tbody");
+    tbody.innerHTML = "";
+    snaps.forEach((w, i) => {
+      const tr = document.createElement("tr");
+      if (w === latestW) { tr.style.fontWeight = "700"; tr.style.background = "#f0f4ff"; }
+      let cells = `<td>${weekLabel(w)}</td>`;
+      series.forEach(s => {
+        const c = countAt(w, s);
+        let deltaHtml = "";
+        if (i > 0) {
+          const d = c - countAt(snaps[i - 1], s);
+          if (d !== 0) {
+            const col = d > 0 ? "#2e7d32" : "#d32f2f";
+            deltaHtml = ` <span style="font-size:0.72rem;color:${col}">(${d > 0 ? "+" : "−"}${Math.abs(d).toLocaleString()})</span>`;
+          }
+        }
+        cells += `<td>${c.toLocaleString()}${deltaHtml}</td>`;
+      });
+      tr.innerHTML = cells;
+      tbody.appendChild(tr);
+    });
+    // Δ vs first snapshot summary row
+    const firstW = snaps[0];
+    const sumTr = document.createElement("tr");
+    sumTr.style.cssText = "font-weight:700;border-top:2px solid #333;background:#fafafa";
+    let sumCells = `<td>Δ vs ${weekLabel(firstW)}</td>`;
+    series.forEach(s => {
+      const base = countAt(firstW, s);
+      const abs  = countAt(latestW, s) - base;
+      const pct  = base ? (abs / base * 100) : null;
+      const col  = abs > 0 ? "#2e7d32" : (abs < 0 ? "#d32f2f" : "#555");
+      const sign = abs > 0 ? "+" : (abs < 0 ? "−" : "±");
+      const pctStr = pct == null ? "—" : `${sign}${Math.abs(pct).toFixed(1)}%`;
+      sumCells += `<td style="color:${col}">${sign}${Math.abs(abs).toLocaleString()}` +
+        `<span style="font-size:0.72rem;font-weight:600"> (${pctStr})</span></td>`;
+    });
+    sumTr.innerHTML = sumCells;
+    tbody.appendChild(sumTr);
+  }
+
+  renderKpis(); renderTrend(); renderArrival(); renderTable();
 }
 
 // ══ SKU Filters (Maps) ════════════════════════════════════════════════════════

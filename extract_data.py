@@ -408,6 +408,83 @@ def compute_ecomm_weekly(ecomm_l52_raw, ecomm_lw_raw):
     return weekly
 
 
+def build_supply_plan(files):
+    """
+    Parse the dedicated 'Supply Plan' sheet from each weekly report.
+
+    The sheet name varies week to week ('Supply Plan', 'Supply Plan Export',
+    'Supply Plan ', '202603 Supply Plan'…), so it's auto-detected by matching
+    'supply plan' in the sheet name (the 'Forecast & Supply' sheet is a separate,
+    differently-shaped sheet and is intentionally NOT used here).
+
+    Each row is a scheduled inbound order: item desc (= our SKU code),
+    scheduled arrival date, and Order Each Qty. Each report holds a rolling
+    ~25-week (≈6-month) forward plan, so each weekly file is one snapshot.
+
+    Returns {
+      "snapshots": [report_week, ...],                       # weeks with a plan, sorted
+      "by_sku":   {report_week: {sku: total_planned_units}}, # whole forward book per snapshot
+      "arrival":  {report_week: {week_start_iso: {sku: units}}}, # forward schedule by arrival week
+    }
+    """
+    from datetime import timedelta
+    sku_set    = set(SKUS)
+    snapshots  = []
+    by_sku     = {}
+    arrival    = {}
+
+    for week in sorted(files.keys()):
+        fp = files[week]
+        try:
+            xls = pd.ExcelFile(fp)
+        except Exception as e:
+            print(f"  [WARN] Supply Plan: cannot open {week}: {e}")
+            continue
+        cand = [s for s in xls.sheet_names if "supply plan" in s.lower()]
+        if not cand:
+            continue
+        sheet = cand[0]
+        try:
+            df = xls.parse(sheet, header=0)
+        except Exception as e:
+            print(f"  [ERROR] Supply Plan sheet '{sheet}' ({week}): {e}")
+            continue
+
+        desc_c = next((c for c in df.columns if "Desc" in str(c)), None)
+        qty_c  = next((c for c in df.columns if "Order Each" in str(c) or "Each Qty" in str(c)), None)
+        arr_c  = next((c for c in df.columns if "Arrival" in str(c)), None)
+        if not (desc_c and qty_c and arr_c):
+            print(f"  [WARN] Supply Plan {week}: missing columns (cols={list(df.columns)})")
+            continue
+
+        df["_sku"] = df[desc_c].astype(str).str.strip().str.upper()
+        df["_qty"] = pd.to_numeric(df[qty_c], errors="coerce").fillna(0)
+        df["_arr"] = pd.to_datetime(df[arr_c], errors="coerce")
+        sub = df[df["_sku"].isin(sku_set)]
+        if sub.empty:
+            print(f"  [WARN] Supply Plan {week}: no Catalyst rows matched (skus seen: "
+                  f"{sorted(df['_sku'].unique())[:6]}…)")
+            continue
+
+        snapshots.append(week)
+        by_sku[week] = {s: int(sub.loc[sub["_sku"] == s, "_qty"].sum()) for s in SKUS}
+
+        wk_arr = {}
+        for _, r in sub.iterrows():
+            d = r["_arr"]
+            if pd.isna(d):
+                continue
+            wstart = (d - timedelta(days=int(d.weekday()))).strftime("%Y-%m-%d")  # Monday of arrival wk
+            bucket = wk_arr.setdefault(wstart, {})
+            bucket[r["_sku"]] = bucket.get(r["_sku"], 0) + int(r["_qty"])
+        arrival[week] = wk_arr
+
+        print(f"  Supply Plan {week} [{sheet.strip()}]: {len(sub)} Catalyst order rows, "
+              f"{sum(by_sku[week].values()):,} units over {len(wk_arr)} arrival weeks")
+
+    return {"snapshots": snapshots, "by_sku": by_sku, "arrival": arrival}
+
+
 # ─── Geocoding ────────────────────────────────────────────────────────────────
 
 def load_geo_cache():
@@ -751,6 +828,11 @@ def main():
         print(f"  [WARN] Trial & Repeat data unavailable: {e}")
         trial_repeat = None
 
+    # 5e. Supply Plan snapshots (dedicated 'Supply Plan' sheet, auto-detected)
+    print("\nBuilding Supply Plan data...")
+    supply_plan = build_supply_plan(files)
+    print(f"  Supply Plan snapshots: {supply_plan['snapshots']}")
+
     data = {
         "weeks":       sorted(files.keys()),
         "store_weeks": store_weeks_list,
@@ -769,6 +851,7 @@ def main():
         "week_dates":   week_dates,
         "endcap":      {"rows": endcap_rows, "summary": endcap_summary},
         "trial_repeat": trial_repeat,
+        "supply_plan": supply_plan,
     }
 
     # 7. Read template and embed JSON
