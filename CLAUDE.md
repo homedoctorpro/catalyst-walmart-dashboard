@@ -57,7 +57,7 @@ Do all of the following without being asked:
 5. **Watch for `[WARN] Unmapped Catalyst ecomm row:` lines** in the output — that means Walmart changed a Catalyst product name in a way the token matcher couldn't handle. Update `parse_ecomm_product` in `extract_data.py` if it fires.
 6. **If it's not Monday** and the user wants the full distro sent, run the manual send snippet from the session or use `python email_report.py` with `dev_only=False`.
 7. **Commit and push** to deploy to GitHub Pages:
-   `git add dashboard.html dashboard_template.html extract_data.py email_report.py stores_geo.json && git commit -m "Add week XXXXXX data" && git push origin master`
+   `git add dashboard.html dashboard_template.html store_map.html store_map_template.html extract_data.py email_report.py stores_geo.json && git commit -m "Add week XXXXXX data" && git push origin master`
 
 ### When the calendar year rolls over (e.g. 202701 lands):
 Add the new fiscal year's week-1 Friday to `FISCAL_YEAR_WEEK1_FRIDAY` in `extract_data.py` (one line, e.g. `"2027": date(2027, 2, 5)`). Until that's set, week labels for the new year fall back to the raw `YYYYWW` code.
@@ -67,12 +67,13 @@ Add the new fiscal year's week-1 Friday to `FISCAL_YEAR_WEEK1_FRIDAY` in `extrac
 2. Check the sheet names: `python -c "import openpyxl; wb = openpyxl.load_workbook('<filename>.xlsx', read_only=True); print(wb.sheetnames)"`
 3. Add an entry to `SHEET_MAP` in `extract_data.py` with the correct sheet names
 4. Run `python extract_data.py`
-5. Commit and push to deploy: `git add dashboard.html dashboard_template.html extract_data.py email_report.py stores_geo.json && git commit -m "Add week XXXXXX data" && git push origin master`
+5. Commit and push to deploy: `git add dashboard.html dashboard_template.html store_map.html store_map_template.html extract_data.py email_report.py stores_geo.json && git commit -m "Add week XXXXXX data" && git push origin master`
 
 ### Hosting & Deployment
 - **Hosted on**: GitHub Pages via `https://github.com/homedoctorpro/catalyst-walmart-dashboard`
 - **Deployed branch**: `master` — GitHub Pages serves directly from this branch
 - **To deploy**: commit the updated `dashboard.html` (+ `extract_data.py`, `stores_geo.json`) and push to `master`; GitHub Pages rebuilds automatically within ~1–2 minutes
+- **Public store map (no password)**: `https://homedoctorpro.github.io/catalyst-walmart-dashboard/store_map.html` — standalone copy of the dashboard's 🏪 Store Map tab, generated as `store_map.html` from `store_map_template.html` by `write_store_map()` on every `extract_data.py` run. Safe to share externally; commit it with the weekly push.
 - **Do not** push raw Excel files (`.xlsx`) to the repo
 
 ---
