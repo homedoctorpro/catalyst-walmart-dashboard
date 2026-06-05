@@ -143,6 +143,8 @@ def compute_week_date(week_code):
 GEO_CACHE_FILE = "stores_geo.json"
 TEMPLATE_FILE  = "dashboard_template.html"
 OUTPUT_FILE    = "dashboard.html"
+STORE_MAP_TEMPLATE_FILE = "store_map_template.html"
+STORE_MAP_OUTPUT_FILE   = "store_map.html"
 
 STATE_ABBR_TO_NAME = {
     "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas",
@@ -872,6 +874,9 @@ def main():
 
     json_mb = len(json_str) / 1024 / 1024
     print(f"\nWrote {output_path} ({json_mb:.2f} MB JSON embedded)")
+
+    # 7b. Standalone public store map (no password gate) — shareable link
+    write_store_map(stores, all_store_weeks, store_weeks_list, week_labels)
     print("Done.")
 
     # ── Send weekly report email ──────────────────────────────────────────────
@@ -889,6 +894,48 @@ def main():
             open(sent_flag, "w").write(str(today))
     except Exception as e:
         print(f"  [Email] Error: {e}")
+
+
+def write_store_map(stores, all_store_weeks, store_weeks_list, week_labels):
+    """Write store_map.html — standalone, ungated store map for public sharing.
+
+    Embeds only what the map needs: per-store location + the set of SKUs the
+    store has carried across all weeks (mirrors the dashboard's Store Map tab).
+    """
+    template_path = os.path.join(os.path.dirname(__file__), STORE_MAP_TEMPLATE_FILE)
+    if not os.path.exists(template_path):
+        print(f"  [WARN] '{STORE_MAP_TEMPLATE_FILE}' not found — skipping standalone store map.")
+        return
+
+    # SKUs carried per store, across all weeks (same logic as dashboard initStoreMap)
+    store_sku_sets = {}
+    for week in store_weeks_list:
+        for sn, sdata in all_store_weeks.get(week, {}).items():
+            store_sku_sets.setdefault(sn, set()).update((sdata.get("skus") or {}).keys())
+
+    map_stores = {}
+    for sn, info in stores.items():
+        skus = sorted(store_sku_sets.get(sn, ()))
+        if not skus or not info.get("lat") or not info.get("lon"):
+            continue
+        map_stores[sn] = {
+            "lat": info["lat"], "lon": info["lon"],
+            "city": info.get("city", ""), "state": info.get("state", ""),
+            "street": info.get("street", ""), "skus": skus,
+        }
+
+    latest_week = store_weeks_list[-1] if store_weeks_list else None
+    as_of = week_labels.get(latest_week, latest_week) if latest_week else None
+
+    with open(template_path, "r", encoding="utf-8") as f:
+        html = f.read()
+    payload = json.dumps({"stores": map_stores, "as_of": as_of}, separators=(",", ":"))
+    html = html.replace("/*DATA_PLACEHOLDER*/", f"const MAP_DATA = {payload};")
+
+    output_path = os.path.join(os.path.dirname(__file__), STORE_MAP_OUTPUT_FILE)
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(html)
+    print(f"Wrote {output_path} ({len(map_stores):,} stores)")
 
 
 if __name__ == "__main__":
