@@ -625,14 +625,16 @@ def build_html(data):
     """
 
     # ── KPI row ───────────────────────────────────────────────────────────────
-    def kpi_box(label, value_str, curr, prev, higher_better=True, is_pct=False):
+    def kpi_box(label, value_str, curr, prev, higher_better=True, is_pct=False, sub=None):
         d_str, d_color = delta_str(curr, prev, higher_better, is_pct)
         delta_html = f'<div class="kpi-delta" style="color:{d_color}">{d_str}</div>' if d_str else '<div class="kpi-delta">&nbsp;</div>'
+        sub_html = f'<div style="font-size:9px;color:#999;margin-top:3px;">{sub}</div>' if sub else ''
         return f"""
         <td><div class="kpi-box">
           <div class="kpi-label">{label}</div>
           <div class="kpi-value">{value_str}</div>
           {delta_html}
+          {sub_html}
         </div></td>"""
 
     usw_cur  = total.get("usw")
@@ -651,7 +653,7 @@ def build_html(data):
       {kpi_box("Instock %",    fmt_pct(total.get("instock_pct")),   total.get("instock_pct"),    p_tot.get("instock_pct"),    is_pct=True)}
       {kpi_box("Units Sold",   fmt_num(total.get("pos_qty")),       total.get("pos_qty"),        p_tot.get("pos_qty"))}
       {kpi_box("Retail $",     fmt_usd(total.get("pos_dollars")),   total.get("pos_dollars"),    p_tot.get("pos_dollars"))}
-      {kpi_box("Wholesale $",  fmt_usd(total.get("wholesale_dollars")), total.get("wholesale_dollars"), p_tot.get("wholesale_dollars"))}
+      {kpi_box("Wholesale $",  fmt_usd(total.get("wholesale_dollars")), total.get("wholesale_dollars"), p_tot.get("wholesale_dollars"), sub=(f"≈ {fmt_usd(total.get('wholesale_dollars') * 52 / 12)}/mo run-rate" if total.get("wholesale_dollars") else None))}
     </tr></table>
     {usw_chart_html}"""
 

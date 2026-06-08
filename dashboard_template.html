@@ -670,7 +670,7 @@
       <div class="kpi-card" style="border-left-color:#333">
         <div class="kpi-label">Wholesale Rev.</div>
         <div class="kpi-value" id="kpi-wholesale">—</div>
-        <div class="kpi-sub">Est. Wholesale $</div>
+        <div class="kpi-sub" id="kpi-wholesale-sub">Est. Wholesale $</div>
       </div>
     </div>
 
@@ -2250,6 +2250,10 @@ function buildKPIs() {
   document.getElementById("kpi-units").innerHTML    = (total.pos_qty != null ? total.pos_qty.toLocaleString() : "—") + chg(total.pos_qty, prevTotal.pos_qty);
   document.getElementById("kpi-retail").innerHTML   = (total.pos_dollars != null ? "$" + Math.round(total.pos_dollars).toLocaleString() : "—") + chg(total.pos_dollars, prevTotal.pos_dollars);
   document.getElementById("kpi-wholesale").innerHTML= (total.wholesale_dollars != null ? "$" + Math.round(total.wholesale_dollars).toLocaleString() : "—") + chg(total.wholesale_dollars, prevTotal.wholesale_dollars);
+  document.getElementById("kpi-wholesale-sub").textContent =
+    (total.wholesale_dollars != null
+      ? "≈ $" + Math.round(total.wholesale_dollars * 52 / 12).toLocaleString() + "/mo run-rate"
+      : "Est. Wholesale $");
 }
 
 // ══ Metrics Series Filter ═════════════════════════════════════════════════════
