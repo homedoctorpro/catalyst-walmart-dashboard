@@ -427,6 +427,23 @@
   .gl-badge-control { background:#f0f0f0; color:#444; }
   @media (max-width: 900px) { .geolift-groups-row { grid-template-columns:1fr; } }
 
+  /* GeoLift significance */
+  .gl-sig-section { margin-top:18px; }
+  .gl-sig-head { font-size:1.05rem; font-weight:800; color:#1a1a2e; margin:0 0 4px; }
+  .gl-sig-sub  { font-size:0.82rem; color:#777; margin:0 0 14px; }
+  .gl-sig-cards { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width: 900px) { .gl-sig-cards { grid-template-columns:1fr; } }
+  .gl-sig-card { background:#fff; border-radius:12px; padding:18px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #ccc; }
+  .gl-sig-title { font-size:0.95rem; font-weight:800; margin-bottom:10px; }
+  .gl-sig-lift  { font-size:2.1rem; font-weight:800; line-height:1; }
+  .gl-sig-lift small { font-size:0.85rem; font-weight:600; color:#888; }
+  .gl-sig-liftlbl { font-size:0.68rem; font-weight:700; color:#999; text-transform:uppercase; letter-spacing:0.05em; margin:3px 0 12px; }
+  .gl-sig-grid { width:100%; font-size:0.8rem; color:#444; border-collapse:collapse; }
+  .gl-sig-grid td { padding:4px 0; border-bottom:1px solid #f3f3f3; }
+  .gl-sig-grid td:last-child { text-align:right; font-weight:700; }
+  .gl-sig-verdict { display:inline-block; font-size:0.72rem; font-weight:800; padding:2px 9px; border-radius:10px; }
+  .gl-sig-note { font-size:0.74rem; color:#999; line-height:1.5; margin:12px 2px 0; }
+
   /* ── Retailers Tab ── */
   .rt-explainer { background:#fff; border-radius:12px; padding:14px 18px; margin-bottom:14px;
                   font-size:0.82rem; color:#555; border-left:4px solid #00a86b; line-height:1.45; }
@@ -1216,6 +1233,18 @@
       </div>
     </div>
 
+    <!-- Statistical significance — weighted index -->
+    <div class="gl-sig-section">
+      <h3 class="gl-sig-head">📊 Statistical Significance — Weighted Index</h3>
+      <p class="gl-sig-sub" id="gl-sig-sub">Net lift of each treatment group vs Control, tested by exact permutation (randomization inference).</p>
+      <div class="gl-sig-cards" id="gl-sig-cards"></div>
+      <div class="chart-card" style="margin-top:14px">
+        <h3>Net Lift vs Control — Weighted Index (points, by week)</h3>
+        <div id="chart-geolift-lift" class="chart-div" style="height:300px"></div>
+      </div>
+      <p class="gl-sig-note" id="gl-sig-note"></p>
+    </div>
+
     <!-- Indexed charts: weighted + unweighted -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px">
       <div class="chart-card">
@@ -1949,7 +1978,7 @@ function switchTab(name, btn) {
   if (name === "geolift") {
     if (!geoliftInit) { initGeolift(); geoliftInit = true; }
     else setTimeout(() => {
-      ["chart-geolift-indexed-w","chart-geolift-indexed-uw","chart-geolift-raw-w","chart-geolift-raw-uw"].forEach(id => {
+      ["chart-geolift-indexed-w","chart-geolift-indexed-uw","chart-geolift-raw-w","chart-geolift-raw-uw","chart-geolift-lift"].forEach(id => {
         const el = document.getElementById(id); if (el) Plotly.Plots.resize(el);
       });
     }, 50);
@@ -5306,6 +5335,9 @@ function initGeolift() {
     yaxis:{...lBase.yaxis, title:"U/S/W (unweighted)"},
   }, cfg);
 
+  // ── Statistical significance: weighted-index permutation test vs Control ────
+  renderGeoliftSignificance(wsStores, glLabels, lBase, cfg);
+
   // Data table
   const tbody = document.getElementById("geolift-tbody");
   if (!tbody) return;
@@ -5333,6 +5365,157 @@ function initGeolift() {
       tbody.appendChild(tr);
     });
   });
+}
+
+// ── GeoLift significance: exact permutation test on the weighted U/S/W index ──
+function renderGeoliftSignificance(wsStores, glLabels, lBase, cfg) {
+  const cardsEl = document.getElementById("gl-sig-cards");
+  const noteEl  = document.getElementById("gl-sig-note");
+  if (!cardsEl) return;
+
+  const postWeeks = DATA.store_weeks.filter(w => w > GEOLIFT_BASELINE);
+  if (postWeeks.length === 0) {
+    cardsEl.innerHTML = '<p style="color:#888;font-size:0.85rem;grid-column:1/-1;">Awaiting post-baseline weeks — significance can be computed once at least one week follows the baseline.</p>';
+    return;
+  }
+
+  const units  = (st, w) => (DATA.state_sales[w] || {})[st] || 0;
+  const stores = (st, w) => (wsStores[w]        || {})[st] || 0;
+
+  // Weighted U/S/W index of a set of states at week w (baseline = 100)
+  function setIdx(states, w) {
+    let bu = 0, bs = 0, u = 0, s = 0;
+    for (const st of states) { bu += units(st, GEOLIFT_BASELINE); bs += stores(st, GEOLIFT_BASELINE); u += units(st, w); s += stores(st, w); }
+    if (bs === 0 || bu === 0 || s === 0) return null;
+    return (u / s) / (bu / bs) * 100;
+  }
+  // Test statistic: mean over post weeks of (treatment idx − control idx)
+  function stat(treat, ctrl) {
+    let sum = 0, n = 0;
+    for (const w of postWeeks) {
+      const it = setIdx(treat, w), ic = setIdx(ctrl, w);
+      if (it == null || ic == null) return null;
+      sum += (it - ic); n++;
+    }
+    return n ? sum / n : null;
+  }
+  // All C(n,k) index combinations
+  function combosK(n, k) {
+    const res = [], c = new Array(k);
+    (function rec(start, depth) {
+      if (depth === k) { res.push(c.slice()); return; }
+      for (let i = start; i <= n - (k - depth); i++) { c[depth] = i; rec(i + 1, depth + 1); }
+    })(0, 0);
+    return res;
+  }
+
+  function verdict(p) {
+    if (p == null)   return ["—", "#888", "#f0f0f0"];
+    if (p < 0.05)    return ["Significant",     "#00a86b", "#e6f7ef"];
+    if (p < 0.10)    return ["Suggestive",      "#e67300", "#fff3e6"];
+    return ["Not significant", "#888", "#f0f0f0"];
+  }
+
+  const control = GEOLIFT_GROUPS["Control"];
+  const results = {};
+
+  ["Meta", "YouTube"].forEach(g => {
+    const treat = GEOLIFT_GROUPS[g];
+    const observed = stat(treat, control);
+    if (observed == null) { results[g] = null; return; }
+
+    const pool = treat.concat(control), k = treat.length;
+    const combos = combosK(pool.length, k);
+    const nullDist = [];
+    for (const combo of combos) {
+      const inSet = new Array(pool.length).fill(false);
+      combo.forEach(i => inSet[i] = true);
+      const pt = [], pc = [];
+      for (let i = 0; i < pool.length; i++) (inSet[i] ? pt : pc).push(pool[i]);
+      const s = stat(pt, pc);
+      if (s != null) nullDist.push(s);
+    }
+    const nn = nullDist.length;
+    const ge = nullDist.filter(v => Math.abs(v) >= Math.abs(observed) - 1e-9).length;
+    const pval = nn ? ge / nn : null;
+    const sorted = nullDist.slice().sort((a, b) => a - b);
+    const pct = p => sorted.length ? sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(p * (sorted.length - 1))))] : null;
+    const band = [pct(0.025), pct(0.975)];
+
+    // Incremental units vs control-implied counterfactual
+    let bu = 0, bs = 0;
+    treat.forEach(st => { bu += units(st, GEOLIFT_BASELINE); bs += stores(st, GEOLIFT_BASELINE); });
+    const baseUsw = bs ? bu / bs : null;
+    let incr = 0, meanIdxC = 0;
+    postWeeks.forEach(w => {
+      const ic = setIdx(control, w);
+      let stT = 0, utT = 0;
+      treat.forEach(st => { stT += stores(st, w); utT += units(st, w); });
+      if (ic != null && baseUsw != null) incr += utT - (baseUsw * ic / 100 * stT);
+      meanIdxC += ic || 0;
+    });
+    meanIdxC /= postWeeks.length;
+    const rel = meanIdxC ? observed / meanIdxC * 100 : null;
+
+    results[g] = { observed, pval, band, incr, rel };
+  });
+
+  // Render cards
+  cardsEl.innerHTML = "";
+  ["Meta", "YouTube"].forEach(g => {
+    const r = results[g];
+    const color = GEOLIFT_COLORS[g];
+    const card = document.createElement("div");
+    card.className = "gl-sig-card";
+    card.style.borderTopColor = color;
+    if (!r) {
+      card.innerHTML = `<div class="gl-sig-title" style="color:${color}">${g} vs Control</div><p style="color:#888;font-size:0.82rem;">Not enough data.</p>`;
+      cardsEl.appendChild(card); return;
+    }
+    const [vlabel, vcolor, vbg] = verdict(r.pval);
+    const sign = r.observed >= 0 ? "+" : "";
+    const relTxt = r.rel != null ? ` (${sign}${r.rel.toFixed(1)}%)` : "";
+    const pvTxt  = r.pval != null ? r.pval.toFixed(3) : "—";
+    const bandTxt = r.band[0] != null ? `[${r.band[0]>=0?"+":""}${r.band[0].toFixed(1)}, ${r.band[1]>=0?"+":""}${r.band[1].toFixed(1)}]` : "—";
+    card.innerHTML =
+      `<div class="gl-sig-title" style="color:${color}">${g} vs Control</div>` +
+      `<div class="gl-sig-lift" style="color:${color}">${sign}${r.observed.toFixed(1)}<small> pts${relTxt}</small></div>` +
+      `<div class="gl-sig-liftlbl">Net weighted-index lift</div>` +
+      `<table class="gl-sig-grid">` +
+        `<tr><td>Significance</td><td><span class="gl-sig-verdict" style="color:${vcolor};background:${vbg}">${vlabel}</span></td></tr>` +
+        `<tr><td>p-value (two-sided)</td><td>${pvTxt}</td></tr>` +
+        `<tr><td>Incremental units</td><td>${Math.round(r.incr).toLocaleString()}</td></tr>` +
+        `<tr><td>Range if no effect</td><td>${bandTxt}</td></tr>` +
+      `</table>`;
+    cardsEl.appendChild(card);
+  });
+
+  // Net-lift-over-time chart (treatment idx − control idx, per post week)
+  const liftTraces = ["Meta", "YouTube"].map(g => ({
+    name: g + " − Control",
+    x: postWeeks.map(weekLabel),
+    y: postWeeks.map(w => { const it = setIdx(GEOLIFT_GROUPS[g], w), ic = setIdx(control, w); return (it != null && ic != null) ? +(it - ic).toFixed(1) : null; }),
+    mode: "lines+markers",
+    line: { color: GEOLIFT_COLORS[g], width: 3 },
+    marker: { size: 7 },
+    hovertemplate: `<b>${g}</b>: %{y:+.1f} pts<extra></extra>`,
+  }));
+  const zeroLine = { type: "line", xref: "paper", yref: "y", x0: 0, x1: 1, y0: 0, y1: 0, line: { color: "#bbb", width: 1.5, dash: "dash" } };
+  Plotly.react("chart-geolift-lift", liftTraces, {
+    ...lBase,
+    yaxis: { ...lBase.yaxis, title: "Lift vs Control (index pts)", zeroline: false },
+    shapes: [zeroLine],
+  }, cfg);
+
+  if (noteEl) {
+    const nw = postWeeks.length;
+    noteEl.innerHTML =
+      `Method: exact permutation test (Fisher randomization inference). For each treatment group the 16 treatment+control states are pooled and all ` +
+      `<b>${combosK(16, 8).length.toLocaleString()}</b> ways of splitting them into two groups of 8 are enumerated; the statistic is the mean over ` +
+      `<b>${nw}</b> post-baseline week(s) of (group weighted-index − other weighted-index). The two-sided p-value is the share of splits whose |lift| ≥ the observed |lift|. ` +
+      `“Range if no effect” is the middle 95% of lifts under random assignment — an observed lift outside it is significant at ≈5%. ` +
+      `This is an observational geo test: interpret lift alongside media spend, creative, and known regional confounders.`;
+  }
 }
 
 // ══ Tab: Endcap ═══════════════════════════════════════════════════════════════
