@@ -1507,6 +1507,14 @@
       <span class="fc-presets-hint">One click sets the four assumptions below; edit any value for a custom scenario.</span>
     </div>
 
+    <!-- Repeat basis: manual cohort assumptions vs intensity calibrated from Luminate actuals -->
+    <div class="fc-presets" style="margin-top:-4px">
+      <span class="fc-presets-label" style="color:#00695c">Repeat basis:</span>
+      <button class="pill-btn theme-fc active" data-fcrepeat="manual"  onclick="setForecastRepeatMode('manual')">Manual assumptions</button>
+      <button class="pill-btn theme-fc"        data-fcrepeat="actuals" onclick="setForecastRepeatMode('actuals')">From actuals</button>
+      <span class="fc-presets-hint" id="fc-repeat-basis-note">Manual: repeat is modeled from the cohort assumptions below.</span>
+    </div>
+
     <div class="forecast-assumptions" id="forecast-assumptions">
       <div class="fa-group">
         <label class="fa-label">New-trialer monthly decay</label>
@@ -1555,6 +1563,25 @@
 
     <!-- KPI Row -->
     <div class="kpi-row" id="forecast-kpi-row"></div>
+
+    <!-- Plan vs Actual: frozen scenario baseline vs live monthly actuals -->
+    <div class="metrics-table-card" id="fc-pva-card" style="margin-bottom:16px;display:none">
+      <h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        Plan vs Actual
+        <span id="fc-pva-meta" style="font-size:0.72rem;font-weight:400;color:#888;text-transform:none;letter-spacing:0"></span>
+      </h3>
+      <div class="wide-table-controls" style="margin-bottom:6px">
+        <span style="font-weight:700;font-size:0.78rem;color:#555">Metric:</span>
+        <div class="metric-pills">
+          <button class="pill-btn theme-fc active" data-pvamet="units"     onclick="setPvaMetric(this)">Units</button>
+          <button class="pill-btn theme-fc"        data-pvamet="wholesale" onclick="setPvaMetric(this)">Wholesale $</button>
+          <button class="pill-btn theme-fc"        data-pvamet="usw"       onclick="setPvaMetric(this)">Total U/S/W</button>
+        </div>
+        <span style="font-size:0.72rem;color:#999">Actuals (completed months) overlaid on the frozen Downside / Base / Upside plan.</span>
+      </div>
+      <div id="chart-fc-pva" class="chart-div" style="height:340px"></div>
+      <div id="fc-pva-tracking" style="font-size:0.8rem;color:#555;margin-top:8px"></div>
+    </div>
 
     <!-- Charts -->
     <div class="chart-grid">
@@ -2867,6 +2894,24 @@ function resetForecastAssumptions() {
 // Cached: built once at init.
 let FC_HISTORICAL = null;   // { months: [...keys], byMonth: { key: { sku: {new,repeat,total,share} } } }
 let FC_RESULT     = null;   // { months, historicalCount, bySku: {new,repeat,total}, byKey: {...derived} }
+let FC_REPEAT_MODE = "manual";   // "manual" (cohort assumptions) | "actuals" (calibrated intensity)
+
+// Repeat intensity calibrated from Luminate actuals: repeat units as a share of the
+// cumulative *prior-month* new-trialer base. Pooled over the latest complete month
+// (most current run-rate of repurchase). Returns { intensity, monthLabel, perMonth }.
+function fcRepeatIntensity() {
+  if (!FC_HISTORICAL) FC_HISTORICAL = fcBuildHistorical();
+  const hist = FC_HISTORICAL;
+  const newTot = hist.months.map(k => DATA.skus.reduce((s, sku) => s + hist.byMonth[k][sku].newUnits, 0));
+  const repTot = hist.months.map(k => DATA.skus.reduce((s, sku) => s + hist.byMonth[k][sku].repeatUnits, 0));
+  const perMonth = hist.months.map((k, i) => {
+    const elig = newTot.slice(0, i).reduce((a, b) => a + b, 0);
+    return { key: k, label: fcMonthLabel(k), intensity: elig > 0 ? repTot[i] / elig : null, repeat: repTot[i], eligible: elig };
+  });
+  const withVal = perMonth.filter(m => m.intensity != null);
+  const latest  = withVal.length ? withVal[withVal.length - 1] : null;
+  return { intensity: latest ? latest.intensity : 0, monthLabel: latest ? latest.label : "—", perMonth: withVal };
+}
 
 function fcBuildHistorical() {
   // Use the Monthly tab's rollup for POS units; pair with Luminate shares.
@@ -2904,10 +2949,12 @@ function fcBuildHistorical() {
   return { months, byMonth };
 }
 
-function fcBuildForecast(assumptions) {
+function fcBuildForecast(assumptions, repeatMode, intensity) {
   if (!FC_HISTORICAL) FC_HISTORICAL = fcBuildHistorical();
   const hist = FC_HISTORICAL;
   const { d_new, new_floor, r_initial, r_decay } = assumptions;
+  repeatMode = repeatMode || "manual";
+  intensity  = intensity || 0;
 
   const months   = hist.months.slice();
   const newBy    = {};
@@ -2934,6 +2981,12 @@ function fcBuildForecast(assumptions) {
     floorBySku[sku] = baseline * new_floor;
   });
 
+  // "From actuals" repeat: repeat(M) = intensity × cumulative new trialers prior to M
+  // (per SKU, sharing one calibrated intensity). Continuous with history and free of
+  // the cohort model's multi-cohort overcounting. Seed cumulative new with history.
+  const cumNewBySku = {};
+  DATA.skus.forEach(sku => { cumNewBySku[sku] = newBy[sku].reduce((a, b) => a + b, 0); });
+
   // Forecast
   let cursor = months[months.length - 1];
   for (let f = 0; f < FC_HORIZON_MONTHS; f++) {
@@ -2946,15 +2999,20 @@ function fcBuildForecast(assumptions) {
       const newVal  = floor + (prevNew - floor) * (1 - d_new);
       arr.push(newVal);
 
-      const newIdx = arr.length - 1;
       let rep = 0;
-      for (let k = 1; ; k++) {
-        const cohortIdx = newIdx - 2 * k;
-        if (cohortIdx < 0) break;
-        const cohortNew = arr[cohortIdx] || 0;
-        const rate = r_initial * Math.pow(1 - r_decay, k - 1);
-        rep += cohortNew * rate;
+      if (repeatMode === "actuals") {
+        rep = intensity * cumNewBySku[sku];     // prior-month cumulative new × calibrated intensity
+      } else {
+        const newIdx = arr.length - 1;
+        for (let k = 1; ; k++) {
+          const cohortIdx = newIdx - 2 * k;
+          if (cohortIdx < 0) break;
+          const cohortNew = arr[cohortIdx] || 0;
+          const rate = r_initial * Math.pow(1 - r_decay, k - 1);
+          rep += cohortNew * rate;
+        }
       }
+      cumNewBySku[sku] += newVal;
       repeatBy[sku].push(rep);
       totalBy[sku].push(newVal + rep);
     });
@@ -3023,12 +3081,124 @@ function fcSyncPresetActive() {
     b.classList.toggle("active", b.dataset.fcpreset === match));
 }
 
+function setForecastRepeatMode(mode) {
+  FC_REPEAT_MODE = (mode === "actuals") ? "actuals" : "manual";
+  document.querySelectorAll(".pill-btn.theme-fc[data-fcrepeat]").forEach(b =>
+    b.classList.toggle("active", b.dataset.fcrepeat === FC_REPEAT_MODE));
+  // Grey out the repeat-cohort inputs when calibrating from actuals (they're not used).
+  const fromActuals = FC_REPEAT_MODE === "actuals";
+  ["fa-repeat-initial", "fa-repeat-decay"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.disabled = fromActuals; el.style.opacity = fromActuals ? 0.4 : 1; }
+  });
+  refreshForecast();
+}
+
 function refreshForecast() {
-  FC_RESULT = fcBuildForecast(fcReadAssumptions());
+  let intensity = 0, note = "Manual: repeat is modeled from the cohort assumptions below.";
+  if (FC_REPEAT_MODE === "actuals") {
+    const cal = fcRepeatIntensity();
+    intensity = cal.intensity;
+    note = `From actuals: repeat = <strong>${(intensity * 100).toFixed(1)}%</strong> of the cumulative prior trialer base, ` +
+           `calibrated to Luminate ${cal.monthLabel} (repeat ÷ all earlier new trialers). Cohort inputs below are ignored.`;
+  }
+  const noteEl = document.getElementById("fc-repeat-basis-note");
+  if (noteEl) noteEl.innerHTML = note;
+  FC_RESULT = fcBuildForecast(fcReadAssumptions(), FC_REPEAT_MODE, intensity);
   renderForecastKPIs();
   renderForecastCharts();
   renderForecastTable();
   fcSyncPresetActive();
+}
+
+// ── Plan vs Actual: frozen baseline scenarios vs live monthly actuals ──────────
+let PVA_METRIC = "units";   // units | wholesale | usw
+function setPvaMetric(btn) {
+  document.querySelectorAll(".pill-btn.theme-fc[data-pvamet]").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  PVA_METRIC = btn.dataset.pvamet;
+  renderForecastPlanVsActual();
+}
+
+function renderForecastPlanVsActual() {
+  const fb = DATA.forecast_baseline;
+  const card = document.getElementById("fc-pva-card");
+  if (!fb || !fb.scenarios) { if (card) card.style.display = "none"; return; }
+  card.style.display = "";
+  if (!MONTHLY_ROLLUP) MONTHLY_ROLLUP = buildMonthlyRollup();
+  const metric = PVA_METRIC;
+  const PL = fb.meta.placements.total, WPM = fb.meta.weeks_per_month;
+
+  // Actual monthly Total series, keyed by month. U/S/W uses the SAME denominator as
+  // the frozen plan (units ÷ frozen placements ÷ weeks) so it's a like-for-like compare.
+  const actual = {};
+  MONTHLY_ROLLUP.months.forEach(k => {
+    const t = MONTHLY_ROLLUP.byMonth[k].series.Total || {};
+    const partial = MONTHLY_ROLLUP.byMonth[k].isPartial;
+    let v = null;
+    if (metric === "units") v = t.pos_qty;
+    else if (metric === "wholesale") v = t.wholesale_dollars;
+    else if (t.pos_qty != null) v = t.pos_qty / PL / WPM;
+    actual[k] = { v, partial };
+  });
+
+  const anchorKey = fb.meta.last_complete_month;
+  const fcMonths  = fb.scenarios.base.months.map(m => m.key);
+  const xKeys     = [anchorKey, ...fcMonths];
+  const baseMonths = fb.scenarios.base.months;
+  const xLabels   = xKeys.map(k => {
+    const m = baseMonths.find(x => x.key === k);
+    if (m) return m.label;
+    const mr = MONTHLY_ROLLUP.byMonth[k];
+    return mr ? mr.label.replace(/ \(.*\)/, "") : k;
+  });
+  const anchorVal = (actual[anchorKey] || {}).v;
+  const scenVal = (name, key) => {
+    const m = fb.scenarios[name].months.find(x => x.key === key);
+    if (!m) return null;
+    return metric === "units" ? m.units : metric === "wholesale" ? m.wholesale : m.usw;
+  };
+  const scenLine = name => xKeys.map(k => k === anchorKey ? anchorVal : scenVal(name, k));
+  const actualLine = xKeys.map(k => {
+    const a = actual[k];
+    if (!a || a.v == null) return null;
+    if (k !== anchorKey && a.partial) return null;   // only completed months count
+    return a.v;
+  });
+
+  const fmt = metric === "units" ? (v => Math.round(v).toLocaleString())
+            : metric === "wholesale" ? (v => "$" + Math.round(v).toLocaleString())
+            : (v => v.toFixed(3));
+  const traces = [
+    { x: xLabels, y: scenLine("upside"),   name: "Upside",   type: "scatter", mode: "lines", line: { color: "#2e7d32", width: 1.5, dash: "dot" } },
+    { x: xLabels, y: scenLine("base"),     name: "Base",     type: "scatter", mode: "lines", line: { color: "#6a1b9a", width: 2.5 } },
+    { x: xLabels, y: scenLine("downside"), name: "Downside", type: "scatter", mode: "lines", line: { color: "#c62828", width: 1.5, dash: "dot" } },
+    { x: xLabels, y: actualLine, name: "Actual", type: "scatter", mode: "lines+markers", connectgaps: false, line: { color: "#0057e7", width: 3 }, marker: { size: 7 } },
+  ];
+  const layout = {
+    margin: { l: 64, r: 16, t: 10, b: 50 }, height: 320, hovermode: "x unified",
+    legend: { orientation: "h", y: 1.14 }, xaxis: { tickangle: -45, automargin: true },
+    yaxis: { title: metric === "units" ? "Units / month" : metric === "wholesale" ? "Wholesale $ / month" : "Total U/S/W", rangemode: "tozero" },
+  };
+  Plotly.newPlot("chart-fc-pva", traces, layout, { responsive: true, displayModeBar: false });
+
+  document.getElementById("fc-pva-meta").textContent =
+    `plan frozen ${fb.meta.frozen_as_of} · from week ${fb.meta.generated_from_week} · anchor ${fb.meta.last_complete_month_label} · placements ${PL.toLocaleString()}`;
+
+  // Tracking callout — latest completed month after the freeze
+  let lastIdx = -1;
+  for (let i = xKeys.length - 1; i > 0; i--) { if (actualLine[i] != null) { lastIdx = i; break; } }
+  const trk = document.getElementById("fc-pva-tracking");
+  if (lastIdx > 0) {
+    const a = actualLine[lastIdx], b = scenVal("base", xKeys[lastIdx]), d = scenVal("downside", xKeys[lastIdx]), u = scenVal("upside", xKeys[lastIdx]);
+    const pct = x => x ? (a / x - 1) * 100 : 0;
+    const sgn = x => (x >= 0 ? "+" : "") + x.toFixed(1) + "%";
+    const pos = a >= u ? "above Upside ▲" : a >= b ? "between Base and Upside" : a >= d ? "between Downside and Base" : "below Downside ▼";
+    trk.innerHTML = `<strong>${xLabels[lastIdx]}</strong> actual <strong>${fmt(a)}</strong> — tracking <strong>${pos}</strong>. ` +
+      `vs Base ${fmt(b)} (${sgn(pct(b))}) · vs Downside ${fmt(d)} (${sgn(pct(d))}) · vs Upside ${fmt(u)} (${sgn(pct(u))}).`;
+  } else {
+    trk.innerHTML = `<em>No month has closed after the ${fb.meta.last_complete_month_label} freeze yet — the actual line will populate as months complete.</em>`;
+  }
 }
 
 function initForecast() {
@@ -3058,6 +3228,7 @@ function initForecast() {
     if (el) el.addEventListener("input", refreshForecast);
   });
   refreshForecast();
+  renderForecastPlanVsActual();
 }
 
 // ── KPIs ─────────────────────────────────────────────────────────────────────

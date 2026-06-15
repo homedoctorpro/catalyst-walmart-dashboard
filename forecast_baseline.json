@@ -1,0 +1,696 @@
+{
+  "meta": {
+    "frozen_as_of": "2026-06-08",
+    "generated_from_week": "202618",
+    "last_complete_month": "2026-05",
+    "last_complete_month_label": "May 26",
+    "placements": {
+      "total": 5997,
+      "week": "202618"
+    },
+    "weeks_per_month": 4.333333333333333,
+    "horizon_months": 24,
+    "repeat_basis": "manual cohort presets (downside/base/upside)",
+    "note": "Plan-of-record frozen scenarios. Compare live monthly actuals against these lines."
+  },
+  "scenarios": {
+    "downside": {
+      "preset": {
+        "decay": 3,
+        "floor": 30,
+        "repeat": 50,
+        "rdecay": 7.5
+      },
+      "months": [
+        {
+          "key": "2026-06",
+          "label": "Jun 26",
+          "units": 34031,
+          "new": 22591,
+          "repeat": 11440,
+          "wholesale": 336246,
+          "usw": 1.3095
+        },
+        {
+          "key": "2026-07",
+          "label": "Jul 26",
+          "units": 40256,
+          "new": 22121,
+          "repeat": 18135,
+          "wholesale": 398106,
+          "usw": 1.5491
+        },
+        {
+          "key": "2026-08",
+          "label": "Aug 26",
+          "units": 43542,
+          "new": 21665,
+          "repeat": 21877,
+          "wholesale": 430387,
+          "usw": 1.6755
+        },
+        {
+          "key": "2026-09",
+          "label": "Sep 26",
+          "units": 49058,
+          "new": 21223,
+          "repeat": 27835,
+          "wholesale": 485208,
+          "usw": 1.8878
+        },
+        {
+          "key": "2026-10",
+          "label": "Oct 26",
+          "units": 51863,
+          "new": 20794,
+          "repeat": 31069,
+          "wholesale": 512740,
+          "usw": 1.9957
+        },
+        {
+          "key": "2026-11",
+          "label": "Nov 26",
+          "units": 56736,
+          "new": 20378,
+          "repeat": 36359,
+          "wholesale": 561192,
+          "usw": 2.1833
+        },
+        {
+          "key": "2026-12",
+          "label": "Dec 26",
+          "units": 59110,
+          "new": 19974,
+          "repeat": 39136,
+          "wholesale": 584470,
+          "usw": 2.2746
+        },
+        {
+          "key": "2027-01",
+          "label": "Jan 27",
+          "units": 63403,
+          "new": 19582,
+          "repeat": 43821,
+          "wholesale": 627164,
+          "usw": 2.4398
+        },
+        {
+          "key": "2027-02",
+          "label": "Feb 27",
+          "units": 65390,
+          "new": 19203,
+          "repeat": 46188,
+          "wholesale": 646635,
+          "usw": 2.5163
+        },
+        {
+          "key": "2027-03",
+          "label": "Mar 27",
+          "units": 69159,
+          "new": 18834,
+          "repeat": 50325,
+          "wholesale": 684129,
+          "usw": 2.6613
+        },
+        {
+          "key": "2027-04",
+          "label": "Apr 27",
+          "units": 70802,
+          "new": 18477,
+          "repeat": 52325,
+          "wholesale": 700202,
+          "usw": 2.7245
+        },
+        {
+          "key": "2027-05",
+          "label": "May 27",
+          "units": 74098,
+          "new": 18130,
+          "repeat": 55968,
+          "wholesale": 733002,
+          "usw": 2.8514
+        },
+        {
+          "key": "2027-06",
+          "label": "Jun 27",
+          "units": 75433,
+          "new": 17794,
+          "repeat": 57639,
+          "wholesale": 746046,
+          "usw": 2.9027
+        },
+        {
+          "key": "2027-07",
+          "label": "Jul 27",
+          "units": 78303,
+          "new": 17468,
+          "repeat": 60835,
+          "wholesale": 774617,
+          "usw": 3.0132
+        },
+        {
+          "key": "2027-08",
+          "label": "Aug 27",
+          "units": 79364,
+          "new": 17151,
+          "repeat": 62213,
+          "wholesale": 784966,
+          "usw": 3.054
+        },
+        {
+          "key": "2027-09",
+          "label": "Sep 27",
+          "units": 81851,
+          "new": 16845,
+          "repeat": 65007,
+          "wholesale": 809730,
+          "usw": 3.1497
+        },
+        {
+          "key": "2027-10",
+          "label": "Oct 27",
+          "units": 82670,
+          "new": 16547,
+          "repeat": 66123,
+          "wholesale": 817688,
+          "usw": 3.1812
+        },
+        {
+          "key": "2027-11",
+          "label": "Nov 27",
+          "units": 84812,
+          "new": 16258,
+          "repeat": 68554,
+          "wholesale": 839028,
+          "usw": 3.2636
+        },
+        {
+          "key": "2027-12",
+          "label": "Dec 27",
+          "units": 85415,
+          "new": 15978,
+          "repeat": 69437,
+          "wholesale": 844870,
+          "usw": 3.2868
+        },
+        {
+          "key": "2028-01",
+          "label": "Jan 28",
+          "units": 87248,
+          "new": 15706,
+          "repeat": 71541,
+          "wholesale": 863136,
+          "usw": 3.3574
+        },
+        {
+          "key": "2028-02",
+          "label": "Feb 28",
+          "units": 87661,
+          "new": 15443,
+          "repeat": 72218,
+          "wholesale": 867110,
+          "usw": 3.3733
+        },
+        {
+          "key": "2028-03",
+          "label": "Mar 28",
+          "units": 89216,
+          "new": 15187,
+          "repeat": 74029,
+          "wholesale": 882620,
+          "usw": 3.4331
+        },
+        {
+          "key": "2028-04",
+          "label": "Apr 28",
+          "units": 89463,
+          "new": 14939,
+          "repeat": 74523,
+          "wholesale": 884950,
+          "usw": 3.4426
+        },
+        {
+          "key": "2028-05",
+          "label": "May 28",
+          "units": 90769,
+          "new": 14699,
+          "repeat": 76070,
+          "wholesale": 897992,
+          "usw": 3.4929
+        }
+      ]
+    },
+    "base": {
+      "preset": {
+        "decay": 2,
+        "floor": 50,
+        "repeat": 50,
+        "rdecay": 5
+      },
+      "months": [
+        {
+          "key": "2026-06",
+          "label": "Jun 26",
+          "units": 34376,
+          "new": 22845,
+          "repeat": 11531,
+          "wholesale": 339650,
+          "usw": 1.3228
+        },
+        {
+          "key": "2026-07",
+          "label": "Jul 26",
+          "units": 40932,
+          "new": 22619,
+          "repeat": 18313,
+          "wholesale": 404790,
+          "usw": 1.5751
+        },
+        {
+          "key": "2026-08",
+          "label": "Aug 26",
+          "units": 44774,
+          "new": 22397,
+          "repeat": 22377,
+          "wholesale": 442551,
+          "usw": 1.7229
+        },
+        {
+          "key": "2026-09",
+          "label": "Sep 26",
+          "units": 50886,
+          "new": 22180,
+          "repeat": 28707,
+          "wholesale": 503292,
+          "usw": 1.9582
+        },
+        {
+          "key": "2026-10",
+          "label": "Oct 26",
+          "units": 54424,
+          "new": 21967,
+          "repeat": 32457,
+          "wholesale": 538047,
+          "usw": 2.0943
+        },
+        {
+          "key": "2026-11",
+          "label": "Nov 26",
+          "units": 60120,
+          "new": 21758,
+          "repeat": 38361,
+          "wholesale": 594654,
+          "usw": 2.3135
+        },
+        {
+          "key": "2026-12",
+          "label": "Dec 26",
+          "units": 63372,
+          "new": 21554,
+          "repeat": 41818,
+          "wholesale": 626596,
+          "usw": 2.4386
+        },
+        {
+          "key": "2027-01",
+          "label": "Jan 27",
+          "units": 68676,
+          "new": 21354,
+          "repeat": 47322,
+          "wholesale": 679319,
+          "usw": 2.6427
+        },
+        {
+          "key": "2027-02",
+          "label": "Feb 27",
+          "units": 71661,
+          "new": 21157,
+          "repeat": 50504,
+          "wholesale": 708632,
+          "usw": 2.7576
+        },
+        {
+          "key": "2027-03",
+          "label": "Mar 27",
+          "units": 76598,
+          "new": 20965,
+          "repeat": 55633,
+          "wholesale": 757707,
+          "usw": 2.9476
+        },
+        {
+          "key": "2027-04",
+          "label": "Apr 27",
+          "units": 79334,
+          "new": 20776,
+          "repeat": 58557,
+          "wholesale": 784563,
+          "usw": 3.0528
+        },
+        {
+          "key": "2027-05",
+          "label": "May 27",
+          "units": 83926,
+          "new": 20592,
+          "repeat": 63334,
+          "wholesale": 830213,
+          "usw": 3.2295
+        },
+        {
+          "key": "2027-06",
+          "label": "Jun 27",
+          "units": 86428,
+          "new": 20411,
+          "repeat": 66017,
+          "wholesale": 854774,
+          "usw": 3.3258
+        },
+        {
+          "key": "2027-07",
+          "label": "Jul 27",
+          "units": 90696,
+          "new": 20233,
+          "repeat": 70463,
+          "wholesale": 897209,
+          "usw": 3.4901
+        },
+        {
+          "key": "2027-08",
+          "label": "Aug 27",
+          "units": 92981,
+          "new": 20059,
+          "repeat": 72922,
+          "wholesale": 919627,
+          "usw": 3.578
+        },
+        {
+          "key": "2027-09",
+          "label": "Sep 27",
+          "units": 96945,
+          "new": 19889,
+          "repeat": 77056,
+          "wholesale": 959044,
+          "usw": 3.7305
+        },
+        {
+          "key": "2027-10",
+          "label": "Oct 27",
+          "units": 99027,
+          "new": 19722,
+          "repeat": 79305,
+          "wholesale": 979463,
+          "usw": 3.8106
+        },
+        {
+          "key": "2027-11",
+          "label": "Nov 27",
+          "units": 102706,
+          "new": 19558,
+          "repeat": 83148,
+          "wholesale": 1016048,
+          "usw": 3.9522
+        },
+        {
+          "key": "2027-12",
+          "label": "Dec 27",
+          "units": 104599,
+          "new": 19398,
+          "repeat": 85201,
+          "wholesale": 1034603,
+          "usw": 4.025
+        },
+        {
+          "key": "2028-01",
+          "label": "Jan 28",
+          "units": 108010,
+          "new": 19240,
+          "repeat": 88770,
+          "wholesale": 1068532,
+          "usw": 4.1563
+        },
+        {
+          "key": "2028-02",
+          "label": "Feb 28",
+          "units": 109726,
+          "new": 19086,
+          "repeat": 90640,
+          "wholesale": 1085349,
+          "usw": 4.2223
+        },
+        {
+          "key": "2028-03",
+          "label": "Mar 28",
+          "units": 112887,
+          "new": 18935,
+          "repeat": 93951,
+          "wholesale": 1116788,
+          "usw": 4.344
+        },
+        {
+          "key": "2028-04",
+          "label": "Apr 28",
+          "units": 114438,
+          "new": 18787,
+          "repeat": 95651,
+          "wholesale": 1131986,
+          "usw": 4.4037
+        },
+        {
+          "key": "2028-05",
+          "label": "May 28",
+          "units": 117364,
+          "new": 18642,
+          "repeat": 98722,
+          "wholesale": 1161091,
+          "usw": 4.5163
+        }
+      ]
+    },
+    "upside": {
+      "preset": {
+        "decay": 1,
+        "floor": 85,
+        "repeat": 60,
+        "rdecay": 4
+      },
+      "months": [
+        {
+          "key": "2026-06",
+          "label": "Jun 26",
+          "units": 36922,
+          "new": 23041,
+          "repeat": 13882,
+          "wholesale": 364743,
+          "usw": 1.4208
+        },
+        {
+          "key": "2026-07",
+          "label": "Jul 26",
+          "units": 45068,
+          "new": 23007,
+          "repeat": 22061,
+          "wholesale": 445673,
+          "usw": 1.7342
+        },
+        {
+          "key": "2026-08",
+          "label": "Aug 26",
+          "units": 50124,
+          "new": 22973,
+          "repeat": 27151,
+          "wholesale": 495377,
+          "usw": 1.9288
+        },
+        {
+          "key": "2026-09",
+          "label": "Sep 26",
+          "units": 57922,
+          "new": 22939,
+          "repeat": 34983,
+          "wholesale": 572860,
+          "usw": 2.2289
+        },
+        {
+          "key": "2026-10",
+          "label": "Oct 26",
+          "units": 62754,
+          "new": 22906,
+          "repeat": 39848,
+          "wholesale": 620368,
+          "usw": 2.4148
+        },
+        {
+          "key": "2026-11",
+          "label": "Nov 26",
+          "units": 70220,
+          "new": 22873,
+          "repeat": 47347,
+          "wholesale": 694545,
+          "usw": 2.7021
+        },
+        {
+          "key": "2026-12",
+          "label": "Dec 26",
+          "units": 74838,
+          "new": 22840,
+          "repeat": 51998,
+          "wholesale": 739948,
+          "usw": 2.8798
+        },
+        {
+          "key": "2027-01",
+          "label": "Jan 27",
+          "units": 81985,
+          "new": 22808,
+          "repeat": 59177,
+          "wholesale": 810957,
+          "usw": 3.1548
+        },
+        {
+          "key": "2027-02",
+          "label": "Feb 27",
+          "units": 86399,
+          "new": 22776,
+          "repeat": 63622,
+          "wholesale": 854344,
+          "usw": 3.3247
+        },
+        {
+          "key": "2027-03",
+          "label": "Mar 27",
+          "units": 93239,
+          "new": 22745,
+          "repeat": 70495,
+          "wholesale": 922314,
+          "usw": 3.5879
+        },
+        {
+          "key": "2027-04",
+          "label": "Apr 27",
+          "units": 97456,
+          "new": 22713,
+          "repeat": 74743,
+          "wholesale": 963770,
+          "usw": 3.7502
+        },
+        {
+          "key": "2027-05",
+          "label": "May 27",
+          "units": 104004,
+          "new": 22682,
+          "repeat": 81322,
+          "wholesale": 1028827,
+          "usw": 4.0021
+        },
+        {
+          "key": "2027-06",
+          "label": "Jun 27",
+          "units": 108033,
+          "new": 22652,
+          "repeat": 85381,
+          "wholesale": 1068433,
+          "usw": 4.1572
+        },
+        {
+          "key": "2027-07",
+          "label": "Jul 27",
+          "units": 114299,
+          "new": 22621,
+          "repeat": 91678,
+          "wholesale": 1130697,
+          "usw": 4.3983
+        },
+        {
+          "key": "2027-08",
+          "label": "Aug 27",
+          "units": 118148,
+          "new": 22591,
+          "repeat": 95557,
+          "wholesale": 1168530,
+          "usw": 4.5464
+        },
+        {
+          "key": "2027-09",
+          "label": "Sep 27",
+          "units": 124145,
+          "new": 22561,
+          "repeat": 101584,
+          "wholesale": 1228118,
+          "usw": 4.7772
+        },
+        {
+          "key": "2027-10",
+          "label": "Oct 27",
+          "units": 127821,
+          "new": 22532,
+          "repeat": 105289,
+          "wholesale": 1264254,
+          "usw": 4.9187
+        },
+        {
+          "key": "2027-11",
+          "label": "Nov 27",
+          "units": 133560,
+          "new": 22503,
+          "repeat": 111057,
+          "wholesale": 1321275,
+          "usw": 5.1395
+        },
+        {
+          "key": "2027-12",
+          "label": "Dec 27",
+          "units": 137071,
+          "new": 22474,
+          "repeat": 114597,
+          "wholesale": 1355784,
+          "usw": 5.2746
+        },
+        {
+          "key": "2028-01",
+          "label": "Jan 28",
+          "units": 142562,
+          "new": 22445,
+          "repeat": 120116,
+          "wholesale": 1410346,
+          "usw": 5.4859
+        },
+        {
+          "key": "2028-02",
+          "label": "Feb 28",
+          "units": 145914,
+          "new": 22417,
+          "repeat": 123497,
+          "wholesale": 1443298,
+          "usw": 5.6149
+        },
+        {
+          "key": "2028-03",
+          "label": "Mar 28",
+          "units": 151168,
+          "new": 22389,
+          "repeat": 128779,
+          "wholesale": 1495502,
+          "usw": 5.8171
+        },
+        {
+          "key": "2028-04",
+          "label": "Apr 28",
+          "units": 154369,
+          "new": 22361,
+          "repeat": 132008,
+          "wholesale": 1526961,
+          "usw": 5.9402
+        },
+        {
+          "key": "2028-05",
+          "label": "May 28",
+          "units": 159395,
+          "new": 22334,
+          "repeat": 137061,
+          "wholesale": 1576905,
+          "usw": 6.1336
+        }
+      ]
+    }
+  }
+}

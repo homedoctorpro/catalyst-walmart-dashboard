@@ -51,6 +51,8 @@ SHEET_MAP = {
                "ecomm_l52": None,                           "ecomm_lw": "Catalyst LW Ecomm"},
     "202618": {"instore": "LW Catalyst Sales",              "bystore": "Sales by Store",
                "ecomm_l52": None,                           "ecomm_lw": "LW Catalyst Ecomm"},
+    "202619": {"instore": "Catalyst LW Sales ",             "bystore": "Sales by Store",
+               "ecomm_l52": None,                           "ecomm_lw": "Catalyst LW Ecomm "},
 }
 
 SKUS = [
@@ -837,6 +839,16 @@ def main():
     supply_plan = build_supply_plan(files)
     print(f"  Supply Plan snapshots: {supply_plan['snapshots']}")
 
+    # 5f. Frozen forecast baseline (plan-of-record) — load if present, never regenerate
+    #     here. Re-baseline only by running gen_forecast_baseline.js intentionally.
+    forecast_baseline = None
+    fb_path = os.path.join(os.path.dirname(__file__), "forecast_baseline.json")
+    if os.path.exists(fb_path):
+        with open(fb_path, "r", encoding="utf-8") as f:
+            forecast_baseline = json.load(f)
+        print(f"\nForecast baseline: frozen {forecast_baseline['meta'].get('frozen_as_of')} "
+              f"(from week {forecast_baseline['meta'].get('generated_from_week')})")
+
     data = {
         "weeks":       sorted(files.keys()),
         "store_weeks": store_weeks_list,
@@ -856,6 +868,7 @@ def main():
         "endcap":      {"rows": endcap_rows, "summary": endcap_summary},
         "trial_repeat": trial_repeat,
         "supply_plan": supply_plan,
+        "forecast_baseline": forecast_baseline,
     }
 
     # 7. Read template and embed JSON
