@@ -834,6 +834,16 @@ def main():
         print(f"  [WARN] Trial & Repeat data unavailable: {e}")
         trial_repeat = None
 
+    # 5d-ii. Traited / valid authorization snapshot (optional - requires
+    #        Catalyst Store Inventory OOS Summary*.xlsx)
+    print("\nBuilding Traited/Valid authorization data...")
+    try:
+        from traited_status import build_traited_data
+        traited = build_traited_data(verbose=True)
+    except Exception as e:
+        print(f"  [WARN] Traited/valid data unavailable: {e}")
+        traited = None
+
     # 5e. Supply Plan snapshots (dedicated 'Supply Plan' sheet, auto-detected)
     print("\nBuilding Supply Plan data...")
     supply_plan = build_supply_plan(files)
@@ -867,6 +877,7 @@ def main():
         "week_dates":   week_dates,
         "endcap":      {"rows": endcap_rows, "summary": endcap_summary},
         "trial_repeat": trial_repeat,
+        "traited": traited,
         "supply_plan": supply_plan,
         "forecast_baseline": forecast_baseline,
     }
@@ -902,13 +913,16 @@ def main():
     already_sent = os.path.exists(sent_flag) and open(sent_flag).read().strip() == str(today)
     is_monday = today.weekday() == 0
     dev_only  = not is_monday or already_sent
-    try:
-        from email_report import send_report
-        send_report(data, dev_only=dev_only)
-        if is_monday and not already_sent:
-            open(sent_flag, "w").write(str(today))
-    except Exception as e:
-        print(f"  [Email] Error: {e}")
+    if os.environ.get("SKIP_EMAIL") == "1":
+        print("  [Email] Skipped (SKIP_EMAIL=1)")
+    else:
+        try:
+            from email_report import send_report
+            send_report(data, dev_only=dev_only)
+            if is_monday and not already_sent:
+                open(sent_flag, "w").write(str(today))
+        except Exception as e:
+            print(f"  [Email] Error: {e}")
 
 
 def write_store_map(stores, all_store_weeks, store_weeks_list, week_labels):

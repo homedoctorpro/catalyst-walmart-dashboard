@@ -1048,17 +1048,33 @@
   <!-- ── Tab: Distribution ────────────────────────────────────────────────── -->
   <div id="tab-distribution" class="tab-panel">
     <p style="font-size:0.82rem; color:#666; margin:4px 2px 0; line-height:1.45">
-      <b>Authorized</b> = stores Walmart lists as carrying the SKU (the count we <i>should</i> be in) —
-      <b>including stores currently at zero inventory</b>.
-      <b>Holding inventory</b> = the subset physically stocking it now (on-hand &gt; 0); the gap between the
-      two is authorized stores sitting empty (OOS at shelf).
+      <b>Traited</b> = stores on the SKU's official Walmart assortment/planogram (authorized to carry it) — the
+      true "should be in" base. <b>In feed</b> = every store the weekly report lists for the SKU, which
+      <b>also includes non-traited stores</b> that dropped the listing but still show up (usually at zero
+      inventory). <b>Holding inventory</b> = the subset physically stocking it now (on-hand &gt; 0).
+      A zero-on-hand store that is <i>traited</i> is a real out-of-stock; a zero-on-hand store that is
+      <i>non-traited</i> is a lost listing, not an OOS — the Authorization panel below splits the two.
       <b>Any SKU</b> counts unique stores for at least one Catalyst product. WoW change flags distribution
       <span style="color:#2e7d32;font-weight:700">gains</span> and
       <span style="color:#d32f2f;font-weight:700">losses</span>.
     </p>
 
+    <!-- Authorization status panel (traited vs non-traited snapshot) -->
+    <div class="data-table-card" id="dist-auth-card" style="margin-top:14px; display:none">
+      <h3 id="dist-auth-title">Authorization Status — Traited vs. Non-Traited</h3>
+      <p id="dist-auth-note" style="font-size:0.8rem;color:#666;margin:2px 0 10px;line-height:1.45"></p>
+      <div class="data-table-scroll">
+        <table class="data-tbl" id="dist-auth-table">
+          <thead><tr id="dist-auth-thead"></tr></thead>
+          <tbody id="dist-auth-tbody"></tbody>
+        </table>
+      </div>
+      <h4 style="margin:14px 0 6px;font-size:0.9rem;color:#444">Non-Traited Stores in Feed (lost-listing candidates)</h4>
+      <div id="dist-auth-nonlist" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px"></div>
+    </div>
+
     <!-- Metric mode toggle -->
-    <div id="dist-metric-toggle" style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap"></div>
+    <div id="dist-metric-toggle" style="margin-top:14px; display:flex; gap:8px; align-items:center; flex-wrap:wrap"></div>
 
     <!-- KPI row: latest-week store counts per SKU + Any, with WoW gain/loss -->
     <div class="kpi-row" id="dist-kpi-row" style="grid-template-columns: repeat(5, 1fr); margin-top:12px"></div>
@@ -4174,10 +4190,17 @@ function initDistribution() {
   const seriesColor = s => (s === ANY ? "#333" : SKU_COLORS[s]);
   const seriesLabel = s => (s === ANY ? "Any SKU" : (SKU_SHORT[s] || s));
 
-  // Two definitions of "in distribution":
+  // Traited/valid authorization snapshot (optional). by_sku[sku] = [store_num,...]
+  // of stores on the official assortment as of DATA.traited.snapshot_date.
+  const HAS_TRAITED = !!(DATA.traited && DATA.traited.by_sku);
+  const traitedSet = {};
+  if (HAS_TRAITED) DATA.skus.forEach(s => traitedSet[s] = new Set(DATA.traited.by_sku[s] || []));
+
+  // Three definitions of "in distribution":
   //   authorized = store is listed for the SKU in Walmart's report (row exists),
-  //                INCLUDING stores currently at zero inventory ("should be in").
+  //                INCLUDING non-traited stores at zero inventory ("in feed").
   //   instock    = the subset physically holding on-hand inventory (on_hand > 0).
+  //   traited    = store is on the official assortment per the snapshot (true base).
   // sets[mode][week][series] = Set(store_num)
   function buildSets(mode) {
     const out = {};
@@ -4189,7 +4212,10 @@ function initDistribution() {
         DATA.skus.forEach(sku => {
           const rec = (sdata.skus || {})[sku];
           if (!rec) return;                                  // not listed for this SKU
-          const inDist = mode === "authorized" ? true : ((rec.on_hand || 0) > 0);
+          let inDist;
+          if (mode === "authorized")   inDist = true;
+          else if (mode === "traited") inDist = traitedSet[sku] && traitedSet[sku].has(sn);
+          else                         inDist = (rec.on_hand || 0) > 0;
           if (inDist) { sets[sku].add(sn); any = true; }
         });
         if (any) sets[ANY].add(sn);
@@ -4199,8 +4225,9 @@ function initDistribution() {
     return out;
   }
   const SETS = { authorized: buildSets("authorized"), instock: buildSets("instock") };
-  const MODE_LABEL = { authorized: "Authorized", instock: "Holding inventory" };
-  let mode = "authorized";
+  const MODE_LABEL = { authorized: "In feed", instock: "Holding inventory" };
+  if (HAS_TRAITED) { SETS.traited = buildSets("traited"); MODE_LABEL.traited = "Traited"; }
+  let mode = HAS_TRAITED ? "traited" : "authorized";
   let storeSets = SETS[mode];
   const countAt    = (w, s) => (storeSets[w] ? storeSets[w][s].size : 0);
   const countIn    = (m, w, s) => (SETS[m][w] ? SETS[m][w][s].size : 0);
@@ -4218,7 +4245,10 @@ function initDistribution() {
   const toggle = document.getElementById("dist-metric-toggle");
   toggle.innerHTML = `<span style="font-size:0.8rem;color:#666;font-weight:600">Count stores:</span>`;
   const modeBtns = {};
-  [["authorized","Authorized (should be in)"],["instock","Holding inventory (on-hand > 0)"]].forEach(([m, txt]) => {
+  const modeOpts = [];
+  if (HAS_TRAITED) modeOpts.push(["traited","Traited (authorized assortment)"]);
+  modeOpts.push(["authorized","In feed (incl. non-traited)"], ["instock","Holding inventory (on-hand > 0)"]);
+  modeOpts.forEach(([m, txt]) => {
     const b = document.createElement("button");
     b.textContent = txt;
     b.style.cssText = "cursor:pointer;font-size:0.8rem;border-radius:16px;padding:5px 14px;border:2px solid #0057e7;background:#fff;color:#0057e7;font-weight:600";
@@ -4236,8 +4266,8 @@ function initDistribution() {
     toggle.appendChild(b);
   });
   // initial active styling
-  modeBtns.authorized.style.background = "#0057e7";
-  modeBtns.authorized.style.color = "#fff";
+  modeBtns[mode].style.background = "#0057e7";
+  modeBtns[mode].style.color = "#fff";
 
   // ── SKU chip filter ─────────────────────────────────────────────────────────
   const chipContainer = document.getElementById("dist-sku-chips");
@@ -4274,9 +4304,16 @@ function initDistribution() {
         const sign  = d > 0 ? "+" : (d < 0 ? "−" : "±");
         chgHtml = `<span class="kpi-chg" style="color:${color}">${sign}${Math.abs(d)} WoW</span>`;
       }
-      // In authorized mode, surface how many of those are sitting at zero inventory.
+      // Surface how many are sitting at zero inventory. In traited mode this is the
+      // true (actionable) OOS; in feed mode it also counts non-traited dead listings.
       let sub = weekLabel(latestW);
-      if (mode === "authorized") {
+      if (mode === "traited" && HAS_TRAITED) {
+        const sm = DATA.traited.summary;
+        const oos = s === ANY
+          ? DATA.skus.reduce((a, sku) => a + ((sm[sku] || {}).oos_traited || 0), 0)
+          : ((sm[s] || {}).oos_traited || 0);
+        sub += ` · <span style="color:#d32f2f">${oos.toLocaleString()} true OOS</span>`;
+      } else if (mode === "authorized") {
         const empty = countIn("authorized", latestW, s) - countIn("instock", latestW, s);
         sub += ` · <span style="color:#d32f2f">${empty.toLocaleString()} at 0 inv</span>`;
       }
@@ -4425,7 +4462,85 @@ function initDistribution() {
     tbody.appendChild(sumTr);
   }
 
-  function renderAll() { renderKpis(); rebuildDistCharts(); renderChangeCards(); renderTable(); }
+  // ── Authorization status panel: traited vs non-traited (snapshot) ───────────
+  function renderAuthPanel() {
+    const card = document.getElementById("dist-auth-card");
+    if (!HAS_TRAITED) { card.style.display = "none"; return; }
+    card.style.display = "";
+    const sm = DATA.traited.summary;
+    const snap = DATA.traited.snapshot_date || "latest snapshot";
+
+    const tot = sm.Total || {};
+    const feedOosPct = tot.feed ? ((tot.oos_traited + tot.oos_non_traited) / tot.feed * 100) : 0;
+    const trueOosPct = tot.traited ? (tot.oos_traited / tot.traited * 100) : 0;
+    document.getElementById("dist-auth-title").textContent =
+      `Authorization Status — Traited vs. Non-Traited (snapshot ${snap})`;
+    document.getElementById("dist-auth-note").innerHTML =
+      `Of <b>${(tot.feed||0).toLocaleString()}</b> store-SKU listings in the feed, ` +
+      `<b>${(tot.traited||0).toLocaleString()}</b> are traited (on the official assortment) and ` +
+      `<b style="color:#d32f2f">${(tot.non_traited||0).toLocaleString()}</b> are non-traited (lost listings). ` +
+      `Counting only traited stores, true OOS is <b style="color:#2e7d32">${trueOosPct.toFixed(1)}%</b> ` +
+      `(${(tot.oos_traited||0).toLocaleString()} empty) — vs the inflated <b>${feedOosPct.toFixed(1)}%</b> ` +
+      `when non-traited dead listings are counted. <span style="color:#888">Source: ${DATA.traited.source_file}.</span>`;
+
+    const cols = ["SKU","Traited","In feed","Non-traited","Non-traited @ $0",
+                  "True OOS (traited @ $0)","True OOS %","Feed OOS %"];
+    document.getElementById("dist-auth-thead").innerHTML =
+      cols.map((c,i) => `<th style="text-align:${i?'right':'left'}">${c}</th>`).join("");
+
+    const tbody = document.getElementById("dist-auth-tbody");
+    tbody.innerHTML = "";
+    const rowFor = (key, label, color, bold) => {
+      const r = sm[key]; if (!r) return "";
+      const tOos = r.traited ? (r.oos_traited / r.traited * 100) : 0;
+      const fOos = r.feed ? ((r.oos_traited + r.oos_non_traited) / r.feed * 100) : 0;
+      const w = bold ? "font-weight:800" : "";
+      const td = (v, extra="") => `<td style="text-align:right;${w};${extra}">${v}</td>`;
+      return `<tr style="${bold?'border-top:2px solid #333;background:#fafafa':''}">` +
+        `<td style="${w};color:${color}">${label}</td>` +
+        td((r.traited||0).toLocaleString()) +
+        td((r.feed||0).toLocaleString()) +
+        td((r.non_traited||0).toLocaleString(), "color:#d32f2f") +
+        td((r.oos_non_traited||0).toLocaleString(), "color:#d32f2f") +
+        td((r.oos_traited||0).toLocaleString()) +
+        td(tOos.toFixed(1)+"%", "color:#2e7d32") +
+        td(fOos.toFixed(1)+"%", "color:#999") + `</tr>`;
+    };
+    let html = "";
+    DATA.skus.forEach(sku => html += rowFor(sku, SKU_SHORT[sku] || sku, SKU_COLORS[sku] || "#333", false));
+    html += rowFor("Total", "Total", "#333", true);
+    tbody.innerHTML = html;
+
+    // Non-traited store list per SKU (live from latest feed minus traited set)
+    const wrap = document.getElementById("dist-auth-nonlist");
+    wrap.innerHTML = "";
+    const wData = DATA.weekly_stores[latestW] || {};
+    const nonByS = {}; DATA.skus.forEach(s => nonByS[s] = []);
+    Object.entries(wData).forEach(([sn, sdata]) => {
+      DATA.skus.forEach(sku => {
+        const rec = (sdata.skus || {})[sku]; if (!rec) return;
+        if (!(traitedSet[sku] && traitedSet[sku].has(sn)))
+          nonByS[sku].push({ sn, empty: (rec.on_hand || 0) === 0 });
+      });
+    });
+    const MAXLIST = 10;
+    DATA.skus.forEach(sku => {
+      const arr = nonByS[sku];
+      const empties = arr.filter(x => x.empty).length;
+      const list = arr.slice(0, MAXLIST).map(x =>
+        `${storeLabel(x.sn)}${x.empty ? ' <span style="color:#d32f2f">·$0</span>' : ''}`).join("<br>");
+      const more = arr.length > MAXLIST ? `<br><span style="color:#888">+${arr.length - MAXLIST} more…</span>` : "";
+      const card2 = document.createElement("div");
+      card2.style.cssText = `border:1px solid #eee;border-top:4px solid ${SKU_COLORS[sku]||'#333'};border-radius:8px;padding:10px 12px;background:#fafafa`;
+      card2.innerHTML =
+        `<div style="font-weight:700;font-size:0.9rem;color:${SKU_COLORS[sku]||'#333'}">${SKU_SHORT[sku]||sku}</div>` +
+        `<div style="font-size:1.3rem;font-weight:800;margin:2px 0">${arr.length}<span style="font-size:0.7rem;font-weight:600;color:#777"> non-traited · ${empties} empty</span></div>` +
+        `<div style="font-size:0.74rem;color:#555;line-height:1.4">${list || '<span style=\"color:#aaa\">None</span>'}${more}</div>`;
+      wrap.appendChild(card2);
+    });
+  }
+
+  function renderAll() { renderAuthPanel(); renderKpis(); rebuildDistCharts(); renderChangeCards(); renderTable(); }
   renderAll();
 }
 
