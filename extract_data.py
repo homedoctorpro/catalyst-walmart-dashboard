@@ -538,20 +538,56 @@ def geocode_stores(store_meta, cache):
     return cache
 
 
+# ─── OOS exclusions for de-listed (non-traited) stores ────────────────────────
+
+def mark_oos_exclusions(all_store_weeks, store_weeks, traited_by_sku):
+    """For NON-traited (store, sku) pairs, mark the *terminal* OOS tail — the
+    run of on_hand==0 weeks at the very end of their history (after the last
+    week they held inventory) — with excl_oos=True on the slot dict.
+
+    These trailing stockouts are the store dropping the listing, not a real
+    out-of-stock, so OOS computations skip flagged slots (numerator AND
+    denominator). Earlier weeks (when the store was active — in-stock, or a
+    temporary mid-history stockout) are left untouched.
+
+    traited_by_sku: {sku: set(store_num)} of traited & valid stores.
+    Returns the number of slots flagged.
+    """
+    # Per (store, sku): ordered list of slot dicts across weeks
+    timeline = {}  # (sku, store_num) -> [(week, slot_dict), ...] in week order
+    for week in store_weeks:
+        for store_num, sdata in all_store_weeks.get(week, {}).items():
+            for sku, skudata in sdata.get("skus", {}).items():
+                timeline.setdefault((sku, store_num), []).append(skudata)
+
+    n = 0
+    for (sku, store_num), seq in timeline.items():
+        if store_num in traited_by_sku.get(sku, set()):
+            continue  # traited → real distribution, keep all OOS
+        for skudata in reversed(seq):       # walk from latest week backward
+            if skudata.get("on_hand") == 0:
+                skudata["excl_oos"] = True
+                n += 1
+            else:
+                break                        # first in-stock week ends the tail
+    return n
+
+
 # ─── Consecutive OOS computation ──────────────────────────────────────────────
 
 def compute_consecutive_oos_by_week(all_store_weeks, store_weeks):
     """
     For each week W (in store_weeks order), for each (sku, store) pair,
     count trailing consecutive OOS weeks ending at W.
-    OOS = on_hand == 0
+    OOS = on_hand == 0. Slots flagged excl_oos (de-listed non-traited tails)
+    are skipped — they neither count as OOS nor get recorded.
 
     Returns: {week: {sku: {store_num: consecutive_count}}}
     """
     result = {w: {sku: {} for sku in SKUS} for w in store_weeks}
 
-    # Build timeline: for each (sku, store) — list of (week, on_hand)
-    timeline = {}  # (sku, store_num) -> {week: on_hand}
+    # Build timeline: for each (sku, store) — {week: (on_hand, excluded)}
+    timeline = {}  # (sku, store_num) -> {week: (on_hand, excl)}
     for week in store_weeks:
         week_data = all_store_weeks.get(week, {})
         for store_num, sdata in week_data.items():
@@ -559,18 +595,23 @@ def compute_consecutive_oos_by_week(all_store_weeks, store_weeks):
                 key = (sku, store_num)
                 if key not in timeline:
                     timeline[key] = {}
-                timeline[key][week] = skudata.get("on_hand", None)
+                timeline[key][week] = (skudata.get("on_hand", None), skudata.get("excl_oos", False))
 
     for (sku, store_num), week_map in timeline.items():
         for w_idx, week in enumerate(store_weeks):
             if week not in week_map:
                 continue
+            if week_map[week][1]:        # excluded slot — don't record OOS here
+                continue
             # Count trailing OOS ending at this week
             count = 0
             for past_week in reversed(store_weeks[:w_idx + 1]):
-                oh = week_map.get(past_week)
-                if oh is None:
+                entry = week_map.get(past_week)
+                if entry is None:
                     break   # store didn't report that week — stop chain
+                oh, excl = entry
+                if oh is None or excl:
+                    break   # de-listed tail or missing — chain ends
                 if oh == 0:
                     count += 1
                 else:
@@ -608,6 +649,8 @@ def compute_state_oos(all_store_weeks, stores):
             if state_name not in state_counts:
                 state_counts[state_name] = [0, 0]
             for sku, skudata in sdata.get("skus", {}).items():
+                if skudata.get("excl_oos"):
+                    continue   # de-listed non-traited tail — out of OOS scope
                 state_counts[state_name][0] += 1
                 if skudata.get("on_hand", 1) == 0:
                     state_counts[state_name][1] += 1
@@ -794,6 +837,21 @@ def main():
     print("\nBuilding data structures...")
     all_store_weeks = build_weekly_store_summary(raw_store_rows_by_week)
     stores = build_stores_dict(raw_store_rows_by_week, geo_cache)
+
+    # Traited/valid snapshot first — needed to strip de-listed OOS tails before
+    # the OOS computations run.
+    print("Building Traited/Valid authorization data...")
+    try:
+        from traited_status import build_traited_data
+        traited = build_traited_data(verbose=True)
+    except Exception as e:
+        print(f"  [WARN] Traited/valid data unavailable: {e}")
+        traited = None
+    if traited and traited.get("by_sku"):
+        traited_by_sku = {sku: set(lst) for sku, lst in traited["by_sku"].items()}
+        n_excl = mark_oos_exclusions(all_store_weeks, store_weeks_list, traited_by_sku)
+        print(f"  [OOS] Excluded {n_excl:,} de-listed non-traited OOS slots (terminal stockout tails)")
+
     state_sales = compute_state_sales(all_store_weeks, stores)
     state_oos   = compute_state_oos(all_store_weeks, stores)
     consecutive_oos = compute_consecutive_oos_by_week(all_store_weeks, store_weeks_list)
@@ -833,16 +891,6 @@ def main():
     except Exception as e:
         print(f"  [WARN] Trial & Repeat data unavailable: {e}")
         trial_repeat = None
-
-    # 5d-ii. Traited / valid authorization snapshot (optional - requires
-    #        Catalyst Store Inventory OOS Summary*.xlsx)
-    print("\nBuilding Traited/Valid authorization data...")
-    try:
-        from traited_status import build_traited_data
-        traited = build_traited_data(verbose=True)
-    except Exception as e:
-        print(f"  [WARN] Traited/valid data unavailable: {e}")
-        traited = None
 
     # 5e. Supply Plan snapshots (dedicated 'Supply Plan' sheet, auto-detected)
     print("\nBuilding Supply Plan data...")

@@ -5141,6 +5141,7 @@ function renderOosMap() {
     const stName=ABBR_TO_STATE[info.state]||info.state;
     Object.entries(sdata.skus||{}).forEach(([sku,sv]) => {
       if(!skuSet.has(sku)) return;
+      if(sv.excl_oos) return;                 // de-listed non-traited tail
       stOosDen[stName]=(stOosDen[stName]||0)+1;
       if(sv.on_hand===0) stOosNum[stName]=(stOosNum[stName]||0)+1;
     });
@@ -5168,6 +5169,7 @@ function buildOosDots(wData, skuSet, consec) {
     let anyOos=false, maxCw=0; const lines=[];
     Object.entries(sdata.skus||{}).forEach(([sku,sv]) => {
       if(!skuSet.has(sku)) return;
+      if(sv.excl_oos) return;                 // de-listed non-traited tail
       const isOos=sv.on_hand===0; if(isOos) anyOos=true;
       const cw=(consec[sku]||{})[sn]||0;
       if(isOos && cw>maxCw) maxCw=cw;
@@ -5204,6 +5206,7 @@ function updateOosTable(wData, skuSet, consec) {
     const oosSkus = [];
     Object.entries(sdata.skus||{}).forEach(([sku,sv]) => {
       if(!skuSet.has(sku)) return;
+      if(sv.excl_oos) return;                 // de-listed non-traited tail
       if(sv.on_hand===0) {
         const cw=(consec[sku]||{})[sn]||1;
         oosSkus.push({ short: SKU_SHORT[sku]||sku, cw });
@@ -5247,7 +5250,7 @@ function updateOosTable(wData, skuSet, consec) {
 
   // Totals: all OOS and 2+ consecutive weeks
   const totalStores = Object.values(wData).filter(sdata =>
-    Object.keys(sdata.skus||{}).some(sku => skuSet.has(sku))
+    Object.entries(sdata.skus||{}).some(([sku,sv]) => skuSet.has(sku) && !sv.excl_oos)
   ).length;
   const totalOos  = storeRows.length;
   const twoPlus   = storeRows.filter(r => r.maxCw >= 2).length;
@@ -5269,6 +5272,7 @@ function updateOosTable(wData, skuSet, consec) {
   Object.values(wData).forEach(sdata => {
     Object.entries(sdata.skus||{}).forEach(([sku, sv]) => {
       if (!skuSet.has(sku)) return;
+      if (sv.excl_oos) return;                // de-listed non-traited tail
       totalPlacements++;
       if (sv.on_hand === 0) {
         zeroInventory++;
@@ -5292,6 +5296,7 @@ function updateOosTable(wData, skuSet, consec) {
     Object.values(wData).forEach(sdata => {
       const sv = (sdata.skus||{})[sku];
       if (sv === undefined) return;
+      if (sv.excl_oos) return;                // de-listed non-traited tail
       total++;
       if (sv.on_hand === 0) oos++;
     });
@@ -5347,7 +5352,7 @@ function getStateOosStores(week) {
     if(!totalSt[stName]) totalSt[stName]=new Set();
     totalSt[stName].add(sn);
     let anyOos=false;
-    Object.values(sdata.skus||{}).forEach(sv=>{ if(sv.on_hand===0) anyOos=true; });
+    Object.values(sdata.skus||{}).forEach(sv=>{ if(sv.excl_oos) return; if(sv.on_hand===0) anyOos=true; });
     if(anyOos){
       if(!oosSt[stName]) oosSt[stName]=new Set();
       oosSt[stName].add(sn);
