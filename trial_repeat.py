@@ -42,7 +42,8 @@ BUCKETS = ["1", "2", "3", "4", "5", "6+"]
 
 def _latest_trial_repeat_file() -> Path | None:
     candidates = sorted(
-        glob.glob(str(ROOT / "Catalyst Trial and Repeat Report*.xlsx")),
+        (p for p in glob.glob(str(ROOT / "Catalyst Trial and Repeat Report*.xlsx"))
+         if not Path(p).name.startswith("~$")),          # skip Excel lock files
         key=lambda p: Path(p).stat().st_mtime,
         reverse=True,
     )
@@ -131,6 +132,65 @@ def _parse_meta(wb) -> dict:
     return meta
 
 
+def _build_allproducts_ext(verbose: bool = True) -> dict | None:
+    """Parse the lighter 'Weekly_Repeats' chart export (e.g.
+    `1557501_Weekly_Repeats_trialrepeat.xlsx`) into an extended All-Products
+    customer series. This export is All-Products-only, customers-only, but runs
+    several weeks further than the full Trial & Repeat report — so we use it to
+    extend just the All-Products customer views (repeat rate, cumulative
+    customers). Per-SKU and dollar views stay on the full report's timeline.
+
+    Returns { "weeks": [iso...], "customers": {bucket: [vals]},
+              "total_customers": [vals], "source_file": str } or None.
+    """
+    candidates = sorted(
+        (p for p in glob.glob(str(ROOT / "*Weekly_Repeats*.xlsx"))
+         if not Path(p).name.startswith("~$")),          # skip Excel lock files
+        key=lambda p: Path(p).stat().st_mtime, reverse=True,
+    )
+    if not candidates:
+        return None
+    src = Path(candidates[0])
+    wb = openpyxl.load_workbook(src, data_only=True)  # full (not read_only) — read_only mis-reports width
+    if "Data" not in wb.sheetnames:
+        if verbose: print(f"  [trial_repeat] '{src.name}' has no Data sheet - skipping ext")
+        return None
+    ws = wb["Data"]
+
+    # Header row 1: col A label, then bucket columns in some order. Map by header text.
+    header = {ws.cell(row=1, column=c).value: c for c in range(1, ws.max_column + 1)}
+    bucket_col = {}
+    for label, col in header.items():
+        b = _bucket_key(label)
+        if b:
+            bucket_col[b] = col
+    if not bucket_col:
+        if verbose: print(f"  [trial_repeat] '{src.name}' Data sheet: no transaction-bucket columns found")
+        return None
+
+    weeks_iso, cust = [], {b: [] for b in BUCKETS}
+    for r in range(2, ws.max_row + 1):
+        wk = ws.cell(row=r, column=1).value
+        if wk in (None, ""):
+            continue
+        if isinstance(wk, datetime):
+            weeks_iso.append(wk.strftime("%Y-%m-%d"))
+        else:
+            weeks_iso.append(datetime.strptime(str(wk).strip(), "%m/%d/%Y").strftime("%Y-%m-%d"))
+        for b in BUCKETS:
+            col = bucket_col.get(b)
+            val = ws.cell(row=r, column=col).value if col else 0
+            cust[b].append(float(val or 0))
+
+    total = [sum(cust[b][i] for b in BUCKETS) for i in range(len(weeks_iso))]
+    return {
+        "weeks": weeks_iso,
+        "customers": cust,
+        "total_customers": total,
+        "source_file": src.name,
+    }
+
+
 def build_trial_repeat_data(verbose: bool = True) -> dict | None:
     src = _latest_trial_repeat_file()
     if not src:
@@ -162,18 +222,34 @@ def build_trial_repeat_data(verbose: bool = True) -> dict | None:
         }
 
     meta["weeks_count"] = len(weeks_c)
+    meta["detail_through"] = weeks_c[-1] if weeks_c else None  # per-SKU & $ timeline end
+
     payload = {
         "meta": meta,
         "weeks": weeks_c,
         "products": products,
     }
 
+    # Extend the All-Products customer series with the lighter weekly export
+    # (covers more recent weeks). Only attach if it genuinely runs further.
+    ext = _build_allproducts_ext(verbose=verbose)
+    if ext and len(ext["weeks"]) > len(weeks_c):
+        payload["allproducts_ext"] = ext
+        meta["allproducts_through"] = ext["weeks"][-1]
+        meta["allproducts_source"] = ext["source_file"]
+
     if verbose:
         last_total = products.get("All Products", {}).get("total_customers", [0])[-1]
         last_repeat = sum(products.get("All Products", {}).get("customers", {}).get(b, [0])[-1] for b in BUCKETS if b != "1")
         rate = (last_repeat / last_total * 100) if last_total else 0
         print(f"  [trial_repeat] {src.name}: {len(weeks_c)} weeks, "
-              f"{len(products)} products, all-product repeat rate {rate:.1f}%")
+              f"{len(products)} products, all-product repeat rate {rate:.1f}% (through {meta['detail_through']})")
+        if "allproducts_ext" in payload:
+            e = payload["allproducts_ext"]
+            et = e["total_customers"][-1]
+            er = sum(e["customers"][b][-1] for b in BUCKETS if b != "1")
+            print(f"  [trial_repeat]   + extended All-Products through {ext['weeks'][-1]} "
+                  f"({len(e['weeks'])} weeks): repeat rate {er/et*100:.1f}% ({et:,.0f} customers)")
 
     return payload
 

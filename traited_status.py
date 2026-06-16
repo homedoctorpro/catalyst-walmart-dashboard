@@ -54,7 +54,8 @@ COL_ONHAND  = "store_on_hand_quantity_this_year"
 
 def _latest_snapshot_file() -> Path | None:
     candidates = sorted(
-        glob.glob(str(ROOT / "Catalyst Store Inventory OOS Summary*.xlsx")),
+        (p for p in glob.glob(str(ROOT / "Catalyst Store Inventory OOS Summary*.xlsx"))
+         if not Path(p).name.startswith("~$")),          # skip Excel lock files
         key=lambda p: Path(p).stat().st_mtime,
         reverse=True,
     )

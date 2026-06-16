@@ -6016,6 +6016,17 @@ const TRIAL_BUCKET_COLORS = {
 };
 let trialSelectedProduct = "All Products";
 
+// Resolve a product's series + matching week axis. "All Products" uses the
+// extended customers-only series (later weeks) when available.
+function trialProd(name) {
+  const tr = DATA.trial_repeat;
+  return (name === "All Products" && tr.allproducts_ext) ? tr.allproducts_ext : tr.products[name];
+}
+function trialProdWeeks(name) {
+  const tr = DATA.trial_repeat;
+  return (name === "All Products" && tr.allproducts_ext) ? tr.allproducts_ext.weeks : tr.weeks;
+}
+
 function gotoMetricsUnits() {
   // Switch to Metrics tab and scroll to the Units Sold chart
   const tabBtn = document.querySelector('.tab-btn');  // first tab = Metrics
@@ -6107,27 +6118,42 @@ function initTrialRepeat() {
   if (meta.sample_rate != null) metaParts.push(`<span><strong>Sample rate:</strong> ${(meta.sample_rate * 100).toFixed(0)}%</span>`);
   if (meta.txn_type) metaParts.push(`<span><strong>Txn type:</strong> ${meta.txn_type}</span>`);
   if (meta.submitted_date) metaParts.push(`<span><strong>Report date:</strong> ${meta.submitted_date}</span>`);
+  if (meta.allproducts_through && meta.detail_through) {
+    metaParts.push(`<span style="color:#0057e7"><strong>All-Products customers thru:</strong> ${fmtTrialDate(meta.allproducts_through)}</span>`);
+    metaParts.push(`<span style="color:#888"><strong>Per-SKU &amp; $ detail thru:</strong> ${fmtTrialDate(meta.detail_through)} <em>(awaiting refreshed per-SKU/$ pull)</em></span>`);
+  }
   document.getElementById("trial-meta").innerHTML = metaParts.join("");
 
   // ── KPIs (use All Products at end of period) ─────────────────────────────
-  const all = tr.products["All Products"];
-  const last = all.total_customers.length - 1;
-  const totalCust = all.total_customers[last] || 0;
-  const repeaters = ["2","3","4","5","6+"].reduce((s, b) => s + (all.customers[b][last] || 0), 0);
-  const rate = totalCust ? repeaters / totalCust * 100 : 0;
-  const totalDollars = all.total_dollars[last] || 0;
-  const dollarsPerCust = totalCust ? totalDollars / totalCust : 0;
+  // Customer metrics use the extended All-Products series (runs to a later week);
+  // dollar metrics stay on the full report's timeline (no $ in the extended file).
+  const allBase = tr.products["All Products"];          // full report: per-SKU + $
+  const allExt  = tr.allproducts_ext || null;           // extended customers-only
+  const all     = allExt || allBase;                    // customer source
+  const last    = allBase.total_customers.length - 1;   // base ($) last index
+  const lastA   = all.total_customers.length - 1;       // customer last index
+  const custWeeks = allExt ? allExt.weeks : tr.weeks;
+  const dTag = d => `<span style="font-size:0.58rem;color:#aaa;font-weight:500;display:block;margin-top:1px">thru ${d}</span>`;
+  const dCust = fmtTrialDate(custWeeks[lastA]);
+  const dDet  = fmtTrialDate(tr.weeks[last]);
 
-  document.getElementById("trial-kpi-cust").textContent = totalCust.toLocaleString();
-  document.getElementById("trial-kpi-rep").textContent = repeaters.toLocaleString();
-  document.getElementById("trial-kpi-rate").textContent = rate.toFixed(1) + "%";
-  document.getElementById("trial-kpi-dollars").textContent = "$" + Math.round(totalDollars).toLocaleString();
-  document.getElementById("trial-kpi-pc").textContent = "$" + dollarsPerCust.toFixed(2);
+  const totalCust = all.total_customers[lastA] || 0;
+  const repeaters = ["2","3","4","5","6+"].reduce((s, b) => s + (all.customers[b][lastA] || 0), 0);
+  const rate = totalCust ? repeaters / totalCust * 100 : 0;
+  const totalDollars = allBase.total_dollars[last] || 0;
+  const baseCust = allBase.total_customers[last] || 0;
+  const dollarsPerCust = baseCust ? totalDollars / baseCust : 0;
+
+  document.getElementById("trial-kpi-cust").innerHTML = totalCust.toLocaleString() + dTag(dCust);
+  document.getElementById("trial-kpi-rep").innerHTML = repeaters.toLocaleString() + dTag(dCust);
+  document.getElementById("trial-kpi-rate").innerHTML = rate.toFixed(1) + "%" + dTag(dCust);
+  document.getElementById("trial-kpi-dollars").innerHTML = "$" + Math.round(totalDollars).toLocaleString() + dTag(dDet);
+  document.getElementById("trial-kpi-pc").innerHTML = "$" + dollarsPerCust.toFixed(2) + dTag(dDet);
 
   // Latest-week New vs Repeat (All Products)
   const allNR = trialWeeklyNewVsRepeat(all);
-  const lwNew = allNR.newTxns[last] || 0;
-  const lwRep = allNR.repeatTxns[last] || 0;
+  const lwNew = allNR.newTxns[lastA] || 0;
+  const lwRep = allNR.repeatTxns[lastA] || 0;
   const lwTotal = lwNew + lwRep;
   const lwPct = lwTotal > 0 ? lwRep / lwTotal * 100 : 0;
   document.getElementById("trial-kpi-wkrepeat").textContent = lwPct.toFixed(1) + "%";
@@ -6147,31 +6173,42 @@ function initTrialRepeat() {
   };
   const cfg = { responsive: true, displayModeBar: false };
 
-  // Repeat Rate over time — all 5 series
-  const rateSeries = Object.keys(tr.products).map(name => ({
-    x: xLabels,
-    y: trialRepeatRateSeries(tr.products[name]),
-    name: name,
+  const xLabelsAll = custWeeks.map(fmtTrialDate);   // extended All-Products x-axis
+  // series order: All Products (extended) first, then the 4 SKUs (base timeline)
+  const skuNames = Object.keys(tr.products).filter(n => n !== "All Products");
+  const allLine = (extra) => ({
+    x: xLabelsAll, name: "All Products",
     type: "scatter", mode: "lines+markers",
-    line:  { color: TRIAL_PRODUCT_COLORS[name] || "#999", width: name === "All Products" ? 3 : 2,
-             dash: name === "All Products" ? "dash" : "solid" },
-    marker:{ color: TRIAL_PRODUCT_COLORS[name] || "#999", size: name === "All Products" ? 7 : 5 },
-    hovertemplate: name + ": %{y:.1f}%<extra></extra>",
-  }));
+    line:  { color: TRIAL_PRODUCT_COLORS["All Products"] || "#999", width: 3, dash: "dash" },
+    marker:{ color: TRIAL_PRODUCT_COLORS["All Products"] || "#999", size: 7 },
+    ...extra,
+  });
+
+  // Repeat Rate over time
+  const rateSeries = [
+    allLine({ y: trialRepeatRateSeries(all), hovertemplate: "All Products: %{y:.1f}%<extra></extra>" }),
+    ...skuNames.map(name => ({
+      x: xLabels, y: trialRepeatRateSeries(tr.products[name]), name,
+      type: "scatter", mode: "lines+markers",
+      line: { color: TRIAL_PRODUCT_COLORS[name] || "#999", width: 2 },
+      marker:{ color: TRIAL_PRODUCT_COLORS[name] || "#999", size: 5 },
+      hovertemplate: name + ": %{y:.1f}%<extra></extra>",
+    })),
+  ];
   Plotly.newPlot("chart-trial-rate", rateSeries,
     { ...layoutBase, yaxis: { ...layoutBase.yaxis, ticksuffix: "%", title: "Repeat Rate" } }, cfg);
 
-  // Cumulative customers — all 5 series
-  const cumSeries = Object.keys(tr.products).map(name => ({
-    x: xLabels,
-    y: tr.products[name].total_customers,
-    name: name,
-    type: "scatter", mode: "lines+markers",
-    line:  { color: TRIAL_PRODUCT_COLORS[name] || "#999", width: name === "All Products" ? 3 : 2,
-             dash: name === "All Products" ? "dash" : "solid" },
-    marker:{ color: TRIAL_PRODUCT_COLORS[name] || "#999", size: name === "All Products" ? 7 : 5 },
-    hovertemplate: name + ": %{y:,.0f}<extra></extra>",
-  }));
+  // Cumulative customers
+  const cumSeries = [
+    allLine({ y: all.total_customers, hovertemplate: "All Products: %{y:,.0f}<extra></extra>" }),
+    ...skuNames.map(name => ({
+      x: xLabels, y: tr.products[name].total_customers, name,
+      type: "scatter", mode: "lines+markers",
+      line: { color: TRIAL_PRODUCT_COLORS[name] || "#999", width: 2 },
+      marker:{ color: TRIAL_PRODUCT_COLORS[name] || "#999", size: 5 },
+      hovertemplate: name + ": %{y:,.0f}<extra></extra>",
+    })),
+  ];
   Plotly.newPlot("chart-trial-cumcust", cumSeries,
     { ...layoutBase, yaxis: { ...layoutBase.yaxis, title: "Cumulative Customers", tickformat: ",.0f" } }, cfg);
 
@@ -6185,8 +6222,8 @@ function initTrialRepeat() {
     hovertemplate: name + ": %{y:,.0f}<extra></extra>",
   }));
   newCustBars.push({
-    x: xLabels,
-    y: trialWeeklyNew(tr.products["All Products"]),
+    x: xLabelsAll,
+    y: trialWeeklyNew(all),
     name: "All Products",
     type: "scatter", mode: "lines+markers",
     line:  { color: "#333", width: 2, dash: "dot" },
@@ -6248,7 +6285,7 @@ function initTrialRepeat() {
       renderTrialBucketChart(layoutBase, cfg);
       renderTrialNewRepeatChart(layoutBase, cfg);
       // Also update the latest-week KPI to reflect the selected product
-      const p = DATA.trial_repeat.products[trialSelectedProduct];
+      const p = trialProd(trialSelectedProduct);
       const nr = trialWeeklyNewVsRepeat(p);
       const i = p.total_customers.length - 1;
       const tot = (nr.newTxns[i] || 0) + (nr.repeatTxns[i] || 0);
@@ -6261,10 +6298,9 @@ function initTrialRepeat() {
 }
 
 function renderTrialNewRepeatChart(layoutBase, cfg) {
-  const tr = DATA.trial_repeat;
-  const prod = tr.products[trialSelectedProduct];
+  const prod = trialProd(trialSelectedProduct);
   if (!prod) return;
-  const xLabels = tr.weeks.map(fmtTrialDate);
+  const xLabels = trialProdWeeks(trialSelectedProduct).map(fmtTrialDate);
   const nr = trialWeeklyNewVsRepeat(prod);
   const newColor = TRIAL_PRODUCT_COLORS[trialSelectedProduct] || "#0057e7";
   const traces = [
@@ -6304,10 +6340,9 @@ function renderTrialNewRepeatChart(layoutBase, cfg) {
 }
 
 function renderTrialBucketChart(layoutBase, cfg) {
-  const tr = DATA.trial_repeat;
-  const prod = tr.products[trialSelectedProduct];
+  const prod = trialProd(trialSelectedProduct);
   if (!prod) return;
-  const xLabels = tr.weeks.map(fmtTrialDate);
+  const xLabels = trialProdWeeks(trialSelectedProduct).map(fmtTrialDate);
   const series = ["1","2","3","4","5","6+"].map(b => ({
     x: xLabels, y: prod.customers[b], name: b + " txn",
     type: "bar", marker: { color: TRIAL_BUCKET_COLORS[b] },
@@ -6324,19 +6359,22 @@ function renderTrialBucketChart(layoutBase, cfg) {
 
 function renderTrialSummaryTable() {
   const tr = DATA.trial_repeat;
-  const last = tr.weeks.length - 1;
+  const baseLast = tr.weeks.length - 1;
   const tbody = document.getElementById("trial-summary-tbody");
   const order = ["All Products","15O","34O","15U","34U"];
   tbody.innerHTML = order.map(name => {
-    const p = tr.products[name];
-    if (!p) return "";
-    const totalCust = p.total_customers[last] || 0;
-    const one = p.customers["1"][last] || 0;
+    const base = tr.products[name];
+    if (!base) return "";
+    const p = trialProd(name);                       // customers (extended for All Products)
+    const cLast = p.total_customers.length - 1;
+    const totalCust = p.total_customers[cLast] || 0;
+    const one = p.customers["1"][cLast] || 0;
     const repeaters = totalCust - one;
     const rate = totalCust ? repeaters / totalCust * 100 : 0;
-    const threeplus = ["3","4","5","6+"].reduce((s,b) => s + (p.customers[b][last]||0), 0);
-    const dollars = p.total_dollars[last] || 0;
-    const pc = totalCust ? dollars / totalCust : 0;
+    const threeplus = ["3","4","5","6+"].reduce((s,b) => s + (p.customers[b][cLast]||0), 0);
+    const dollars = base.total_dollars[baseLast] || 0;     // $ always on base timeline
+    const baseCust = base.total_customers[baseLast] || 0;
+    const pc = baseCust ? dollars / baseCust : 0;
     const isAll = name === "All Products";
     return `<tr style="${isAll ? 'font-weight:700;background:#fafafa' : ''}">
       <td><span style="display:inline-block;width:8px;height:8px;background:${TRIAL_PRODUCT_COLORS[name]};border-radius:50%;margin-right:6px;vertical-align:middle"></span>${name}</td>
