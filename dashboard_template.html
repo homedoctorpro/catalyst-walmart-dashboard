@@ -398,6 +398,11 @@
   .store-map-info { background: #fff; padding: 8px 12px; border-radius: 8px;
                     box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 0.82rem;
                     font-family: inherit; line-height: 1.5; }
+  .legend-item.off { opacity: 0.4; }
+  .smm-btn { display:block; width:100%; text-align:left; margin-top:4px; cursor:pointer;
+             font-size:0.78rem; border:1.5px solid #0057e7; background:#fff; color:#0057e7;
+             border-radius:6px; padding:4px 10px; font-weight:600; font-family:inherit; }
+  .smm-btn.active { background:#0057e7; color:#fff; }
 
   @media (max-width: 900px) {
     .kpi-row      { grid-template-columns: repeat(3, 1fr); }
@@ -2156,6 +2161,37 @@ const SKU_COMBO_COLORS = {
   "CATALYST15ORIG,CATALYST15UNSCEN,CATALYST34LBORIGINAL,CATALYSTPET34LBUNSCE":   "#F44336",
 };
 
+// Distribution-change categories (start store-week → latest, trait-adjusted)
+const CHANGE_CATS = {
+  gained_active:     { label: "Gained — authorized (traited)", color: "#2e7d32" },
+  gained_nontraited: { label: "Gained — in feed, not traited", color: "#26a69a" },
+  lost_trait:        { label: "Lost authorization (de-traited)", color: "#e67300" },
+  dropped_feed:      { label: "Dropped from feed entirely", color: "#d32f2f" },
+  retained_active:   { label: "Retained (active)", color: "#9e9e9e" },
+};
+const CHANGE_ORDER = ["gained_active","gained_nontraited","lost_trait","dropped_feed","retained_active"];
+let storeMapMode = "combo";                       // 'combo' | 'status'
+const storeMapStatusOff = new Set(["retained_active"]);  // hidden by default in status mode
+
+function computeStoreStatus() {
+  const ws = DATA.store_weeks, startW = ws[0], endW = ws[ws.length - 1];
+  const S = new Set(Object.keys(DATA.weekly_stores[startW] || {}));
+  const E = new Set(Object.keys(DATA.weekly_stores[endW] || {}));
+  const traited = new Set();
+  if (DATA.traited && DATA.traited.by_sku)
+    Object.values(DATA.traited.by_sku).forEach(a => a.forEach(s => traited.add(s)));
+  const status = {};
+  new Set([...S, ...E]).forEach(sn => {
+    const ins = S.has(sn), ine = E.has(sn), ist = traited.has(sn);
+    status[sn] = (ins && ine && ist) ? "retained_active"
+               : (ins && ine)        ? "lost_trait"
+               : (ins)               ? "dropped_feed"
+               : (ist)               ? "gained_active"
+               :                       "gained_nontraited";
+  });
+  return { status, startW, endW, startN: S.size, endN: E.size, endActive: [...E].filter(s => traited.has(s)).length };
+}
+
 function initStoreMap() {
   // Determine which SKUs each store carries across all weeks
   const storeSkuSets = {};
@@ -2167,30 +2203,47 @@ function initStoreMap() {
     });
   });
 
-  // Build per-combo cluster groups
-  const comboGroups = {}; // combo key -> { clusterGroup, stores[], color, label }
+  const hasStatus = !!(DATA.traited && DATA.traited.by_sku);
+  const sinfo = hasStatus ? computeStoreStatus() : { status: {} };
+  const status = sinfo.status;
+
+  // Build per-combo and per-status cluster groups (markers duplicated across the two)
+  const comboGroups = {};
+  const statusGroups = {};
+  if (hasStatus) CHANGE_ORDER.forEach(c => statusGroups[c] = {
+    clusterGroup: L.markerClusterGroup({ maxClusterRadius: 50, disableClusteringAtZoom: 10, showCoverageOnHover: false, spiderfyOnMaxZoom: true }),
+    stores: [], color: CHANGE_CATS[c].color, label: CHANGE_CATS[c].label,
+  });
+
   Object.entries(DATA.stores).forEach(([sn, info]) => {
     if (!info.lat || !info.lon) return;
     const skuArr = [...(storeSkuSets[sn] || new Set())].sort();
     if (!skuArr.length) return;
     const combo = skuArr.join(",");
     const color = SKU_COMBO_COLORS[combo] || "#999999";
+    const st = status[sn];
+    const statusLine = st ? `<br><br><span style="color:${CHANGE_CATS[st].color};font-weight:700">${CHANGE_CATS[st].label}</span>` : "";
+    const popup = `<strong>Store #${sn}</strong><br>${info.city || ""}, ${info.state || ""}<br>${info.street || ""}<br><br><strong>SKUs (${skuArr.length}):</strong><br>${skuArr.map(s => `&bull; ${SKU_SHORT[s]||s}`).join("<br>")}${statusLine}`;
 
     if (!comboGroups[combo]) {
       comboGroups[combo] = {
-        clusterGroup: L.markerClusterGroup({
-          maxClusterRadius: 50, disableClusteringAtZoom: 10,
-          showCoverageOnHover: false, spiderfyOnMaxZoom: true,
-        }),
-        stores: [], color,
-        label: skuArr.map(s => SKU_SHORT[s] || s).join(" / "),
+        clusterGroup: L.markerClusterGroup({ maxClusterRadius: 50, disableClusteringAtZoom: 10, showCoverageOnHover: false, spiderfyOnMaxZoom: true }),
+        stores: [], color, label: skuArr.map(s => SKU_SHORT[s] || s).join(" / "),
       };
     }
-    const popup = `<strong>Store #${sn}</strong><br>${info.city || ""}, ${info.state || ""}<br>${info.street || ""}<br><br><strong>SKUs (${skuArr.length}):</strong><br>${skuArr.map(s => `&bull; ${SKU_SHORT[s]||s}`).join("<br>")}`;
     L.circleMarker([info.lat, info.lon], {
       radius: 6, fillColor: color, color: "#000", weight: 1, opacity: 1, fillOpacity: 0.8,
     }).bindPopup(popup).addTo(comboGroups[combo].clusterGroup);
     comboGroups[combo].stores.push(sn);
+
+    if (hasStatus && st) {
+      const big = st !== "retained_active";
+      L.circleMarker([info.lat, info.lon], {
+        radius: big ? 7 : 4, fillColor: CHANGE_CATS[st].color, color: "#222", weight: 1,
+        opacity: 1, fillOpacity: big ? 0.9 : 0.45,
+      }).bindPopup(popup).addTo(statusGroups[st].clusterGroup);
+      statusGroups[st].stores.push(sn);
+    }
   });
 
   const map = L.map("store-map-leaflet", { center: [39.8283, -98.5795], zoom: 5 });
@@ -2199,44 +2252,118 @@ function initStoreMap() {
   }).addTo(map);
   Object.values(comboGroups).forEach(g => map.addLayer(g.clusterGroup));
 
-  // Info box (top-right)
-  const totalStores = Object.values(comboGroups).reduce((s, g) => s + g.stores.length, 0);
-  const infoCtrl = L.control({ position: "topright" });
-  infoCtrl.onAdd = () => {
-    const d = L.DomUtil.create("div", "store-map-info");
-    d.innerHTML = `<strong>${totalStores.toLocaleString()} stores</strong><br><span style="font-size:0.75rem;color:#666">${Object.keys(comboGroups).length} SKU combinations</span>`;
-    return d;
-  };
-  infoCtrl.addTo(map);
+  storeMapLeaflet = { map, comboGroups, statusGroups, hasStatus, sinfo };
 
-  // Legend (bottom-left)
+  // Color-by mode toggle (top-left) — only when trait status is available
+  if (hasStatus) {
+    const modeCtrl = L.control({ position: "topleft" });
+    modeCtrl.onAdd = () => {
+      const d = L.DomUtil.create("div", "store-map-info");
+      L.DomEvent.disableClickPropagation(d);
+      d.innerHTML = `<div style="font-weight:700;font-size:0.78rem;margin-bottom:2px">Color by</div>
+        <button id="smm-combo" class="smm-btn active">SKU Combination</button>
+        <button id="smm-status" class="smm-btn">Distribution Change</button>`;
+      return d;
+    };
+    modeCtrl.addTo(map);
+    setTimeout(() => {
+      const cb = document.getElementById("smm-combo"), sb = document.getElementById("smm-status");
+      if (cb) cb.addEventListener("click", () => setStoreMapMode("combo"));
+      if (sb) sb.addEventListener("click", () => setStoreMapMode("status"));
+    }, 0);
+  }
+
+  // Info box (top-right) + Legend (bottom-left) — content re-rendered per mode
+  const infoCtrl = L.control({ position: "topright" });
+  infoCtrl.onAdd = () => { const d = L.DomUtil.create("div", "store-map-info"); d.id = "store-map-info-box"; return d; };
+  infoCtrl.addTo(map);
   const legendCtrl = L.control({ position: "bottomleft" });
-  legendCtrl.onAdd = () => {
-    const d = L.DomUtil.create("div", "store-map-legend");
-    L.DomEvent.disableClickPropagation(d);
+  legendCtrl.onAdd = () => { const d = L.DomUtil.create("div", "store-map-legend"); d.id = "store-map-legend-box"; L.DomEvent.disableClickPropagation(d); return d; };
+  legendCtrl.addTo(map);
+
+  renderStoreMapInfo();
+  renderStoreMapLegend();
+}
+
+function setStoreMapMode(mode) {
+  if (mode === storeMapMode || !storeMapLeaflet) return;
+  const { map, comboGroups, statusGroups } = storeMapLeaflet;
+  // Tear down current mode's layers
+  if (storeMapMode === "combo") {
+    Object.values(comboGroups).forEach(g => { if (map.hasLayer(g.clusterGroup)) map.removeLayer(g.clusterGroup); });
+    storeMapActiveCombo = null;
+  } else {
+    Object.values(statusGroups).forEach(g => { if (map.hasLayer(g.clusterGroup)) map.removeLayer(g.clusterGroup); });
+  }
+  storeMapMode = mode;
+  // Bring up new mode's layers
+  if (mode === "combo") {
+    Object.values(comboGroups).forEach(g => map.addLayer(g.clusterGroup));
+  } else {
+    CHANGE_ORDER.forEach(c => { if (!storeMapStatusOff.has(c)) map.addLayer(statusGroups[c].clusterGroup); });
+  }
+  document.getElementById("smm-combo").classList.toggle("active", mode === "combo");
+  document.getElementById("smm-status").classList.toggle("active", mode === "status");
+  renderStoreMapInfo();
+  renderStoreMapLegend();
+}
+
+function renderStoreMapInfo() {
+  const box = document.getElementById("store-map-info-box");
+  if (!box || !storeMapLeaflet) return;
+  const { comboGroups, sinfo } = storeMapLeaflet;
+  if (storeMapMode === "status" && storeMapLeaflet.hasStatus) {
+    const net = sinfo.endActive - sinfo.startN, sign = net >= 0 ? "+" : "";
+    box.innerHTML = `<strong>${sinfo.startW} → ${sinfo.endW}</strong><br>`
+      + `Start: ${sinfo.startN.toLocaleString()} &nbsp;|&nbsp; End feed: ${sinfo.endN.toLocaleString()}<br>`
+      + `End active (traited): ${sinfo.endActive.toLocaleString()}<br>`
+      + `<span style="color:#2e7d32;font-weight:700">Net active ${sign}${net.toLocaleString()}</span>`;
+  } else {
+    const totalStores = Object.values(comboGroups).reduce((s, g) => s + g.stores.length, 0);
+    box.innerHTML = `<strong>${totalStores.toLocaleString()} stores</strong><br><span style="font-size:0.75rem;color:#666">${Object.keys(comboGroups).length} SKU combinations</span>`;
+  }
+}
+
+function renderStoreMapLegend() {
+  const d = document.getElementById("store-map-legend-box");
+  if (!d || !storeMapLeaflet) return;
+  const { comboGroups, statusGroups } = storeMapLeaflet;
+  if (storeMapMode === "status" && storeMapLeaflet.hasStatus) {
+    d.innerHTML = `<h4>Distribution Change <span style="font-weight:400;font-size:0.75rem">(click to toggle)</span></h4>` +
+      CHANGE_ORDER.map(c =>
+        `<div class="legend-item${storeMapStatusOff.has(c) ? " off" : ""}" data-status="${c}">
+          <span class="legend-dot" style="background:${CHANGE_CATS[c].color}"></span>
+          <span><strong>${(statusGroups[c].stores.length).toLocaleString()}</strong> &nbsp;${CHANGE_CATS[c].label}</span>
+        </div>`).join("");
+    d.querySelectorAll(".legend-item").forEach(el =>
+      el.addEventListener("click", () => toggleStoreMapStatus(el, el.dataset.status)));
+  } else {
     const sorted = Object.entries(comboGroups).sort((a, b) => b[1].stores.length - a[1].stores.length);
     d.innerHTML = `<h4>SKU Combinations <span style="font-weight:400;font-size:0.75rem">(click to filter)</span></h4>` +
       sorted.map(([combo, g]) =>
         `<div class="legend-item" data-combo="${combo}">
           <span class="legend-dot" style="background:${g.color}"></span>
           <span><strong>${g.stores.length}</strong> &nbsp;${g.label}</span>
-        </div>`
-      ).join("");
-    d.querySelectorAll(".legend-item").forEach(el => {
-      el.addEventListener("click", () => toggleStoreMapCombo(el, el.dataset.combo));
-    });
-    return d;
-  };
-  legendCtrl.addTo(map);
+        </div>`).join("");
+    d.querySelectorAll(".legend-item").forEach(el =>
+      el.addEventListener("click", () => toggleStoreMapCombo(el, el.dataset.combo)));
+  }
+}
 
-  storeMapLeaflet = { map, comboGroups };
+function toggleStoreMapStatus(el, cat) {
+  const { map, statusGroups } = storeMapLeaflet;
+  if (map.hasLayer(statusGroups[cat].clusterGroup)) {
+    map.removeLayer(statusGroups[cat].clusterGroup); storeMapStatusOff.add(cat); el.classList.add("off");
+  } else {
+    map.addLayer(statusGroups[cat].clusterGroup); storeMapStatusOff.delete(cat); el.classList.remove("off");
+  }
 }
 
 function toggleStoreMapCombo(el, combo) {
   const { map, comboGroups } = storeMapLeaflet;
   if (storeMapActiveCombo === combo) {
     Object.values(comboGroups).forEach(g => { if (!map.hasLayer(g.clusterGroup)) map.addLayer(g.clusterGroup); });
-    document.querySelectorAll("#store-map-leaflet ~ * .legend-item, .store-map-legend .legend-item").forEach(i => i.classList.remove("active"));
+    document.querySelectorAll(".store-map-legend .legend-item").forEach(i => i.classList.remove("active"));
     storeMapActiveCombo = null;
   } else {
     Object.entries(comboGroups).forEach(([c, g]) => {
