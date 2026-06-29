@@ -176,15 +176,76 @@ def normalize_zip(z):
 
 
 def find_excel_files():
-    """Auto-detect all 2026XX Weekly Sales Report Catalyst.xlsx files."""
-    pattern = os.path.join(os.path.dirname(__file__), "2026?? Weekly Sales Report Catalyst.xlsx")
-    files = glob.glob(pattern)
+    """Auto-detect all '2026XX Weekly Sales Report Catalyst' files (.xlsx or .xlsb).
+
+    Hailey's source workbooks arrive as .xlsb; converted copies are .xlsx. If both
+    exist for a week, the .xlsx wins (globbed last).
+    """
+    base = os.path.dirname(__file__)
     result = {}
-    for f in files:
-        m = re.search(r"(2026\d{2})", os.path.basename(f))
-        if m:
-            result[m.group(1)] = f
+    for ext in ("xlsb", "xlsx"):
+        for f in glob.glob(os.path.join(base, f"2026?? Weekly Sales Report Catalyst.{ext}")):
+            m = re.search(r"(2026\d{2})", os.path.basename(f))
+            if m:
+                result[m.group(1)] = f
     return result
+
+
+def read_excel(filepath, **kwargs):
+    """pd.read_excel that selects the pyxlsb engine for .xlsb workbooks."""
+    if filepath.lower().endswith(".xlsb"):
+        kwargs.setdefault("engine", "pyxlsb")
+    return pd.read_excel(filepath, **kwargs)
+
+
+def _sheet_names(filepath):
+    """List a workbook's sheet names (.xlsx or .xlsb)."""
+    engine = "pyxlsb" if filepath.lower().endswith(".xlsb") else None
+    xl = pd.ExcelFile(filepath, engine=engine)
+    try:
+        return list(xl.sheet_names)
+    finally:
+        xl.close()
+
+
+def detect_sheets(filepath):
+    """Infer {instore, bystore, ecomm_l52, ecomm_lw} sheet names by keyword.
+
+    Used ONLY for weeks absent from SHEET_MAP (new auto-ingested weeks); the 21
+    historical weeks keep their exact SHEET_MAP entries, so nothing regresses.
+    Returns names exactly as they appear in the workbook (trailing spaces intact).
+    """
+    names = _sheet_names(filepath)
+    low = {n: n.lower().strip() for n in names}
+
+    def pick(pred, prefer_catalyst=True):
+        cands = [n for n in names if pred(low[n])]
+        if not cands:
+            return None
+        if prefer_catalyst:
+            cat = [n for n in cands if "catalyst" in low[n]]
+            if cat:
+                cands = cat
+        return cands[0]
+
+    is_ecomm = lambda s: "ecomm" in s
+    is_l52   = lambda s: "l52" in s or "52wk" in s or "52 wk" in s
+
+    def is_instore(s):
+        if is_ecomm(s) or "by store" in s:
+            return False
+        if any(k in s for k in ("inventory", "forecast", "supply", "demand",
+                                "modular", "order", "plan")):
+            return False
+        return "sales" in s or "instore" in s or "in store" in s
+
+    return {
+        "instore":   pick(is_instore),
+        "bystore":   pick(lambda s: "by store" in s),
+        "ecomm_l52": pick(lambda s: is_ecomm(s) and is_l52(s), prefer_catalyst=False),
+        "ecomm_lw":  pick(lambda s: is_ecomm(s) and not is_l52(s)
+                                    and ("lw" in s or "last week" in s)),
+    }
 
 
 # ─── Extraction ───────────────────────────────────────────────────────────────
@@ -775,15 +836,19 @@ def main():
         filepath = files[week]
         sheet_info = SHEET_MAP.get(week)
         if not sheet_info:
-            print(f"  [WARN] No sheet map for {week}, skipping.")
-            continue
+            try:
+                sheet_info = detect_sheets(filepath)
+                print(f"  [auto] Detected sheets for {week}: {sheet_info}")
+            except Exception as e:
+                print(f"  [WARN] Sheet auto-detection failed for {week}: {e}; skipping.")
+                continue
 
         print(f"\nProcessing {week}...")
 
         # InStore metrics
         instore_sheet = sheet_info["instore"]
         try:
-            df_in = pd.read_excel(filepath, sheet_name=instore_sheet, header=None)
+            df_in = read_excel(filepath, sheet_name=instore_sheet, header=None)
             metrics[week] = extract_instore_metrics(week, df_in)
             print(f"  InStore metrics: OK ({len(metrics[week])} entries)")
         except Exception as e:
@@ -793,7 +858,7 @@ def main():
         bystore_sheet = sheet_info["bystore"]
         if bystore_sheet:
             try:
-                df_bs = pd.read_excel(filepath, sheet_name=bystore_sheet, header=None)
+                df_bs = read_excel(filepath, sheet_name=bystore_sheet, header=None)
                 rows = extract_store_data(week, df_bs)
                 raw_store_rows_by_week[week] = rows
                 store_weeks_list.append(week)
@@ -805,7 +870,7 @@ def main():
         l52_sheet = sheet_info.get("ecomm_l52")
         if l52_sheet:
             try:
-                df_e = pd.read_excel(filepath, sheet_name=l52_sheet, header=None)
+                df_e = read_excel(filepath, sheet_name=l52_sheet, header=None)
                 prods = extract_ecomm_data(df_e)
                 ecomm_l52_raw[week] = prods
                 print(f"  L52WK Ecomm: {len(prods)} products")
@@ -816,7 +881,7 @@ def main():
         lw_sheet = sheet_info.get("ecomm_lw")
         if lw_sheet:
             try:
-                df_e = pd.read_excel(filepath, sheet_name=lw_sheet, header=None)
+                df_e = read_excel(filepath, sheet_name=lw_sheet, header=None)
                 prods = extract_ecomm_data(df_e)
                 ecomm_lw_raw[week] = prods
                 print(f"  LW Ecomm: {len(prods)} products")
@@ -962,7 +1027,10 @@ def main():
     sent_flag = os.path.join(os.path.dirname(__file__), ".email_sent_date")
     already_sent = os.path.exists(sent_flag) and open(sent_flag).read().strip() == str(today)
     is_monday = today.weekday() == 0
-    dev_only  = not is_monday or already_sent
+    # Cloud auto-ingest runs set FORCE_FULL_DISTRO=1 so any day's new data goes
+    # to the full recipient list (bypassing the Monday-only / already-sent gate).
+    force_full = os.environ.get("FORCE_FULL_DISTRO") == "1"
+    dev_only  = False if force_full else (not is_monday or already_sent)
     if os.environ.get("SKIP_EMAIL") == "1":
         print("  [Email] Skipped (SKIP_EMAIL=1)")
     else:

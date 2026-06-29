@@ -1,0 +1,116 @@
+name: Weekly report auto-ingest
+
+# Polls the reports inbox for Hailey's forwarded "2026XX Weekly Sales Report
+# Catalyst" email, ingests the attachment, rebuilds the dashboard, sends the
+# full distro email, and publishes to GitHub Pages — all hands-off.
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # every 15 minutes (best-effort)
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: "Rebuild from current data-repo contents even if no new email"
+        type: boolean
+        default: false
+      skip_email:
+        description: "Skip sending the distro email (build/publish only)"
+        type: boolean
+        default: false
+
+# Serialize runs so two cycles can't grab the same email before the state file
+# is committed.
+concurrency:
+  group: weekly-report
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # push regenerated dashboard.html back to this repo (Pages)
+
+jobs:
+  ingest-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout dashboard repo (code + templates)
+        uses: actions/checkout@v4
+
+      - name: Checkout private data repo (.xlsx sources)
+        uses: actions/checkout@v4
+        with:
+          repository: homedoctorpro/catalyst-walmart-data
+          path: _data
+          ssh-key: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Poll inbox for new weekly report
+        id: poll
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
+        run: |
+          python cloud_poller.py \
+            --inbox-dir _data \
+            --state-file _data/.processed_message_ids
+
+      - name: Decide whether to build
+        id: gate
+        run: |
+          if [ "${{ steps.poll.outputs.found }}" = "true" ] || [ "${{ inputs.force_rebuild }}" = "true" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            echo "No new email and no force_rebuild — nothing to do."
+          fi
+
+      - name: Commit new source file(s) to data repo
+        if: steps.poll.outputs.found == 'true'
+        working-directory: _data
+        run: |
+          git config user.name  "catalyst-bot"
+          git config user.email "ligneticsdata@gmail.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "Add forwarded weekly report(s): ${{ steps.poll.outputs.weeks }}"
+            git push
+          else
+            echo "No data-repo changes to commit."
+          fi
+
+      - name: Stage source files for the build
+        if: steps.gate.outputs.build == 'true'
+        run: |
+          # extract_data.py reads workbooks from the repo root.
+          cp _data/*.xlsx . 2>/dev/null || true
+          cp _data/*.xlsb . 2>/dev/null || true
+          ls -1 *.xlsx *.xlsb 2>/dev/null | sed 's/^/  staged: /' || true
+
+      - name: Build dashboard + send distro email
+        if: steps.gate.outputs.build == 'true'
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
+          FORCE_FULL_DISTRO: ${{ inputs.skip_email == true && '0' || '1' }}
+          SKIP_EMAIL: ${{ inputs.skip_email == true && '1' || '0' }}
+          PYTHONHASHSEED: "0"   # deterministic dict ordering → minimal output churn
+        run: python extract_data.py
+
+      - name: Publish regenerated dashboard to Pages
+        if: steps.gate.outputs.build == 'true'
+        run: |
+          git config user.name  "catalyst-bot"
+          git config user.email "ligneticsdata@gmail.com"
+          git add dashboard.html store_map.html stores_geo.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Auto-rebuild dashboard: ${{ steps.poll.outputs.weeks || 'manual' }}"
+            git push
+          else
+            echo "Dashboard output unchanged — nothing to publish."
+          fi

@@ -1,0 +1,6 @@
+# Cloud build deps for the weekly Catalyst Walmart dashboard
+pandas>=2.0
+openpyxl>=3.1
+pyxlsb>=1.0.10
+pgeocode>=0.4
+numpy>=1.24
