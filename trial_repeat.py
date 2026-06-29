@@ -213,7 +213,7 @@ def build_trial_repeat_data(verbose: bool = True) -> dict | None:
         cust_buckets = customers.get(prod, {b: [0.0] * len(weeks_c) for b in BUCKETS})
         doll_buckets = dollars.get(prod, {b: [0.0] * len(weeks_d) for b in BUCKETS})
         total_customers = [sum(cust_buckets[b][i] for b in BUCKETS) for i in range(len(weeks_c))]
-        total_dollars   = [sum(doll_buckets[b][i] for b in BUCKETS) for i in range(len(weeks_d))]
+        total_dollars   = [round(sum(doll_buckets[b][i] for b in BUCKETS), 2) for i in range(len(weeks_d))]
         products[prod] = {
             "customers": cust_buckets,
             "dollars":   doll_buckets,
