@@ -367,12 +367,6 @@ def build_html(data):
     .header p{color:rgba(255,255,255,0.55);font-size:13px;margin:0;}
     .body-card{background:#fff;padding:28px 32px;}
     .section-title{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.07em;margin:0 0 12px;}
-    .kpi-table{width:100%;border-collapse:collapse;margin-bottom:24px;}
-    .kpi-table td{padding:0;width:16.6%;}
-    .kpi-box{background:#f8f9ff;border-radius:10px;padding:14px 10px;text-align:center;margin:3px;}
-    .kpi-label{font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;}
-    .kpi-value{font-size:20px;font-weight:800;color:#1a1a2e;line-height:1;}
-    .kpi-delta{font-size:11px;font-weight:600;margin-top:4px;}
     .sku-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:24px;}
     .sku-table th{background:#f5f5f5;padding:8px 10px;text-align:right;font-weight:700;color:#555;border-bottom:2px solid #e0e0e0;white-space:nowrap;}
     .sku-table th:first-child{text-align:left;}
@@ -390,17 +384,21 @@ def build_html(data):
     """
 
     # ── KPI row ───────────────────────────────────────────────────────────────
+    # Fully inline-styled (no CSS classes) so cards render identically in email
+    # clients that ignore <style> blocks. table-layout:fixed + width attrs force
+    # six equal columns; every card renders all four rows (using &nbsp; when a
+    # row is empty) so heights match too.
     def kpi_box(label, value_str, curr, prev, higher_better=True, is_pct=False, sub=None):
         d_str, d_color = delta_str(curr, prev, higher_better, is_pct)
-        delta_html = f'<div class="kpi-delta" style="color:{d_color}">{d_str}</div>' if d_str else '<div class="kpi-delta">&nbsp;</div>'
-        sub_html = f'<div style="font-size:9px;color:#999;margin-top:3px;">{sub}</div>' if sub else ''
         return f"""
-        <td><div class="kpi-box">
-          <div class="kpi-label">{label}</div>
-          <div class="kpi-value">{value_str}</div>
-          {delta_html}
-          {sub_html}
-        </div></td>"""
+        <td width="16%" valign="top" style="padding:3px;vertical-align:top;">
+          <div style="background:#f8f9ff;border-radius:10px;padding:14px 4px;text-align:center;">
+            <div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px;white-space:nowrap;overflow:hidden;">{label}</div>
+            <div style="font-size:18px;font-weight:800;color:#1a1a2e;line-height:1;white-space:nowrap;">{value_str}</div>
+            <div style="font-size:11px;font-weight:600;margin-top:4px;color:{d_color};white-space:nowrap;">{d_str or "&nbsp;"}</div>
+            <div style="font-size:8px;color:#999;margin-top:3px;white-space:nowrap;overflow:hidden;">{sub or "&nbsp;"}</div>
+          </div>
+        </td>"""
 
     usw_cur  = total.get("usw")
     usw_prev = p_tot.get("usw")
@@ -412,7 +410,7 @@ def build_html(data):
 
     kpi_html = f"""
     <p class="section-title">Overall — {wl(cur_week)}</p>
-    <table class="kpi-table"><tr>
+    <table width="100%" style="width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:24px;"><tr>
       {kpi_box("U/S/W",        fmt_usw(usw_cur),             usw_cur,             usw_prev)}
       {kpi_box("Adj. U/S/W",   fmt_usw(adj_usw_cur),         adj_usw_cur,         adj_usw_prev)}
       {kpi_box("Instock %",    fmt_pct(total.get("instock_pct")),   total.get("instock_pct"),    p_tot.get("instock_pct"),    is_pct=True)}
