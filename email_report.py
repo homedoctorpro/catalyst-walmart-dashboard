@@ -5,7 +5,6 @@ Usage standalone: python email_report.py --dry-run
 """
 
 import os, sys, smtplib, math, argparse, io, base64
-from itertools import combinations
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -52,14 +51,6 @@ SKU_LABELS = {
     "CATALYSTPET34LBUNSCE": "34lb Unscented",
 }
 
-GEOLIFT_GROUPS = {
-    "Meta":    ["TENNESSEE","KENTUCKY","UTAH","OKLAHOMA","WASHINGTON","GEORGIA","ARKANSAS","LOUISIANA"],
-    "YouTube": ["NEVADA","OREGON","MISSOURI","MICHIGAN","ARIZONA","ALABAMA","INDIANA","NEBRASKA"],
-    "Control": ["VIRGINIA","OHIO","MINNESOTA","KANSAS","IOWA","NEW MEXICO","COLORADO","WISCONSIN"],
-}
-GEOLIFT_COLORS = {"Meta": "#0057e7", "YouTube": "#e63221", "Control": "#555555"}
-GEOLIFT_BASELINE = "202609"
-
 # ── Formatters ────────────────────────────────────────────────────────────────
 def wl(week):
     return WEEK_LABELS.get(week, week)
@@ -96,154 +87,6 @@ def delta_str(curr, prev, higher_better=True, is_pct=False):
         return f"{arrow} {abs(chg):.1f}pp", color
     return f"{arrow} {abs(pct):.1f}%", color
 
-# ── GeoLift helpers ───────────────────────────────────────────────────────────
-def compute_geolift(data):
-    """Return {week: {group: {usw, index, stores, units}}} for weeks >= baseline."""
-    store_weeks = data["store_weeks"]
-
-    # Per-week, per-state store counts
-    ws = {}
-    for week in store_weeks:
-        ws[week] = {}
-        for sn, sdata in data["weekly_stores"].get(week, {}).items():
-            info = data["stores"].get(sn, {})
-            st = info.get("state", "")
-            if not st: continue
-            ws[week][st] = ws[week].get(st, 0) + 1
-
-    def w_usw(states, week):
-        q = sum(data["state_sales"].get(week, {}).get(st, 0) for st in states)
-        s = sum(ws.get(week, {}).get(st, 0) for st in states)
-        return q / s if s > 0 else None
-
-    def uw_usw(states, week):
-        vals = []
-        for st in states:
-            q = data["state_sales"].get(week, {}).get(st, 0)
-            s = ws.get(week, {}).get(st, 0)
-            if s > 0: vals.append(q / s)
-        return sum(vals) / len(vals) if vals else None
-
-    # Baseline
-    baseline_w  = {g: w_usw(states,  GEOLIFT_BASELINE) for g, states in GEOLIFT_GROUPS.items()}
-    baseline_uw = {g: uw_usw(states, GEOLIFT_BASELINE) for g, states in GEOLIFT_GROUPS.items()}
-
-    gl_weeks = [w for w in store_weeks if w >= GEOLIFT_BASELINE]
-    result = {}
-    for week in gl_weeks:
-        result[week] = {}
-        for g, states in GEOLIFT_GROUPS.items():
-            wv  = w_usw(states, week)
-            uwv = uw_usw(states, week)
-            bw  = baseline_w.get(g)
-            buw = baseline_uw.get(g)
-            result[week][g] = {
-                "usw_w":   wv,
-                "usw_uw":  uwv,
-                "idx_w":   round(wv  / bw  * 100, 1) if (wv  and bw)  else None,
-                "idx_uw":  round(uwv / buw * 100, 1) if (uwv and buw) else None,
-                "stores":  sum(ws.get(week, {}).get(st, 0) for st in states),
-                "units":   sum(data["state_sales"].get(week, {}).get(st, 0) for st in states),
-            }
-    return gl_weeks, result
-
-def compute_geolift_significance(data):
-    """Exact permutation test (Fisher randomization inference) on the weighted U/S/W index.
-
-    For each treatment group (Meta, YouTube) vs Control, the test statistic is the mean
-    over post-baseline weeks of (treatment weighted-index − control weighted-index).
-    We pool the 16 states (treatment + control) and enumerate every C(16,8)=12,870 way to
-    split them into pseudo-treatment / pseudo-control, recomputing the statistic each time.
-    The two-sided p-value is the share of splits whose |statistic| ≥ |observed|.
-
-    Returns {group: {lift, rel, pval, band, incremental, n_states, n_weeks}} or None.
-    """
-    store_weeks = data["store_weeks"]
-    gl_weeks   = [w for w in store_weeks if w >= GEOLIFT_BASELINE]
-    post_weeks = [w for w in gl_weeks if w > GEOLIFT_BASELINE]
-    if not post_weeks:
-        return None
-
-    # Per-week, per-state active store counts
-    ws = {}
-    for week in store_weeks:
-        ws[week] = {}
-        for sn, sdata in data["weekly_stores"].get(week, {}).items():
-            st = data["stores"].get(sn, {}).get("state", "")
-            if not st: continue
-            ws[week][st] = ws[week].get(st, 0) + 1
-
-    def units(st, w):  return data["state_sales"].get(w, {}).get(st, 0)
-    def stores(st, w): return ws.get(w, {}).get(st, 0)
-
-    def set_idx(states, w):
-        """Weighted U/S/W index of a set of states at week w (baseline = 100)."""
-        bu = sum(units(s, GEOLIFT_BASELINE) for s in states)
-        bs = sum(stores(s, GEOLIFT_BASELINE) for s in states)
-        if bs == 0 or bu == 0: return None
-        u = sum(units(s, w) for s in states)
-        s = sum(stores(s, w) for s in states)
-        if s == 0: return None
-        return (u / s) / (bu / bs) * 100
-
-    def stat(treat, ctrl):
-        diffs = []
-        for w in post_weeks:
-            it, ic = set_idx(treat, w), set_idx(ctrl, w)
-            if it is None or ic is None: return None
-            diffs.append(it - ic)
-        return sum(diffs) / len(diffs) if diffs else None
-
-    control = GEOLIFT_GROUPS["Control"]
-    out = {}
-    for g in ("Meta", "YouTube"):
-        treat    = GEOLIFT_GROUPS[g]
-        observed = stat(treat, control)
-        if observed is None:
-            out[g] = None
-            continue
-
-        pool, k = list(treat) + list(control), len(treat)
-        null = []
-        for combo in combinations(range(len(pool)), k):
-            cset = set(combo)
-            pt = [pool[i] for i in cset]
-            pc = [pool[i] for i in range(len(pool)) if i not in cset]
-            s = stat(pt, pc)
-            if s is not None: null.append(s)
-        n = len(null)
-        pval = (sum(1 for v in null if abs(v) >= abs(observed) - 1e-9) / n) if n else None
-        ns = sorted(null)
-        def pctile(p):
-            return ns[min(n - 1, max(0, int(round(p * (n - 1)))))] if n else None
-        band = (pctile(0.025), pctile(0.975))
-
-        # Incremental units vs control-implied counterfactual, summed over post weeks
-        bu = sum(units(s, GEOLIFT_BASELINE) for s in treat)
-        bs = sum(stores(s, GEOLIFT_BASELINE) for s in treat)
-        base_usw = bu / bs if bs else None
-        incr, mean_idx_c = 0.0, 0.0
-        for w in post_weeks:
-            ic   = set_idx(control, w)
-            st_t = sum(stores(s, w) for s in treat)
-            ut_t = sum(units(s, w)  for s in treat)
-            if ic is not None and base_usw is not None:
-                incr += ut_t - (base_usw * ic / 100 * st_t)
-            mean_idx_c += ic if ic else 0
-        mean_idx_c /= len(post_weeks)
-        rel = (observed / mean_idx_c * 100) if mean_idx_c else None
-
-        out[g] = {"lift": observed, "rel": rel, "pval": pval, "band": band,
-                  "incremental": incr, "n_states": k, "n_weeks": len(post_weeks)}
-    return out
-
-def sig_verdict(pval):
-    """(label, color) for a p-value."""
-    if pval is None:           return "—", "#888"
-    if pval < 0.05:            return "Significant", "#00a86b"
-    if pval < 0.10:            return "Suggestive", "#e67300"
-    return "Not significant", "#888"
-
 # ── OOS helpers ───────────────────────────────────────────────────────────────
 def compute_oos_summary(data):
     """Return total OOS stores and 2+ week OOS count for the latest week."""
@@ -273,7 +116,7 @@ def count_oos_stores(data, week):
 
 # ── Highlights / auto-commentary ──────────────────────────────────────────────
 def build_highlights(data, cur_week, prev_week, metrics, skus, total, p_tot,
-                     oos_total, oos_multi, total_stores, gl_sig, gl_weeks, gl_data):
+                     oos_total, oos_multi, total_stores):
     """Return HTML <li> bullets summarizing the week's most important movements."""
     bullets = []  # (emoji, html_text)
 
@@ -330,30 +173,6 @@ def build_highlights(data, cur_week, prev_week, metrics, skus, total, p_tot,
         bullets.append(("📦", f"<b>{oos_total} stores out of stock</b> ({oos_pct:.1f}% of {total_stores:,}){trend}."))
         if oos_multi:
             bullets.append(("🚚", f"{col(str(oos_multi)+' stores', '#e67300')} have been OOS <b>2+ consecutive weeks</b> — replenishment priority."))
-
-    # 5. GeoLift headline (weighted index + significance)
-    if gl_sig and gl_weeks:
-        latest = gl_weeks[-1]
-        ranked = []
-        for g in ("Meta", "YouTube"):
-            s = gl_sig.get(g)
-            idx = gl_data.get(latest, {}).get(g, {}).get("idx_w")
-            if s: ranked.append((g, s, idx))
-        ranked.sort(key=lambda x: (x[1]["lift"]), reverse=True)
-        if ranked:
-            g, s, idx = ranked[0]
-            label, vc = sig_verdict(s["pval"])
-            lift = s["lift"]
-            sign = "+" if lift >= 0 else ""
-            idx_txt = f"index {idx:.0f}, " if idx is not None else ""
-            pv_txt  = f"p={s['pval']:.3f}" if s["pval"] is not None else "p=—"
-            lift_html = col(f"{sign}{lift:.1f} pts vs control", vc)
-            incr = s["incremental"]
-            incr_txt = (" ≈" + col(f"{incr:,.0f} incremental units", "#0057e7")
-                        if abs(incr) >= 1 else "")
-            bullets.append(("🧪",
-                f"<b>{g} GeoLift</b>: {idx_txt}{lift_html} on the weighted index "
-                f"({pv_txt}, {col(label, vc)}).{incr_txt}"))
 
     if not bullets:
         return ""
@@ -426,44 +245,6 @@ def make_usw_chart(metrics, all_weeks, skus):
     for spine in ["left", "bottom"]: ax.spines[spine].set_color("#ddd")
     ax.grid(axis="y", alpha=0.3, color="#ccc")
     ax.legend(loc="upper left", fontsize=7.5, framealpha=0.9, ncol=3)
-    plt.tight_layout(pad=1.0)
-
-    b64 = _fig_to_b64(fig)
-    plt.close(fig)
-    return b64
-
-def make_geolift_chart(gl_weeks, gl_data):
-    """Weighted indexed U/S/W line chart for all three GeoLift groups."""
-    plt = _mpl()
-    if not plt or not gl_weeks: return None
-
-    labels = [wl(w) for w in gl_weeks]
-
-    fig, ax = plt.subplots(figsize=(7, 3.2))
-    fig.patch.set_facecolor("#ffffff")
-    ax.set_facecolor("#f8f9ff")
-
-    for group, color in GEOLIFT_COLORS.items():
-        vals = [gl_data[w][group]["idx_w"] for w in gl_weeks]
-        ax.plot(labels, vals, color=color, linewidth=2.5, marker="o", markersize=6, label=group, zorder=4)
-        # Annotate last point
-        last = vals[-1]
-        if last is not None:
-            ax.annotate(f"{last:.1f}", xy=(labels[-1], last),
-                        xytext=(4, 0), textcoords="offset points",
-                        fontsize=8, color=color, fontweight="bold", va="center")
-
-    # Baseline at 100
-    ax.axhline(100, color="#bbb", linewidth=1.2, linestyle="--", zorder=2)
-    ax.text(labels[0], 100, " baseline", fontsize=7.5, color="#bbb", va="bottom")
-
-    ax.set_ylabel("Index (Wk 9 = 100)", fontsize=9, color="#555")
-    ax.tick_params(axis="x", rotation=25, labelsize=8)
-    ax.tick_params(axis="y", labelsize=8)
-    for spine in ["top", "right"]: ax.spines[spine].set_visible(False)
-    for spine in ["left", "bottom"]: ax.spines[spine].set_color("#ddd")
-    ax.grid(axis="y", alpha=0.3, color="#ccc")
-    ax.legend(loc="upper left", fontsize=8.5, framealpha=0.9)
     plt.tight_layout(pad=1.0)
 
     b64 = _fig_to_b64(fig)
@@ -562,21 +343,15 @@ def build_html(data):
     total  = cur_m.get("Total",  {})
     p_tot  = prev_m.get("Total", {})
 
-    # Charts (generated early so gl_data is available)
-    gl_weeks, gl_data   = compute_geolift(data)
-    gl_sig              = compute_geolift_significance(data)
+    # Charts
     usw_chart_b64       = make_usw_chart(metrics, sorted(metrics.keys()), skus)
     oos_map_b64         = make_oos_map(data)
-    geolift_chart_b64   = make_geolift_chart(gl_weeks, gl_data)
 
     def img_tag(b64, alt=""):
         if not b64: return ""
         return (f'<img src="data:image/png;base64,{b64}" '
                 f'alt="{alt}" width="560" style="display:block;max-width:100%;'
                 f'border-radius:8px;margin:0 auto;" />')
-
-    # GeoLift
-    show_geolift = len(gl_weeks) >= 1
 
     # OOS
     oos_total, oos_multi, total_stores = compute_oos_summary(data)
@@ -604,16 +379,6 @@ def build_html(data):
     .sku-table td{padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right;}
     .sku-table td:first-child{text-align:left;font-weight:600;}
     .sku-table tr.total-row td{font-weight:700;background:#f0f4ff;border-top:2px solid #d0d8f0;}
-    .gl-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px;}
-    .gl-table th{background:#f5f5f5;padding:7px 10px;text-align:right;font-weight:700;color:#555;border-bottom:2px solid #e0e0e0;}
-    .gl-table th:first-child,.gl-table th:nth-child(2){text-align:left;}
-    .gl-table td{padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right;}
-    .gl-table td:first-child,.gl-table td:nth-child(2){text-align:left;}
-    .badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;}
-    .badge-meta{background:#e8f0fe;color:#0057e7;}
-    .badge-youtube{background:#fce8e6;color:#c62828;}
-    .badge-control{background:#f0f0f0;color:#444;}
-    .idx-chip{font-weight:700;}
     .oos-row{display:flex;gap:16px;}
     .oos-box{flex:1;background:#fff3f3;border-radius:8px;padding:12px 16px;text-align:center;}
     .oos-num{font-size:24px;font-weight:800;color:#c62828;}
@@ -660,7 +425,7 @@ def build_html(data):
     # ── Highlights / auto-commentary ────────────────────────────────────────────
     highlights_html = build_highlights(
         data, cur_week, prev_week, metrics, skus, total, p_tot,
-        oos_total, oos_multi, total_stores, gl_sig, gl_weeks, gl_data)
+        oos_total, oos_multi, total_stores)
 
     # ── SKU breakdown ─────────────────────────────────────────────────────────
     def sku_row(sku, label, m):
@@ -790,88 +555,6 @@ def build_html(data):
     </tr></table>
     {oos_sku_table}
     {oos_map_html}"""
-
-    # ── GeoLift ───────────────────────────────────────────────────────────────
-    geolift_html = ""
-    if show_geolift:
-        latest_gl = gl_weeks[-1]
-        is_baseline = latest_gl == GEOLIFT_BASELINE
-        gl_note = "Wk 9 = baseline (100)" if is_baseline else f"indexed to {wl(GEOLIFT_BASELINE)} = 100"
-
-        def idx_chip(v, group):
-            if v is None: return "—"
-            color = GEOLIFT_COLORS[group]
-            bg    = "#e8f0fe" if group=="Meta" else "#fce8e6" if group=="YouTube" else "#f0f0f0"
-            return f'<span style="background:{bg};color:{color};font-weight:700;padding:2px 7px;border-radius:8px;">{v:.1f}</span>'
-
-        rows_html = ""
-        for week in gl_weeks:
-            for g, gd in gl_data[week].items():
-                key = g.lower()
-                badge = f'<span class="badge badge-{key}">{g}</span>'
-                rows_html += f"""<tr>
-                  <td>{wl(week)}</td>
-                  <td>{badge}</td>
-                  <td>{gd["stores"]}</td>
-                  <td>{fmt_num(gd["units"])}</td>
-                  <td>{fmt_usw(gd["usw_w"])}</td>
-                  <td>{idx_chip(gd["idx_w"],  g)}</td>
-                  <td>{fmt_usw(gd["usw_uw"])}</td>
-                  <td>{idx_chip(gd["idx_uw"], g)}</td>
-                </tr>"""
-
-        gl_chart_html = (f'<div style="margin:14px 0 10px;">{img_tag(geolift_chart_b64, "GeoLift Indexed U/S/W")}</div>'
-                         if geolift_chart_b64 else "")
-
-        # Significance cards (weighted-index permutation test vs Control)
-        sig_html = ""
-        if gl_sig:
-            cards = ""
-            for g in ("Meta", "YouTube"):
-                s = gl_sig.get(g)
-                if not s: continue
-                label, vc = sig_verdict(s["pval"])
-                color = GEOLIFT_COLORS[g]
-                bg    = "#e8f0fe" if g == "Meta" else "#fce8e6"
-                lift  = s["lift"]; sign = "+" if lift >= 0 else ""
-                rel_txt = f" ({sign}{s['rel']:.1f}%)" if s.get("rel") is not None else ""
-                pv_txt  = f"{s['pval']:.3f}" if s["pval"] is not None else "—"
-                lo, hi  = s["band"]
-                band_txt = f"[{lo:+.1f}, {hi:+.1f}]" if lo is not None else "—"
-                incr = s["incremental"]
-                cards += f"""
-              <td width="50%" style="padding:4px;vertical-align:top;">
-                <div style="background:{bg};border-radius:10px;padding:14px 16px;border-top:3px solid {color};">
-                  <div style="font-size:13px;font-weight:800;color:{color};margin-bottom:8px;">{g} vs Control</div>
-                  <div style="font-size:24px;font-weight:800;color:{color};line-height:1;">{sign}{lift:.1f}<span style="font-size:13px;font-weight:600;color:#888;"> pts{rel_txt}</span></div>
-                  <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin:2px 0 10px;">Net weighted-index lift</div>
-                  <table width="100%" style="font-size:11.5px;color:#444;">
-                    <tr><td>p-value</td><td align="right" style="font-weight:700;color:{vc};">{pv_txt} · {label}</td></tr>
-                    <tr><td>Incremental units</td><td align="right" style="font-weight:700;">{incr:,.0f}</td></tr>
-                    <tr><td>Range if no effect</td><td align="right">{band_txt}</td></tr>
-                  </table>
-                </div>
-              </td>"""
-            if cards:
-                n_wk = next((s["n_weeks"] for s in gl_sig.values() if s), 0)
-                sig_html = f"""
-    <p style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin:18px 0 8px;">Statistical Significance — Weighted Index</p>
-    <table width="100%"><tr>{cards}</tr></table>
-    <p style="font-size:10.5px;color:#aaa;margin:6px 0 0;line-height:1.45;">Exact permutation test (Fisher randomization inference) over all 12,870 ways to split the 16 treatment+control states, across {n_wk} post-baseline week(s). "Range if no effect" = middle 95% of lifts under random assignment; an observed lift outside it is significant at ~5%. Observational geo test — interpret alongside spend &amp; creative.</p>"""
-
-        geolift_html = f"""
-    <hr class="divider">
-    <p class="section-title">GeoLift Test — {gl_note}</p>
-    {gl_chart_html}
-    {sig_html}
-    <table class="gl-table">
-      <thead><tr>
-        <th>Week</th><th>Group</th><th>Stores</th><th>Units</th>
-        <th>Wtd U/S/W</th><th>Wtd Idx</th>
-        <th>Unwtd U/S/W</th><th>Unwtd Idx</th>
-      </tr></thead>
-      <tbody>{rows_html}</tbody>
-    </table>"""
 
     # ── Markdowns trend ───────────────────────────────────────────────────────
     all_metric_weeks = sorted(metrics.keys())
@@ -1007,7 +690,6 @@ def build_html(data):
     {kpi_html}
     {sku_html}
     {oos_html}
-    {geolift_html}
     {markdowns_html}
     {catalyst_ecomm_html}
   </div>
