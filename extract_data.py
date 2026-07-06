@@ -1031,6 +1031,10 @@ def main():
     # to the full recipient list (bypassing the Monday-only / already-sent gate).
     force_full = os.environ.get("FORCE_FULL_DISTRO") == "1"
     dev_only  = False if force_full else (not is_monday or already_sent)
+    # DEV_ONLY_EMAIL=1 forces a dev-only send (test/example emails), overriding
+    # the full-distro flag.
+    if os.environ.get("DEV_ONLY_EMAIL") == "1":
+        dev_only = True
     if os.environ.get("SKIP_EMAIL") == "1":
         print("  [Email] Skipped (SKIP_EMAIL=1)")
     else:

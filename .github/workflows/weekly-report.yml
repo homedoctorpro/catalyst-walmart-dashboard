@@ -17,6 +17,10 @@ on:
         description: "Skip sending the distro email (build/publish only)"
         type: boolean
         default: false
+      dev_email:
+        description: "Send the email to the dev recipient only (test/example send)"
+        type: boolean
+        default: false
 
 # Serialize runs so two cycles can't grab the same email before the state file
 # is committed.
@@ -99,6 +103,7 @@ jobs:
           EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
           FORCE_FULL_DISTRO: ${{ inputs.skip_email == true && '0' || '1' }}
           SKIP_EMAIL: ${{ inputs.skip_email == true && '1' || '0' }}
+          DEV_ONLY_EMAIL: ${{ inputs.dev_email == true && '1' || '0' }}
           PYTHONHASHSEED: "0"   # deterministic dict ordering → minimal output churn
         run: python extract_data.py
 
