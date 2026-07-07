@@ -383,20 +383,22 @@ def build_html(data):
     .divider{border:none;border-top:1px solid #f0f0f0;margin:20px 0;}
     """
 
-    # ── KPI row ───────────────────────────────────────────────────────────────
+    # ── KPI cards ─────────────────────────────────────────────────────────────
     # Fully inline-styled (no CSS classes) so cards render identically in email
-    # clients that ignore <style> blocks. table-layout:fixed + width attrs force
-    # six equal columns; every card renders all four rows (using &nbsp; when a
-    # row is empty) so heights match too.
+    # clients that ignore <style> blocks. Laid out 3-across in two rows so each
+    # card is wide enough that nothing wraps or overlaps (Outlook ignores
+    # overflow clipping, so content must genuinely fit). table-layout:fixed +
+    # width attrs force equal columns; every card renders all four rows (using
+    # &nbsp; when a row is empty) so heights match too.
     def kpi_box(label, value_str, curr, prev, higher_better=True, is_pct=False, sub=None):
         d_str, d_color = delta_str(curr, prev, higher_better, is_pct)
         return f"""
-        <td width="16%" valign="top" style="padding:3px;vertical-align:top;">
-          <div style="background:#f8f9ff;border-radius:10px;padding:14px 4px;text-align:center;">
-            <div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px;white-space:nowrap;overflow:hidden;">{label}</div>
-            <div style="font-size:18px;font-weight:800;color:#1a1a2e;line-height:1;white-space:nowrap;">{value_str}</div>
-            <div style="font-size:11px;font-weight:600;margin-top:4px;color:{d_color};white-space:nowrap;">{d_str or "&nbsp;"}</div>
-            <div style="font-size:8px;color:#999;margin-top:3px;white-space:nowrap;overflow:hidden;">{sub or "&nbsp;"}</div>
+        <td width="33%" valign="top" style="padding:4px;vertical-align:top;">
+          <div style="background:#f8f9ff;border-radius:10px;padding:14px 8px;text-align:center;">
+            <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">{label}</div>
+            <div style="font-size:22px;font-weight:800;color:#1a1a2e;line-height:1;">{value_str}</div>
+            <div style="font-size:12px;font-weight:600;margin-top:5px;color:{d_color};">{d_str or "&nbsp;"}</div>
+            <div style="font-size:9px;color:#999;margin-top:3px;">{sub or "&nbsp;"}</div>
           </div>
         </td>"""
 
@@ -410,10 +412,13 @@ def build_html(data):
 
     kpi_html = f"""
     <p class="section-title">Overall — {wl(cur_week)}</p>
-    <table width="100%" style="width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:24px;"><tr>
+    <table width="100%" style="width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:24px;">
+    <tr>
       {kpi_box("U/S/W",        fmt_usw(usw_cur),             usw_cur,             usw_prev)}
       {kpi_box("Adj. U/S/W",   fmt_usw(adj_usw_cur),         adj_usw_cur,         adj_usw_prev)}
       {kpi_box("Instock %",    fmt_pct(total.get("instock_pct")),   total.get("instock_pct"),    p_tot.get("instock_pct"),    is_pct=True)}
+    </tr>
+    <tr>
       {kpi_box("Units Sold",   fmt_num(total.get("pos_qty")),       total.get("pos_qty"),        p_tot.get("pos_qty"))}
       {kpi_box("Retail $",     fmt_usd(total.get("pos_dollars")),   total.get("pos_dollars"),    p_tot.get("pos_dollars"))}
       {kpi_box("Wholesale $",  fmt_usd(total.get("wholesale_dollars")), total.get("wholesale_dollars"), p_tot.get("wholesale_dollars"), sub=(f"≈ {fmt_usd(total.get('wholesale_dollars') * 52 / 12)}/mo run-rate" if total.get("wholesale_dollars") else None))}
