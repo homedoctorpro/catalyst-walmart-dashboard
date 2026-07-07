@@ -390,16 +390,16 @@ def build_html(data):
     # overflow clipping, so content must genuinely fit). table-layout:fixed +
     # width attrs force equal columns; every card renders all four rows (using
     # &nbsp; when a row is empty) so heights match too.
+    # The card IS the td (not a div inside it): cells in a table row are forced
+    # to equal height by every renderer, so the boxes always align.
     def kpi_box(label, value_str, curr, prev, higher_better=True, is_pct=False, sub=None):
         d_str, d_color = delta_str(curr, prev, higher_better, is_pct)
         return f"""
-        <td width="33%" valign="top" style="padding:4px;vertical-align:top;">
-          <div style="background:#f8f9ff;border-radius:10px;padding:14px 8px;text-align:center;">
-            <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">{label}</div>
-            <div style="font-size:22px;font-weight:800;color:#1a1a2e;line-height:1;">{value_str}</div>
-            <div style="font-size:12px;font-weight:600;margin-top:5px;color:{d_color};">{d_str or "&nbsp;"}</div>
-            <div style="font-size:9px;color:#999;margin-top:3px;">{sub or "&nbsp;"}</div>
-          </div>
+        <td width="33%" bgcolor="#f8f9ff" valign="middle" style="background:#f8f9ff;border-radius:10px;padding:14px 8px;text-align:center;vertical-align:middle;">
+          <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">{label}</div>
+          <div style="font-size:22px;font-weight:800;color:#1a1a2e;line-height:1;">{value_str}</div>
+          <div style="font-size:12px;font-weight:600;margin-top:5px;color:{d_color};">{d_str or "&nbsp;"}</div>
+          <div style="font-size:9px;color:#999;margin-top:3px;">{sub or "&nbsp;"}</div>
         </td>"""
 
     usw_cur  = total.get("usw")
@@ -412,7 +412,7 @@ def build_html(data):
 
     kpi_html = f"""
     <p class="section-title">Overall — {wl(cur_week)}</p>
-    <table width="100%" style="width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:24px;">
+    <table width="100%" cellspacing="8" cellpadding="0" style="width:100%;border-collapse:separate;border-spacing:8px;table-layout:fixed;margin-bottom:20px;">
     <tr>
       {kpi_box("U/S/W",        fmt_usw(usw_cur),             usw_cur,             usw_prev)}
       {kpi_box("Adj. U/S/W",   fmt_usw(adj_usw_cur),         adj_usw_cur,         adj_usw_prev)}
