@@ -186,6 +186,10 @@ function seriesArr(part, metric){
   const s = mmap(part, metric);
   return months.map(m => m in s ? s[m] : null);
 }
+function perUnitArr(part, metric){
+  const s = mmap(part, metric), u = DATA.series[part].units;
+  return months.map(m => (m in s && u[m]) ? s[m]/u[m] : null);
+}
 function brandSeriesArr(brand, metric){
   const ps = parts(brand);
   return months.map(m => {
@@ -314,7 +318,7 @@ function buildOverview(){
 }
 
 /* ---------- By Product ---------- */
-let prodState = {brand:'Catalyst', selected:new Set()};
+let prodState = {brand:'Catalyst', selected:new Set(), perUnit:false};
 function buildProduct(){
   const el = document.getElementById('tab-product');
   el.innerHTML = `
@@ -322,6 +326,9 @@ function buildProduct(){
       <span class="lbl">Brand:</span>
       <label class="chip"><input type="radio" name="pbrand" value="Catalyst" checked> Catalyst Pet</label>
       <label class="chip"><input type="radio" name="pbrand" value="Feline Fresh"> Feline Fresh</label>
+      <span class="lbl" style="margin-left:auto">View:</span>
+      <label class="chip"><input type="radio" name="pview" value="tot" checked> Totals</label>
+      <label class="chip"><input type="radio" name="pview" value="pu"> Per unit ($/bag)</label>
     </div>
     <div class="filter-bar" id="prod-chips"></div>
     <div class="chart-grid" id="prod-charts"></div>
@@ -329,6 +336,9 @@ function buildProduct(){
       <div style="overflow-x:auto"><table class="grid" id="prod-table"></table></div></div>`;
   el.querySelectorAll('input[name=pbrand]').forEach(r=>{
     r.onchange = ()=>{ prodState.brand=r.value; prodState.selected.clear(); renderProdChips(); renderProd(); };
+  });
+  el.querySelectorAll('input[name=pview]').forEach(r=>{
+    r.onchange = ()=>{ prodState.perUnit = (r.value==='pu'); renderProd(); };
   });
   renderProdChips();
   renderProd();
@@ -352,7 +362,12 @@ function renderProdChips(){
 }
 function renderProd(){
   const sel = [...prodState.selected];
-  document.getElementById('prod-tbl-title').textContent = prodState.brand;
+  const pu = prodState.perUnit;
+  document.getElementById('prod-tbl-title').textContent =
+    prodState.brand + (pu ? ' · per unit ($/bag)' : '');
+  const puLabel = {retail:'Net Sales $/unit (realized)', implied:'List $/unit',
+                   wholesale:'Cost $/unit'};
+  const dollar = new Set(['retail','implied','wholesale']);
   const defs = [
     ['retail','Net Sales $ (actual)', v=>({tickprefix:'$',tickformat:'.2s'})],
     ['implied','Implied Retail $ (list)', v=>({tickprefix:'$',tickformat:'.2s'})],
@@ -361,8 +376,9 @@ function renderProd(){
     ['autoship','Autoship %', v=>({ticksuffix:'%',range:[0,100]})],
     ['oos','PDP OOS %', v=>({ticksuffix:'%'})],
   ];
+  const title = d => (pu && dollar.has(d[0])) ? puLabel[d[0]] : d[1];
   const grid = document.getElementById('prod-charts');
-  grid.innerHTML = defs.map(d=>`<div class="chart-card"><h3>${d[1]}</h3><div class="chart-div" id="pc-${d[0]}"></div></div>`).join('');
+  grid.innerHTML = defs.map(d=>`<div class="chart-card"><h3>${title(d)}</h3><div class="chart-div" id="pc-${d[0]}"></div></div>`).join('');
   defs.forEach(d=>{
     const metric=d[0];
     if (metric==='wholesale' && !DATA.have_wholesale){
@@ -370,24 +386,35 @@ function renderProd(){
         '<div style="display:flex;height:100%;align-items:center;justify-content:center;color:#aaa;font-size:.85rem;text-align:center;padding:0 20px">Pending per-SKU wholesale prices</div>';
       return;
     }
+    const perUnit = pu && dollar.has(metric);
     const traces = sel.map((p,i)=>({
-      x:xlabels, y:seriesArr(p,metric), name:DATA.products[p].short,
+      x:xlabels, y: perUnit ? perUnitArr(p,metric) : seriesArr(p,metric), name:DATA.products[p].short,
       type:'scatter', mode:'lines+markers', line:{width:2,color:PALETTE[parts(prodState.brand).indexOf(p)%PALETTE.length]}, marker:{size:4}
     }));
-    Plotly.newPlot('pc-'+metric, traces, LAYOUT({yaxis:d[2]()}), CFG);
+    const yax = perUnit ? {tickprefix:'$'} : d[2]();
+    Plotly.newPlot('pc-'+metric, traces, LAYOUT({yaxis:yax}), CFG);
   });
   renderProdTable(sel);
 }
 function renderProdTable(sel){
+  const pu = prodState.perUnit;
   const t = document.getElementById('prod-table');
-  const head = `<tr><th>SKU</th><th>CT</th>`+xlabels.map(l=>`<th>${l}</th>`).join('')+`<th>Total</th></tr>`;
+  const money = pu ? (v=>'$'+v.toFixed(2)) : fmt$;
+  const head = `<tr><th>SKU</th><th>CT</th>`+xlabels.map(l=>`<th>${l}</th>`).join('')+`<th>${pu?'Avg':'Total'}</th></tr>`;
   const rows = sel.map(p=>{
-    const pr = DATA.products[p], arr = seriesArr(p,'retail');
-    const tot = arr.reduce((t,v)=>t+(v||0),0);
+    const pr = DATA.products[p];
+    const arr = pu ? perUnitArr(p,'retail') : seriesArr(p,'retail');
+    let last;
+    if (pu){
+      const u = seriesArr(p,'units').reduce((t,v)=>t+(v||0),0);
+      const n = seriesArr(p,'retail').reduce((t,v)=>t+(v||0),0);
+      last = u ? n/u : null;
+    } else last = arr.reduce((t,v)=>t+(v||0),0);
     return `<tr><td><span class="brand-dot" style="background:${BRAND_COLOR[pr.brand]}"></span>${pr.short}</td><td>${pr.ct||''}</td>`+
-      arr.map(v=>`<td>${v==null?'—':fmt$(v)}</td>`).join('')+`<td><b>${fmt$(tot)}</b></td></tr>`;
+      arr.map(v=>`<td>${v==null?'—':money(v)}</td>`).join('')+`<td><b>${last==null?'—':money(last)}</b></td></tr>`;
   }).join('');
-  t.innerHTML = `<thead>${head}</thead><tbody><tr class="grp"><td colspan="${xlabels.length+3}">Net Sales $ by month (actual)</td></tr>${rows}</tbody>`;
+  const grp = pu ? 'Net Sales $/unit by month (realized)' : 'Net Sales $ by month (actual)';
+  t.innerHTML = `<thead>${head}</thead><tbody><tr class="grp"><td colspan="${xlabels.length+3}">${grp}</td></tr>${rows}</tbody>`;
 }
 
 /* ---------- By Brand ---------- */
