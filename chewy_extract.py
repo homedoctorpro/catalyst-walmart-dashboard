@@ -62,6 +62,32 @@ def wholesale_price(part, month):
         return None
     return p["new"] if month >= WHOLESALE_CHANGEOVER else p["base"]
 
+# Per-SKU customer sales UNITS for the two most recent months, read from the
+# May-2026 and June-2026 Brand Snapshot PDFs (Excel only had a partial May).
+# Verified: PDF "Customer Sales Units" == Excel "Units Sold" (exact monthly
+# match Jul'25-Apr'26). Values are the PDF "Top 10 Products" lists; Poop Bags
+# (11th, not in top 10) is the brand total minus the top-10 sum.
+PDF_MONTHLY_UNITS = {
+    "2026-05": {"241764": 7775, "241761": 1310, "241758": 1255, "241763": 1175,
+                "241757": 453, "965502": 369, "241760": 304, "1633142": 143,
+                "1665670": 72, "1674830": 48, "1685430": 5,
+                "1932190": 484, "1932198": 248, "1932182": 203},
+    "2026-06": {"241764": 7918, "241761": 1377, "241758": 1366, "241763": 1037,
+                "241757": 373, "965502": 325, "241760": 253, "1633142": 159,
+                "1665670": 45, "1674830": 31, "1685430": 11,
+                "1932198": 365, "1932190": 333, "1932182": 183},
+}
+
+# Retail $ for the PDF months = units * realized $/unit (calibrated from the
+# trailing Excel Net Sales, not raw shelf price). Litter SKUs step +5% at the
+# retail changeover; accessories (mat/scoop/poop) do not. Catalyst litter per
+# the shelf sheet; FF pine also treated as litter.
+RETAIL_CHANGEOVER = "2026-10"
+LITTER_PARTS = {"241757", "241758", "965502", "241760", "241761", "241763",
+                "241764", "1633142", "1932182", "1932190", "1932198"}
+PRICE_REF_MONTHS = ["2025-11", "2025-12", "2026-01", "2026-02", "2026-03",
+                    "2026-04"]
+
 # Latest-month brand snapshot (from the June 2026 Brand Snapshot PDFs).
 SNAPSHOT = {
     "Catalyst": {
@@ -124,8 +150,11 @@ def load_flat(wb):
 
     months = set()
     products = {}
-    series = defaultdict(lambda: {"retail": {}, "units": {},
-                                  "autoship": {}, "oos": {}})
+    # A (part, month) can appear in >1 row (Chewy splits published-True/False
+    # during a status change). Accumulate: sum units/$, unit-weight the rates.
+    acc = defaultdict(lambda: {"units": 0, "net": 0.0,
+                               "auto_w": 0.0, "auto_u": 0,
+                               "oos_w": 0.0, "oos_u": 0})
     for r in rows[1:]:
         month = r[idx["MONTH"]]
         if month is None:
@@ -133,22 +162,34 @@ def load_flat(wb):
         m = ym(month)
         months.add(m)
         part = str(r[idx["PRODUCT_PART_NUMBER"]])
-        name = r[idx["PRODUCT_NAME"]]
         brand = "Feline Fresh" if str(r[idx["BRAND"]]).startswith("Feline") \
             else "Catalyst"
         if part not in products:
-            products[part] = {"name": name, "brand": brand,
-                              "short": short_name(name), "ct": None}
-        net = r[idx["Net Sales"]] or 0
-        units = r[idx["Units Sold"]] or 0
+            products[part] = {"name": r[idx["PRODUCT_NAME"]], "brand": brand,
+                              "short": short_name(r[idx["PRODUCT_NAME"]]),
+                              "ct": None}
+        units = int(r[idx["Units Sold"]] or 0)
+        a = acc[(part, m)]
+        a["units"] += units
+        a["net"] += float(r[idx["Net Sales"]] or 0)
         auto = r[idx["Autoship % Units Sold"]]
-        oos = r[idx["PDP OOS%"]]
-        series[part]["retail"][m] = round(float(net), 2)
-        series[part]["units"][m] = int(units)
         if auto is not None:
-            series[part]["autoship"][m] = round(float(auto) * 100, 1)
+            a["auto_w"] += float(auto) * units
+            a["auto_u"] += units
+        oos = r[idx["PDP OOS%"]]
         if oos is not None:
-            series[part]["oos"][m] = round(float(oos) * 100, 1)
+            a["oos_w"] += float(oos) * units
+            a["oos_u"] += units
+
+    series = defaultdict(lambda: {"retail": {}, "units": {},
+                                  "autoship": {}, "oos": {}})
+    for (part, m), a in acc.items():
+        series[part]["retail"][m] = round(a["net"], 2)
+        series[part]["units"][m] = a["units"]
+        if a["auto_u"]:
+            series[part]["autoship"][m] = round(a["auto_w"] / a["auto_u"] * 100, 1)
+        if a["oos_u"]:
+            series[part]["oos"][m] = round(a["oos_w"] / a["oos_u"] * 100, 1)
     return sorted(months), products, series
 
 
@@ -210,6 +251,30 @@ def main():
     months, products, series = load_flat(wb)
     fy_summary = load_summary(wb, products, series, months)
 
+    # ---- Splice in May & June 2026 from the Brand Snapshot PDFs ----
+    # Calibrate a realized $/unit per SKU from the trailing Excel actuals
+    # (done before overwriting the partial May).
+    realized = {}
+    for part in products:
+        u = sum(series[part]["units"].get(m, 0) for m in PRICE_REF_MONTHS)
+        n = sum(series[part]["retail"].get(m, 0) for m in PRICE_REF_MONTHS)
+        realized[part] = (n / u) if u else None
+    for nm, units_by_part in PDF_MONTHLY_UNITS.items():
+        if nm not in months:
+            months.append(nm)
+        for part, u in units_by_part.items():
+            series[part]["units"][nm] = u          # overwrite partial / add
+            rp = realized.get(part)
+            if rp:
+                if part in LITTER_PARTS and nm >= RETAIL_CHANGEOVER:
+                    rp *= 1.05
+                series[part]["retail"][nm] = round(rp * u, 2)
+            # per-SKU autoship/OOS aren't in the PDFs -> drop any partial value
+            series[part]["autoship"].pop(nm, None)
+            series[part]["oos"].pop(nm, None)
+    months = sorted(months)
+    pdf_months = sorted(PDF_MONTHLY_UNITS.keys())
+
     # Detect a partial trailing month (report pulled mid-month): its total
     # units fall far below the recent run-rate. Excluded from charts/KPIs.
     partial_month = None
@@ -240,6 +305,7 @@ def main():
         "fy_summary": fy_summary,
         "snapshot": SNAPSHOT,
         "partial_month": partial_month,
+        "pdf_months": pdf_months,
         "generated": months[-1],
     }
 
@@ -258,6 +324,7 @@ def main():
           f"{sum(1 for p in products.values() if p['ct'])}/{len(products)}")
     print(f"[ok] wholesale prices set: "
           f"{sum(1 for v in WHOLESALE_PRICES.values() if v)}/{len(WHOLESALE_PRICES)}")
+    print(f"[ok] PDF months spliced in: {', '.join(pdf_months)}")
     if partial_month:
         print(f"[ok] partial trailing month excluded from charts: {partial_month}")
     print(f"[ok] wrote {OUTPUT}")

@@ -252,7 +252,10 @@ function buildOverview(){
   const fyChg = fy25 ? (fy26-fy25)/fy25*100 : null;
   const catRetail = brandSeriesArr('Catalyst','retail').reduce((t,v)=>t+(v||0),0);
   const ffRetail  = brandSeriesArr('Feline Fresh','retail').reduce((t,v)=>t+(v||0),0);
-  const avgAuto = brandWeightedArr('Catalyst','autoship')[months.length-1];
+  const autoArr = brandWeightedArr('Catalyst','autoship');
+  let ai = months.length-1; while(ai>=0 && autoArr[ai]==null) ai--;
+  const avgAuto = ai>=0 ? autoArr[ai] : null;
+  const autoMonth = ai>=0 ? monthLabel(months[ai]) : '';
 
   el.innerHTML = `
     <div class="kpi-row">
@@ -263,16 +266,17 @@ function buildOverview(){
       <div class="kpi-card"><div class="kpi-label">FY26 YTD Retail $</div>
         <div class="kpi-value">${fmt$(fy26)}<span class="kpi-chg ${fyChg>=0?'up':'down'}">${fyChg==null?'':(fyChg>=0?'▲':'▼')+Math.abs(fyChg).toFixed(0)+'%'}</span></div>
         <div class="kpi-sub">vs ${fmt$(fy25)} FY25 YTD</div></div>
-      <div class="kpi-card"><div class="kpi-label">Retail $ (16 mo)</div>
+      <div class="kpi-card"><div class="kpi-label">Retail $ (${months.length} mo)</div>
         <div class="kpi-value">${fmt$(catRetail+ffRetail)}</div>
         <div class="kpi-sub"><span class="brand-dot" style="background:${CAT}"></span>Catalyst ${fmt$(catRetail)} · <span class="brand-dot" style="background:${FF}"></span>FF ${fmt$(ffRetail)}</div></div>
       <div class="kpi-card"><div class="kpi-label">Autoship % (Catalyst)</div>
-        <div class="kpi-value">${fmtPct(avgAuto)}</div><div class="kpi-sub">subscription share, latest mo</div></div>
+        <div class="kpi-value">${fmtPct(avgAuto)}</div><div class="kpi-sub">subscription share · ${autoMonth}</div></div>
       <div class="kpi-card"><div class="kpi-label">Wholesale $ — ${monthLabel(last)}</div>
         <div class="kpi-value">${DATA.have_wholesale?fmt$(totWholesale):'—'}</div>
         <div class="kpi-sub">${DATA.have_wholesale?(ffWholesale?'price × units, latest mo':'Catalyst only · FF pending'):'pending unit prices'}</div></div>
     </div>
     ${DATA.have_wholesale?'':'<div class="note">💡 <b>Wholesale $</b> charts activate once per-SKU wholesale prices are supplied (<code>WHOLESALE_PRICES</code> in <code>chewy_extract.py</code>). Wholesale $ = price × units, so it will break out by product and brand.</div>'}
+    ${(DATA.pdf_months&&DATA.pdf_months.length)?`<div class="note">📄 <b>${DATA.pdf_months.map(monthLabel).join(' & ')}</b> come from the Brand Snapshot PDFs: per-SKU units are actual; retail $ = units × each SKU's recent average selling price; wholesale $ = units × cost. Autoship % and PDP OOS % aren't in the snapshots, so those two charts end at ${monthLabel(months[months.length-1-DATA.pdf_months.length])}.</div>`:''}
     <div class="chart-grid">
       <div class="chart-card"><h3>Retail $ by Brand</h3><div class="chart-div" id="ov-retail"></div></div>
       <div class="chart-card"><h3>Units by Brand</h3><div class="chart-div" id="ov-units"></div></div>
