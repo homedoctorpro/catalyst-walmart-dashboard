@@ -173,12 +173,17 @@ function parts(brand){
   return Object.keys(DATA.products).filter(p => !brand || DATA.products[p].brand===brand)
     .sort((a,b)=> sumSeries(b,'retail') - sumSeries(a,'retail'));
 }
+function mmap(part, metric){
+  if (metric==='wholesale') return DATA.wholesale[part]||{};
+  if (metric==='implied')   return DATA.implied[part]||{};
+  return DATA.series[part][metric]||{};
+}
 function sumSeries(part, metric){
-  const s = (metric==='wholesale') ? (DATA.wholesale[part]||{}) : DATA.series[part][metric];
+  const s = mmap(part, metric);
   return months.reduce((t,m)=> t + (s[m]||0), 0);
 }
 function seriesArr(part, metric){
-  const s = (metric==='wholesale') ? (DATA.wholesale[part]||{}) : DATA.series[part][metric];
+  const s = mmap(part, metric);
   return months.map(m => m in s ? s[m] : null);
 }
 function brandSeriesArr(brand, metric){
@@ -186,7 +191,7 @@ function brandSeriesArr(brand, metric){
   return months.map(m => {
     let sum=0, any=false;
     ps.forEach(p=>{
-      const s = (metric==='wholesale') ? (DATA.wholesale[p]||{}) : DATA.series[p][metric];
+      const s = mmap(p, metric);
       if (m in s){ sum += s[m]; any=true; }
     });
     return any ? sum : null;
@@ -252,6 +257,8 @@ function buildOverview(){
   const fyChg = fy25 ? (fy26-fy25)/fy25*100 : null;
   const catRetail = brandSeriesArr('Catalyst','retail').reduce((t,v)=>t+(v||0),0);
   const ffRetail  = brandSeriesArr('Feline Fresh','retail').reduce((t,v)=>t+(v||0),0);
+  const totImplied = parts().reduce((t,p)=> t + ((DATA.implied[p]||{})[last]||0), 0);
+  const discPct = totImplied ? (totImplied-totRetail)/totImplied*100 : null;
   const autoArr = brandWeightedArr('Catalyst','autoship');
   let ai = months.length-1; while(ai>=0 && autoArr[ai]==null) ai--;
   const avgAuto = ai>=0 ? autoArr[ai] : null;
@@ -259,8 +266,10 @@ function buildOverview(){
 
   el.innerHTML = `
     <div class="kpi-row">
-      <div class="kpi-card"><div class="kpi-label">Retail $ — ${monthLabel(last)}</div>
-        <div class="kpi-value">${fmt$(totRetail)}</div><div class="kpi-sub">latest month, both brands</div></div>
+      <div class="kpi-card"><div class="kpi-label">Net Sales $ — ${monthLabel(last)}</div>
+        <div class="kpi-value">${fmt$(totRetail)}</div><div class="kpi-sub">actual, both brands</div></div>
+      <div class="kpi-card" style="border-left-color:#888"><div class="kpi-label">Implied Retail $ — ${monthLabel(last)}</div>
+        <div class="kpi-value">${fmt$(totImplied)}</div><div class="kpi-sub">at list · ${discPct==null?'':discPct.toFixed(0)+'% below list'}</div></div>
       <div class="kpi-card"><div class="kpi-label">Units — ${monthLabel(last)}</div>
         <div class="kpi-value">${fmtN(totUnits)}</div><div class="kpi-sub">latest month, both brands</div></div>
       <div class="kpi-card"><div class="kpi-label">FY26 YTD Retail $</div>
@@ -277,10 +286,11 @@ function buildOverview(){
     </div>
     ${DATA.have_wholesale?'':'<div class="note">💡 <b>Wholesale $</b> charts activate once per-SKU wholesale prices are supplied (<code>WHOLESALE_PRICES</code> in <code>chewy_extract.py</code>). Wholesale $ = price × units, so it will break out by product and brand.</div>'}
     ${(DATA.pdf_months&&DATA.pdf_months.length)?`<div class="note">📄 <b>${DATA.pdf_months.map(monthLabel).join(' & ')}</b> come from the Brand Snapshot PDFs: per-SKU units are actual; retail $ = units × each SKU's recent average selling price; wholesale $ = units × cost. Autoship % and PDP OOS % aren't in the snapshots, so those two charts end at ${monthLabel(months[months.length-1-DATA.pdf_months.length])}.</div>`:''}
+    <div class="note">🏷️ <b>Net Sales $</b> = what Chewy actually rang up (their reported revenue, reconciles to Chewy's Summary). <b>Implied Retail $</b> = units × your list price. The gap is the promo/autoship discount.</div>
     <div class="chart-grid">
-      <div class="chart-card"><h3>Retail $ by Brand</h3><div class="chart-div" id="ov-retail"></div></div>
+      <div class="chart-card"><h3>Net Sales $ by Brand</h3><div class="chart-div" id="ov-retail"></div></div>
       <div class="chart-card"><h3>Units by Brand</h3><div class="chart-div" id="ov-units"></div></div>
-      <div class="chart-card full"><h3>Total Retail $ — All Products</h3><div class="chart-div" id="ov-total"></div></div>
+      <div class="chart-card full"><h3>Total Net Sales $ (bars) vs Implied Retail at List (line)</h3><div class="chart-div" id="ov-total"></div></div>
     </div>`;
 
   const brands = ['Catalyst','Feline Fresh'];
@@ -294,10 +304,12 @@ function buildOverview(){
     line:{color:BRAND_COLOR[b],width:2.5}, marker:{size:5}
   })), LAYOUT({showlegend:true, legend:{orientation:'h',y:1.12}, yaxis:{tickformat:',d'}}), CFG);
 
-  const totalArr = months.map((m,i)=> (brandSeriesArr('Catalyst','retail')[i]||0)+(brandSeriesArr('Feline Fresh','retail')[i]||0));
+  const impliedTot = months.map((m,i)=> (brandSeriesArr('Catalyst','implied')[i]||0)+(brandSeriesArr('Feline Fresh','implied')[i]||0));
   Plotly.newPlot('ov-total', [
-    {x:xlabels, y:brandSeriesArr('Catalyst','retail'), name:'Catalyst', type:'bar', marker:{color:CAT}},
-    {x:xlabels, y:brandSeriesArr('Feline Fresh','retail'), name:'Feline Fresh', type:'bar', marker:{color:FF}}
+    {x:xlabels, y:brandSeriesArr('Catalyst','retail'), name:'Catalyst (net)', type:'bar', marker:{color:CAT}},
+    {x:xlabels, y:brandSeriesArr('Feline Fresh','retail'), name:'Feline Fresh (net)', type:'bar', marker:{color:FF}},
+    {x:xlabels, y:impliedTot, name:'Implied at list', type:'scatter', mode:'lines+markers',
+     line:{color:'#555',dash:'dot',width:2}, marker:{size:4}}
   ], LAYOUT({barmode:'stack', showlegend:true, legend:{orientation:'h',y:1.1}, yaxis:{tickprefix:'$',tickformat:'.2s'}}), CFG);
 }
 
@@ -342,7 +354,8 @@ function renderProd(){
   const sel = [...prodState.selected];
   document.getElementById('prod-tbl-title').textContent = prodState.brand;
   const defs = [
-    ['retail','Retail $', v=>({tickprefix:'$',tickformat:'.2s'})],
+    ['retail','Net Sales $ (actual)', v=>({tickprefix:'$',tickformat:'.2s'})],
+    ['implied','Implied Retail $ (list)', v=>({tickprefix:'$',tickformat:'.2s'})],
     ['units','Units', v=>({tickformat:',d'})],
     ['wholesale','Wholesale $', v=>({tickprefix:'$',tickformat:'.2s'})],
     ['autoship','Autoship %', v=>({ticksuffix:'%',range:[0,100]})],
@@ -374,7 +387,7 @@ function renderProdTable(sel){
     return `<tr><td><span class="brand-dot" style="background:${BRAND_COLOR[pr.brand]}"></span>${pr.short}</td><td>${pr.ct||''}</td>`+
       arr.map(v=>`<td>${v==null?'—':fmt$(v)}</td>`).join('')+`<td><b>${fmt$(tot)}</b></td></tr>`;
   }).join('');
-  t.innerHTML = `<thead>${head}</thead><tbody><tr class="grp"><td colspan="${xlabels.length+3}">Retail $ by month</td></tr>${rows}</tbody>`;
+  t.innerHTML = `<thead>${head}</thead><tbody><tr class="grp"><td colspan="${xlabels.length+3}">Net Sales $ by month (actual)</td></tr>${rows}</tbody>`;
 }
 
 /* ---------- By Brand ---------- */
@@ -382,19 +395,26 @@ function buildBrand(){
   const el = document.getElementById('tab-brand');
   el.innerHTML = `
     <div class="chart-grid">
-      <div class="chart-card"><h3>Retail $</h3><div class="chart-div" id="br-retail"></div></div>
+      <div class="chart-card"><h3>Net Sales $ (actual)</h3><div class="chart-div" id="br-retail"></div></div>
+      <div class="chart-card"><h3>Implied Retail $ (list)</h3><div class="chart-div" id="br-implied"></div></div>
       <div class="chart-card"><h3>Units</h3><div class="chart-div" id="br-units"></div></div>
       <div class="chart-card"><h3>Wholesale $</h3><div class="chart-div" id="br-wholesale"></div></div>
       <div class="chart-card"><h3>Autoship % (units-weighted)</h3><div class="chart-div" id="br-autoship"></div></div>
       <div class="chart-card"><h3>PDP OOS % (units-weighted)</h3><div class="chart-div" id="br-oos"></div></div>
-      <div class="chart-card"><h3>Avg Retail $ / Unit</h3><div class="chart-div" id="br-aov"></div></div>
-    </div>`;
+      <div class="chart-card"><h3>Avg Net Sales $ / Unit</h3><div class="chart-div" id="br-aov"></div></div>
+      <div class="chart-card"><h3>Discount vs List % (units-weighted)</h3><div class="chart-div" id="br-disc"></div></div>
+    </div>
+    ${DATA.canada&&DATA.canada.months.length?`<div class="chart-card full" style="margin-top:18px">
+      <h3>🇨🇦 Feline Fresh — Chewy Canada (units)</h3>
+      <div class="note" style="margin-bottom:10px">Chewy CA kg SKUs, from the Brand Snapshot PDFs. Reported Aug '25 – Mar '26 only (dropped afterward) and <b>not included in the US totals above</b>. Wholesale $ shown; retail $ n/a (CAD pricing not provided).</div>
+      <div class="chart-div" id="ca-chart" style="height:260px"></div></div>`:''}`;
   const brands=['Catalyst','Feline Fresh'];
   const mk = (id,fn,yax)=>Plotly.newPlot(id, brands.map(b=>({
       x:xlabels, y:fn(b), name:b, type:'scatter', mode:'lines+markers',
       line:{color:BRAND_COLOR[b],width:2.5}, marker:{size:5}
     })), LAYOUT({showlegend:true, legend:{orientation:'h',y:1.12}, yaxis:yax}), CFG);
   mk('br-retail', b=>brandSeriesArr(b,'retail'), {tickprefix:'$',tickformat:'.2s'});
+  mk('br-implied', b=>brandSeriesArr(b,'implied'), {tickprefix:'$',tickformat:'.2s'});
   mk('br-units', b=>brandSeriesArr(b,'units'), {tickformat:',d'});
   mk('br-autoship', b=>brandWeightedArr(b,'autoship'), {ticksuffix:'%',range:[0,100]});
   mk('br-oos', b=>brandWeightedArr(b,'oos'), {ticksuffix:'%'});
@@ -402,11 +422,18 @@ function buildBrand(){
       const r=brandSeriesArr(b,'retail')[i], u=brandSeriesArr(b,'units')[i];
       return (r&&u)? r/u : null;
     }), {tickprefix:'$'});
-  if (DATA.have_wholesale){
-    mk('br-wholesale', b=>brandSeriesArr(b,'wholesale'), {tickprefix:'$',tickformat:'.2s'});
-  } else {
-    document.getElementById('br-wholesale').innerHTML =
-      '<div style="display:flex;height:100%;align-items:center;justify-content:center;color:#aaa;font-size:.85rem;text-align:center;padding:0 20px">Pending per-SKU wholesale prices</div>';
+  mk('br-disc', b=>months.map((m,i)=>{
+      const net=brandSeriesArr(b,'retail')[i], imp=brandSeriesArr(b,'implied')[i];
+      return (net!=null&&imp) ? (imp-net)/imp*100 : null;
+    }), {ticksuffix:'%'});
+  mk('br-wholesale', b=>brandSeriesArr(b,'wholesale'), {tickprefix:'$',tickformat:'.2s'});
+  if (DATA.canada&&DATA.canada.months.length){
+    const cm=DATA.canada.months, skus=Object.keys(DATA.canada.units);
+    const cl=cm.map(monthLabel);
+    Plotly.newPlot('ca-chart', skus.map((s,i)=>({
+      x:cl, y:cm.map(m=>DATA.canada.units[s][m]??null), name:s, type:'bar', marker:{color:i?FF:'#b5651d'}
+    })), LAYOUT({barmode:'stack', showlegend:true, legend:{orientation:'h',y:1.15},
+      xaxis:{}, yaxis:{tickformat:',d'}}), CFG);
   }
 }
 

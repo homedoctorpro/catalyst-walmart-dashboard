@@ -78,15 +78,45 @@ PDF_MONTHLY_UNITS = {
                 "1932198": 365, "1932190": 333, "1932182": 183},
 }
 
-# Retail $ for the PDF months = units * realized $/unit (calibrated from the
-# trailing Excel Net Sales, not raw shelf price). Litter SKUs step +5% at the
-# retail changeover; accessories (mat/scoop/poop) do not. Catalyst litter per
-# the shelf sheet; FF pine also treated as litter.
+# Shelf (list) retail prices -> "implied retail $" = units * shelf price, shown
+# alongside actual Net Sales. Catalyst LITTER steps +5% at RETAIL_CHANGEOVER
+# (Oct 2026); accessories (mat/scoop/poop) and Feline Fresh do NOT step.
 RETAIL_CHANGEOVER = "2026-10"
-LITTER_PARTS = {"241757", "241758", "965502", "241760", "241761", "241763",
-                "241764", "1633142", "1932182", "1932190", "1932198"}
+SHELF_PRICES = {
+    "241757": 14.99, "241760": 14.99, "241763": 14.99,   # Catalyst 10-lb
+    "241758": 24.99, "241761": 24.99, "241764": 24.99,    # Catalyst 20-lb
+    "1633142": 24.99,                                     # Pine 20-lb
+    "965502": 34.99,                                      # Healthy 30-lb
+    "1665670": 34.99,                                     # Sisal Mat
+    "1674830": 23.99,                                     # Litter Scoop
+    "1685430": 9.99,                                      # Poop Bags
+    "1932182": 9.99, "1932190": 14.99, "1932198": 23.49,  # Feline Fresh
+}
+# Catalyst litter only -> the +5% Oct 2026 step applies here (retail & wholesale).
+STEP_PARTS = {"241757", "241760", "241763", "241758", "241761", "241764",
+              "1633142", "965502"}
 PRICE_REF_MONTHS = ["2025-11", "2025-12", "2026-01", "2026-02", "2026-03",
                     "2026-04"]
+
+
+def shelf_price(part, month):
+    """List retail $/unit; Catalyst litter steps +5% from Oct 2026."""
+    p = SHELF_PRICES.get(part)
+    if p and part in STEP_PARTS and month >= RETAIL_CHANGEOVER:
+        p = round(p * 1.05, 2)
+    return p
+
+
+# Chewy Canada Feline Fresh (kg SKUs) — reported in the Aug'25-Mar'26 Brand
+# Snapshots only (dropped from Apr 2026 on; never in the Excel; NOT in the US
+# brand totals). 18.14-kg = 40-lb, 9.07-kg = 20-lb. Small volume.
+CANADA_FF = {
+    "40-lb (18.14 kg)": {"2025-08": 50, "2025-12": 56, "2026-01": 49,
+                         "2026-02": 54, "2026-03": 38},
+    "20-lb (9.07 kg)":  {"2025-08": 31, "2025-12": 11, "2026-01": 40,
+                         "2026-02": 27, "2026-03": 19},
+}
+CANADA_WHOLESALE = {"40-lb (18.14 kg)": 15.99, "20-lb (9.07 kg)": 9.79}
 
 # Latest-month brand snapshot (from the June 2026 Brand Snapshot PDFs).
 SNAPSHOT = {
@@ -266,7 +296,7 @@ def main():
             series[part]["units"][nm] = u          # overwrite partial / add
             rp = realized.get(part)
             if rp:
-                if part in LITTER_PARTS and nm >= RETAIL_CHANGEOVER:
+                if part in STEP_PARTS and nm >= RETAIL_CHANGEOVER:
                     rp *= 1.05
                 series[part]["retail"][nm] = round(rp * u, 2)
             # per-SKU autoship/OOS aren't in the PDFs -> drop any partial value
@@ -296,12 +326,32 @@ def main():
                            for m, u in s["units"].items()}
     have_wholesale = bool(wholesale)
 
+    # Implied retail $ = units * shelf (list) price, shown vs actual Net Sales.
+    implied = {}
+    for part, s in series.items():
+        if not SHELF_PRICES.get(part):
+            continue
+        implied[part] = {m: round(shelf_price(part, m) * u, 2)
+                         for m, u in s["units"].items()}
+
+    # Chewy Canada FF panel: units + wholesale $ per available month.
+    ca_months = sorted({m for sku in CANADA_FF.values() for m in sku})
+    canada = {
+        "months": ca_months,
+        "units": CANADA_FF,
+        "wholesale": {sku: {m: round(CANADA_WHOLESALE[sku] * u, 2)
+                            for m, u in months_u.items()}
+                      for sku, months_u in CANADA_FF.items()},
+    }
+
     payload = {
         "months": months,
         "products": products,
         "series": series,
         "wholesale": wholesale,
         "have_wholesale": have_wholesale,
+        "implied": implied,
+        "canada": canada,
         "fy_summary": fy_summary,
         "snapshot": SNAPSHOT,
         "partial_month": partial_month,
