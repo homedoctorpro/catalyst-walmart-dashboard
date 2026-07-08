@@ -49,9 +49,9 @@ WHOLESALE_PRICES = {
     "1665670": {"base": 24.49, "new": 24.49},  # CT09 Sisal Mat
     "1674830": {"base": 16.79, "new": 16.79},  # FW01 Litter Scoop
     "1685430": {"base": 6.19, "new": 6.19},    # CT18 Poop Bags
-    "1932182": None,   # Feline Fresh Pine 10-lb (TBD)
-    "1932190": None,   # Feline Fresh Pine 20-lb (TBD)
-    "1932198": None,   # Feline Fresh Pine 40-lb (TBD)
+    "1932182": {"base": 6.49, "new": 6.49},    # Feline Fresh Pine 10-lb
+    "1932190": {"base": 9.79, "new": 9.79},    # Feline Fresh Pine 20-lb
+    "1932198": {"base": 15.99, "new": 15.99},  # Feline Fresh Pine 40-lb
 }
 
 
