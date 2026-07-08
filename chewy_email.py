@@ -282,6 +282,50 @@ def render_html(d, s, img_src):
         <div style="font-size:9.5px;color:#b3b3b3;margin:6px 6px 2px;">value = {mlabel(last)} · pill = MoM vs {mlabel(prev)}</div>
       </div>"""
 
+    # ---- Chewy net margin table (net sell-through vs wholesale cost) ----
+    def marginpct(net, cost):
+        return (net - cost) / net * 100 if net else None
+
+    def mrow(name, color, net, cost, bold=False):
+        m = marginpct(net, cost)
+        if m is None:
+            badge = '<span style="color:#c7c7c7;">—</span>'
+        else:
+            mc = "#0b7a4b" if m >= 15 else ("#c0392b" if m < 5 else "#c98a00")
+            badge = f'<span style="color:{mc};font-weight:800;">{m:.0f}%</span>'
+        fw = "800" if bold else "400"
+        return f"""<tr>
+          <td style="padding:8px 4px;border-top:1px solid #eee;">
+            <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:{color};margin-right:6px;"></span>
+            <span style="font-size:12.5px;font-weight:{fw};color:#222;">{name}</span></td>
+          <td style="padding:8px 3px;border-top:1px solid #eee;text-align:center;font-size:12px;color:#444;">{money(net)}</td>
+          <td style="padding:8px 3px;border-top:1px solid #eee;text-align:center;font-size:12px;color:#444;">{money(cost)}</td>
+          <td style="padding:8px 3px;border-top:1px solid #eee;text-align:center;font-size:14px;">{badge}</td>
+        </tr>"""
+
+    ov = s["overall"]
+    mrows = mrow("All products", "#555", ov["retail"]["cur"],
+                 ov["wholesale"]["cur"], True)
+    for b in s["brands"]:
+        mrows += mrow(b["name"], b["color"], b["retail"]["cur"],
+                      b["wholesale"]["cur"], True)
+    for p in s["products"]:
+        mrows += mrow(p["short"], CAT if p["brand"] == "Catalyst" else FF,
+                      p["retail"]["cur"], p["wholesale"]["cur"])
+    margin_card = f"""
+      <div style="background:#fff;border-radius:12px;padding:14px 12px 8px;margin-top:14px;box-shadow:0 1px 3px rgba(0,0,0,.1);">
+        <div style="font-size:13px;font-weight:800;color:#0d5c43;margin:2px 6px 3px;">Chewy net margin — {mlabel(last)}</div>
+        <div style="font-size:10.5px;color:#9a9a9a;margin:0 6px 6px;">(net sales − wholesale cost) ÷ net sales · what Chewy keeps after discounts</div>
+        <table role="presentation" width="100%" style="border-collapse:collapse;table-layout:fixed;">
+          <tr style="color:#9a9a9a;font-size:9.5px;text-transform:uppercase;">
+            <td style="padding:0 4px 4px;width:40%;"></td>
+            <td style="padding:0 3px 4px;text-align:center;">Net&nbsp;$</td>
+            <td style="padding:0 3px 4px;text-align:center;">Cost&nbsp;$</td>
+            <td style="padding:0 3px 4px;text-align:center;">Margin</td></tr>
+          {mrows}
+        </table>
+      </div>"""
+
     return f"""<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;background:#eef1f0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#16281f;">
   <div style="max-width:460px;margin:0 auto;padding:14px;">
@@ -300,6 +344,7 @@ def render_html(d, s, img_src):
     {disc_card}
     {card("By Brand", s["brands"])}
     {card("By Product", s["products"])}
+    {margin_card}
 
     <div style="text-align:center;margin-top:20px;">
       <a href="{DASHBOARD_URL}" style="display:inline-block;background:#12805c;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:700;font-size:15px;">View full dashboard →</a>
