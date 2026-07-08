@@ -31,12 +31,12 @@ OUTPUT = os.path.join(HERE, "chewy_dashboard.html")
 
 # ---------------------------------------------------------------------------
 # Wholesale unit prices, keyed by Chewy part number.  wholesale $ = price *
-# units_sold.  Each entry: {"base": <through Sep 2026>, "new": <from Oct 2026>}.
+# units_sold.  Each entry: {"base": <through Sep 2025>, "new": <from Oct 2025>}.
 # Total changeover to "new" pricing at WHOLESALE_CHANGEOVER (Sep is a blended
 # month but uses Aug/base pricing per Lignetics).  None = no price -> pending.
 # Prices per Lignetics wholesale sheet (Catalyst only; FF prices TBD).
 # ---------------------------------------------------------------------------
-WHOLESALE_CHANGEOVER = "2026-10"  # first month billed at "new" pricing
+WHOLESALE_CHANGEOVER = "2025-10"  # first month billed at "new" pricing
 WHOLESALE_PRICES = {
     "241757": {"base": 9.80, "new": 10.29},    # CT01 Healthy 10-lb
     "241758": {"base": 15.75, "new": 16.54},   # CT02 Healthy 20-lb
@@ -80,8 +80,8 @@ PDF_MONTHLY_UNITS = {
 
 # Shelf (list) retail prices -> "implied retail $" = units * shelf price, shown
 # alongside actual Net Sales. Catalyst LITTER steps +5% at RETAIL_CHANGEOVER
-# (Oct 2026); accessories (mat/scoop/poop) and Feline Fresh do NOT step.
-RETAIL_CHANGEOVER = "2026-10"
+# (Oct 2025); accessories (mat/scoop/poop) and Feline Fresh do NOT step.
+RETAIL_CHANGEOVER = "2025-10"
 SHELF_PRICES = {
     "241757": 14.99, "241760": 14.99, "241763": 14.99,   # Catalyst 10-lb
     "241758": 24.99, "241761": 24.99, "241764": 24.99,    # Catalyst 20-lb
@@ -92,7 +92,7 @@ SHELF_PRICES = {
     "1685430": 9.99,                                      # Poop Bags
     "1932182": 9.99, "1932190": 14.99, "1932198": 23.49,  # Feline Fresh
 }
-# Catalyst litter only -> the +5% Oct 2026 step applies here (retail & wholesale).
+# Catalyst litter only -> the +5% Oct 2025 step applies here (retail & wholesale).
 STEP_PARTS = {"241757", "241760", "241763", "241758", "241761", "241764",
               "1633142", "965502"}
 PRICE_REF_MONTHS = ["2025-11", "2025-12", "2026-01", "2026-02", "2026-03",
@@ -100,7 +100,7 @@ PRICE_REF_MONTHS = ["2025-11", "2025-12", "2026-01", "2026-02", "2026-03",
 
 
 def shelf_price(part, month):
-    """List retail $/unit; Catalyst litter steps +5% from Oct 2026."""
+    """List retail $/unit; Catalyst litter steps +5% from Oct 2025."""
     p = SHELF_PRICES.get(part)
     if p and part in STEP_PARTS and month >= RETAIL_CHANGEOVER:
         p = round(p * 1.05, 2)
@@ -294,10 +294,10 @@ def main():
             months.append(nm)
         for part, u in units_by_part.items():
             series[part]["units"][nm] = u          # overwrite partial / add
+            # Realized $/unit is calibrated from post-changeover (Oct'25+)
+            # actuals, so it already reflects current pricing — no extra step.
             rp = realized.get(part)
             if rp:
-                if part in STEP_PARTS and nm >= RETAIL_CHANGEOVER:
-                    rp *= 1.05
                 series[part]["retail"][nm] = round(rp * u, 2)
             # per-SKU autoship/OOS aren't in the PDFs -> drop any partial value
             series[part]["autoship"].pop(nm, None)

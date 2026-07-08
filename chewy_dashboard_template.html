@@ -199,6 +199,33 @@ function momArr(part, metric){   // month-over-month % change
   const a = seriesArr(part, metric);
   return a.map((v,i)=> (i>0 && a[i-1]) ? (v-a[i-1])/a[i-1]*100 : null);
 }
+function selSumArr(sel, metric){ // sum of a metric across selected SKUs, per month
+  return months.map(m=>{
+    let s=0, any=false;
+    sel.forEach(p=>{ const v=mmap(p,metric)[m]; if(v!=null){ s+=v; any=true; } });
+    return any ? s : null;
+  });
+}
+// Aggregate "Total" line across the selected SKUs, respecting the view mode.
+function selTotalArr(sel, metric, mode){
+  if (mode==='mom'){
+    const b = selSumArr(sel, metric);
+    return b.map((v,i)=> (i>0 && b[i-1]) ? (v-b[i-1])/b[i-1]*100 : null);
+  }
+  if (mode==='pu'){                       // $/unit total = sum$ / sumUnits
+    const d = selSumArr(sel, metric), u = selSumArr(sel, 'units');
+    return months.map((m,i)=> (d[i]!=null && u[i]) ? d[i]/u[i] : null);
+  }
+  if (metric==='autoship' || metric==='oos'){   // units-weighted average
+    return months.map(m=>{
+      let num=0, den=0;
+      sel.forEach(p=>{ const v=DATA.series[p][metric][m], uu=DATA.series[p].units[m]||0;
+        if(v!=null){ num+=v*uu; den+=uu; } });
+      return den ? num/den : null;
+    });
+  }
+  return selSumArr(sel, metric);          // $ or units total
+}
 function brandSeriesArr(brand, metric){
   const ps = parts(brand);
   return months.map(m => {
@@ -412,13 +439,23 @@ function renderProd(){
     }
     const asPU = pu && dollar.has(metric), asMoM = mom && numeric.has(metric);
     const kind = htKind(metric, asMoM?'mom':asPU?'pu':'tot');
+    const mode = asMoM?'mom':asPU?'pu':'tot';
     const traces = sel.map((p,i)=>({
       x:xlabels, y: asPU ? perUnitArr(p,metric) : asMoM ? momArr(p,metric) : seriesArr(p,metric),
-      name:DATA.products[p].short, hovertemplate:HT(kind),
+      name:DATA.products[p].short, hovertemplate:HT(kind), showlegend:false,
       type:'scatter', mode:'lines+markers', line:{width:2,color:PALETTE[parts(prodState.brand).indexOf(p)%PALETTE.length]}, marker:{size:4}
     }));
+    let showLegend = false;
+    if (sel.length>1){
+      const tname = (asPU||metric==='autoship'||metric==='oos') ? 'Total (wtd avg)' : 'Total (selected)';
+      traces.push({
+        x:xlabels, y:selTotalArr(sel,metric,mode), name:tname, hovertemplate:HT(kind), showlegend:true,
+        type:'scatter', mode:'lines', line:{width:3.5,color:'#111',dash:'dash'}, marker:{size:0}
+      });
+      showLegend = true;
+    }
     const yax = asPU ? {tickprefix:'$'} : asMoM ? {ticksuffix:'%',zeroline:true} : d[2]();
-    Plotly.newPlot('pc-'+metric, traces, LAYOUT({yaxis:yax}), CFG);
+    Plotly.newPlot('pc-'+metric, traces, LAYOUT({yaxis:yax, showlegend:showLegend, legend:{orientation:'h',y:1.12,font:{size:10}}}), CFG);
   });
   renderProdTable(sel);
 }
