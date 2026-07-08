@@ -150,11 +150,14 @@ def build_summary(d):
 
 
 def _g(v):
-    """Colored MoM/YoY badge."""
+    """MoM % as a colored pill."""
     if v is None:
-        return '<span style="color:#bbb;">—</span>'
-    c = "#12805c" if v >= 0 else "#d32f2f"
-    return f'<span style="color:{c};font-weight:700;">{"▲" if v>=0 else "▼"}{abs(v):.0f}%</span>'
+        return '<span style="color:#c7c7c7;">–</span>'
+    up = v >= 0
+    c, bg = ("#0b7a4b", "#e4f4ec") if up else ("#c0392b", "#fbe8e6")
+    return (f'<span style="background:{bg};color:{c};font-weight:700;'
+            f'padding:2px 8px;border-radius:20px;font-size:12px;'
+            f'white-space:nowrap;">{"▲" if up else "▼"}{abs(v):.0f}%</span>')
 
 
 def _mval(metric, v):
@@ -162,67 +165,73 @@ def _mval(metric, v):
 
 
 def render_html(d, s):
-    last = s["last"]
+    last, prev = s["last"], s["prev"]
 
-    # ---- overall: one growth card per metric (Units / Wholesale / Retail) ----
-    cards = ""
+    # ---- Overall: three full-width stacked cards (stack fine on mobile) ----
+    over = ""
     for metric, label in METRICS:
         c = s["overall"][metric]
-        yoy = (f'<div style="font-size:11px;color:#aaa;margin-top:3px;">'
-               f'{_g(c["yoy"])} vs {mlabel(s["yoy_month"])}</div>'
-               if c["yoy"] is not None else
-               '<div style="font-size:11px;color:#ccc;margin-top:3px;">no YoY</div>')
-        cards += f"""<td style="padding:6px;width:33%;">
-          <div style="background:#fff;border-radius:10px;border-left:4px solid {CAT};padding:13px 15px;box-shadow:0 1px 4px rgba(0,0,0,.08);">
-            <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.04em;">{label}</div>
-            <div style="font-size:20px;font-weight:800;color:#1a1a2e;margin-top:3px;">{_mval(metric, c['cur'])} {_g(c['mom'])}</div>
-            <div style="font-size:10px;color:#bbb;margin-top:1px;">MoM</div>{yoy}
-          </div></td>"""
+        over += f"""
+      <div style="background:#fff;border-radius:12px;border-left:5px solid {CAT};
+           padding:14px 18px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.1);">
+        <table role="presentation" width="100%" style="border-collapse:collapse;"><tr>
+          <td style="vertical-align:middle;">
+            <div style="font-size:12px;font-weight:700;color:#7a7a7a;text-transform:uppercase;letter-spacing:.04em;">{label}</div>
+            <div style="font-size:26px;font-weight:800;color:#16281f;line-height:1.1;margin-top:2px;">{_mval(metric, c['cur'])}</div>
+          </td>
+          <td style="vertical-align:middle;text-align:right;white-space:nowrap;">{_g(c['mom'])}</td>
+        </tr></table>
+      </div>"""
 
-    # ---- shared growth table (3 metric cols, value + MoM% each) ----
-    def grow_table(title, rows_data, name_key):
-        rows = ""
+    # ---- Narrow growth table: name + 3 short MoM% columns (mobile-safe) ----
+    def rows_html(rows_data):
+        out = ""
         for r in rows_data:
-            cells = ""
-            for metric, _ in METRICS:
-                cells += (f'<td style="padding:6px 8px;text-align:right;white-space:nowrap;">'
-                          f'{_mval(metric, r[metric]["cur"])} &nbsp;{_g(r[metric]["mom"])}</td>')
-            dot = (f'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;'
-                   f'background:{r.get("color", CAT if r.get("brand")=="Catalyst" else FF)};margin-right:6px;"></span>'
-                   if name_key != "plain" else "")
-            rows += (f'<tr><td style="padding:6px 8px;">{dot}{r["name"] if "name" in r else r["short"]}</td>{cells}</tr>')
-        return f"""<div style="background:#fff;border-radius:12px;padding:16px 18px;margin-top:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);overflow-x:auto;">
-      <div style="font-size:12px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">{title}</div>
-      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
-        <tr style="color:#888;font-size:10px;text-transform:uppercase;">
-          <td style="padding:5px 8px;"></td>
-          <td style="padding:5px 8px;text-align:right;">Units (MoM)</td>
-          <td style="padding:5px 8px;text-align:right;">Wholesale $ (MoM)</td>
-          <td style="padding:5px 8px;text-align:right;">Retail $ (MoM)</td></tr>
-        {rows}</table></div>"""
+            color = r.get("color") or (CAT if r.get("brand") == "Catalyst" else FF)
+            name = r.get("name") or r.get("short")
+            out += f"""<tr>
+          <td style="padding:9px 6px;border-top:1px solid #eee;">
+            <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:{color};margin-right:7px;"></span>
+            <span style="font-size:13px;color:#222;">{name}</span></td>
+          <td style="padding:9px 4px;border-top:1px solid #eee;text-align:center;">{_g(r['units']['mom'])}</td>
+          <td style="padding:9px 4px;border-top:1px solid #eee;text-align:center;">{_g(r['wholesale']['mom'])}</td>
+          <td style="padding:9px 4px;border-top:1px solid #eee;text-align:center;">{_g(r['retail']['mom'])}</td>
+        </tr>"""
+        return out
 
-    brand_tbl = grow_table(f"By Brand — {mlabel(last)}", s["brands"], "brand")
-    prod_tbl = grow_table(f"By Product — {mlabel(last)}", s["products"], "brand")
+    def card(title, rows_data):
+        return f"""
+      <div style="background:#fff;border-radius:12px;padding:14px 14px 6px;margin-top:14px;box-shadow:0 1px 3px rgba(0,0,0,.1);">
+        <div style="font-size:13px;font-weight:800;color:#0d5c43;margin:2px 6px 8px;">{title}</div>
+        <table role="presentation" width="100%" style="border-collapse:collapse;">
+          <tr style="color:#9a9a9a;font-size:10px;text-transform:uppercase;letter-spacing:.03em;">
+            <td style="padding:0 6px 4px;">MoM growth</td>
+            <td style="padding:0 4px 4px;text-align:center;">Units</td>
+            <td style="padding:0 4px 4px;text-align:center;">Whsl&nbsp;$</td>
+            <td style="padding:0 4px 4px;text-align:center;">Retail&nbsp;$</td></tr>
+          {rows_html(rows_data)}
+        </table>
+      </div>"""
 
-    return f"""<!DOCTYPE html><html><body style="margin:0;background:#f0f2f5;font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#1a1a2e;">
-  <div style="max-width:700px;margin:0 auto;padding:20px;">
-    <div style="background:linear-gradient(90deg,#0b3d2e,#0d5c43);color:#fff;border-radius:12px;padding:18px 22px;">
-      <div style="font-size:19px;font-weight:800;">🐾 Chewy Sales — {mlabel(last)}</div>
-      <div style="font-size:13px;opacity:.8;margin-top:2px;">Catalyst Pet &amp; Feline Fresh · growth in units, wholesale $ &amp; retail $</div>
+    return f"""<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;background:#eef1f0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#16281f;">
+  <div style="max-width:460px;margin:0 auto;padding:14px;">
+    <div style="background:#0d5c43;color:#fff;border-radius:12px;padding:16px 18px;">
+      <div style="font-size:18px;font-weight:800;">🐾 Chewy Sales — {mlabel(last)}</div>
+      <div style="font-size:12px;opacity:.82;margin-top:3px;">Catalyst &amp; Feline Fresh · growth vs {mlabel(prev)}</div>
     </div>
 
-    <div style="font-size:12px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;margin:14px 6px 2px;">Overall — {mlabel(last)}</div>
-    <table style="width:100%;border-collapse:collapse;"><tr>{cards}</tr></table>
+    <div style="font-size:11px;font-weight:800;color:#7a7a7a;text-transform:uppercase;letter-spacing:.05em;margin:16px 6px 8px;">Overall</div>
+    {over}
+    {card("By Brand", s["brands"])}
+    {card("By Product", s["products"])}
 
-    {brand_tbl}
-    {prod_tbl}
-
-    <div style="text-align:center;margin-top:18px;">
-      <a href="{DASHBOARD_URL}" style="display:inline-block;background:#12805c;color:#fff;text-decoration:none;padding:11px 26px;border-radius:8px;font-weight:700;font-size:14px;">View full dashboard →</a>
-      <div style="font-size:11px;color:#aaa;margin-top:8px;">Password: pellets123 · figures are Chewy sell-through · MoM = vs prior month</div>
+    <div style="text-align:center;margin-top:20px;">
+      <a href="{DASHBOARD_URL}" style="display:inline-block;background:#12805c;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:700;font-size:15px;">View full dashboard →</a>
+      <div style="font-size:11px;color:#9a9a9a;margin-top:9px;">Password: pellets123 · Chewy sell-through · MoM = vs prior month</div>
     </div>
-    <div style="text-align:center;font-size:11px;color:#bbb;margin-top:14px;">
-      Sent from {SENDER} · Catalyst Pet / Feline Fresh internal use only · Private &amp; Confidential
+    <div style="text-align:center;font-size:10px;color:#b6b6b6;margin-top:14px;padding-bottom:6px;">
+      Sent from {SENDER} · Catalyst / Feline Fresh internal use only · Private &amp; Confidential
     </div>
   </div>
 </body></html>"""
