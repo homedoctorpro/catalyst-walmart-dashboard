@@ -286,6 +286,15 @@ def main():
               "(use --force to resend).")
         return
 
+    # Wait until BOTH brands have data for the latest month (a single-brand
+    # snapshot arriving first shouldn't trigger a half-empty recap).
+    present = {b["name"] for b in s["brands"] if b["units"]["cur"] > 0}
+    if not args.force and not {"Catalyst", "Feline Fresh"} <= present:
+        missing = {"Catalyst", "Feline Fresh"} - present
+        print(f"[chewy_email] {s['last']} incomplete — waiting for "
+              f"{', '.join(sorted(missing))} snapshot (use --force to send).")
+        return
+
     recipients = DEV_RECIPIENTS if args.dev_only else EMAIL_TO
     send(html, subject, recipients)
     print(f"[chewy_email] sent '{subject}' to {len(recipients)} recipient(s).")
