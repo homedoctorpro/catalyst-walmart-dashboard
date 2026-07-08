@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Catalyst Pet &amp; Feline Fresh – Chewy Sales Dashboard</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         background: #f0f2f5; color: #1a1a2e; min-height: 100vh; }
+
+  /* ── Gate ── */
+  #gate { display: flex; align-items: center; justify-content: center;
+          min-height: 100vh; background: linear-gradient(135deg, #0b3d2e 0%, #0d5c43 100%); }
+  .gate-card { background: #fff; border-radius: 16px; padding: 48px 40px;
+               box-shadow: 0 20px 60px rgba(0,0,0,0.4); text-align: center; width: 360px; }
+  .gate-card h1 { font-size: 1.4rem; margin-bottom: 8px; color: #0b3d2e; }
+  .gate-card p  { color: #666; margin-bottom: 28px; font-size: 0.9rem; }
+  .gate-card input { width: 100%; padding: 12px 16px; border: 2px solid #e0e0e0;
+                     border-radius: 8px; font-size: 1rem; margin-bottom: 16px; transition: border-color 0.2s; }
+  .gate-card input:focus { outline: none; border-color: #12805c; }
+  .gate-card button { width: 100%; padding: 12px; background: #12805c; color: #fff;
+                      border: none; border-radius: 8px; font-size: 1rem; font-weight: 600;
+                      cursor: pointer; transition: background 0.2s; }
+  .gate-card button:hover { background: #0d6347; }
+  .gate-card .error { color: #d32f2f; font-size: 0.85rem; margin-top: 8px; min-height: 20px; }
+
+  /* ── App Shell ── */
+  #app { display: none; flex-direction: column; min-height: 100vh; }
+  header { background: linear-gradient(90deg, #0b3d2e 0%, #0d5c43 100%); color: #fff;
+           padding: 14px 24px; display: flex; align-items: center; justify-content: space-between;
+           box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  header h1 { font-size: 1.15rem; font-weight: 700; }
+  header .meta { font-size: 0.8rem; opacity: 0.7; }
+
+  /* ── Tabs ── */
+  .tab-bar { display: flex; background: #fff; border-bottom: 2px solid #e0e0e0; padding: 0 24px; overflow-x: auto; }
+  .tab-btn { padding: 13px 18px; border: none; background: transparent; font-size: 0.9rem;
+             font-weight: 500; color: #666; cursor: pointer; border-bottom: 3px solid transparent;
+             margin-bottom: -2px; transition: all 0.2s; white-space: nowrap; }
+  .tab-btn:hover { color: #12805c; }
+  .tab-btn.active { color: #12805c; border-bottom-color: #12805c; font-weight: 700; }
+  .tab-panel { display: none; flex: 1; padding: 20px 24px; }
+  .tab-panel.active { display: block; }
+
+  /* ── KPI Cards ── */
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .kpi-card { background: #fff; border-radius: 12px; padding: 18px 20px;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #12805c; }
+  .kpi-label { font-size: 0.72rem; font-weight: 700; color: #888; text-transform: uppercase;
+               letter-spacing: 0.05em; margin-bottom: 6px; }
+  .kpi-value { font-size: 1.55rem; font-weight: 800; color: #1a1a2e; line-height: 1.05; }
+  .kpi-chg   { font-size: 0.8rem; font-weight: 700; margin-left: 5px; }
+  .kpi-chg.up { color: #12805c; } .kpi-chg.down { color: #d32f2f; }
+  .kpi-sub   { font-size: 0.72rem; color: #aaa; margin-top: 6px; }
+
+  /* ── Filter bar ── */
+  .filter-bar { background: #fff; border-radius: 12px; padding: 12px 18px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; align-items: center;
+                gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+  .filter-bar > span.lbl { font-weight: 700; font-size: 0.82rem; color: #444; margin-right: 4px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #333;
+          cursor: pointer; background: #f4f4f4; padding: 4px 11px; border-radius: 20px;
+          border: 2px solid transparent; transition: all 0.15s; user-select: none; }
+  .chip input { accent-color: #12805c; width: 13px; height: 13px; cursor: pointer; }
+  .chip:has(input:checked) { border-color: #12805c; background: #e6f4ef; }
+  .chip.brand-cat:has(input:checked) { border-color: #12805c; background: #e6f4ef; }
+  .chip.brand-ff:has(input:checked)  { border-color: #d98324; background: #fdf1e3; }
+  .chip-btns { margin-left: auto; display: flex; gap: 6px; }
+  .chip-btns button { font-size: 0.72rem; padding: 4px 10px; border: 1px solid #ccc; background: #fff;
+                      border-radius: 6px; cursor: pointer; color: #555; }
+  .chip-btns button:hover { background: #f0f0f0; }
+
+  /* ── Charts ── */
+  .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 18px; }
+  .chart-card { background: #fff; border-radius: 12px; padding: 18px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .chart-card h3 { font-size: 0.8rem; font-weight: 700; color: #666; text-transform: uppercase;
+                   letter-spacing: 0.05em; margin-bottom: 10px; }
+  .chart-div { width: 100%; height: 300px; }
+  .full { grid-column: 1 / -1; }
+
+  .note { background: #fff8e6; border: 1px solid #f0d98a; color: #8a6d00; border-radius: 8px;
+          padding: 10px 14px; font-size: 0.82rem; margin-bottom: 16px; }
+
+  /* ── Table ── */
+  .table-card { background: #fff; border-radius: 12px; padding: 20px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-top: 18px; overflow-x: auto; }
+  .table-card h3 { font-size: 0.8rem; font-weight: 700; color: #666; text-transform: uppercase;
+                   letter-spacing: 0.05em; margin-bottom: 14px; }
+  table.grid { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  table.grid th { background: #f5f5f5; padding: 8px 12px; text-align: right; font-weight: 700;
+                  color: #444; border-bottom: 2px solid #e0e0e0; white-space: nowrap; }
+  table.grid th:first-child { text-align: left; }
+  table.grid td { padding: 6px 12px; border-bottom: 1px solid #f0f0f0; text-align: right; }
+  table.grid td:first-child { text-align: left; }
+  table.grid tr:hover td { background: #f6faf8; }
+  table.grid .grp td { background: #e6f4ef; color: #0d6347; font-weight: 700; }
+  .brand-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="gate-card">
+    <h1>🐾 Chewy Sales Dashboard</h1>
+    <p>Catalyst Pet &amp; Feline Fresh — enter password to view</p>
+    <input type="password" id="pw" placeholder="Password" autocomplete="off"/>
+    <button onclick="checkPw()">View Dashboard</button>
+    <div class="error" id="pwerr"></div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <h1>🐾 Catalyst Pet &amp; Feline Fresh — Chewy Sales</h1>
+    <span class="meta" id="hdrmeta"></span>
+  </header>
+  <div class="tab-bar" id="tabbar">
+    <button class="tab-btn active" data-tab="overview">Overview</button>
+    <button class="tab-btn" data-tab="product">By Product</button>
+    <button class="tab-btn" data-tab="brand">By Brand</button>
+    <button class="tab-btn" data-tab="snapshot">Chewy Snapshot</button>
+  </div>
+
+  <div class="tab-panel active" id="tab-overview"></div>
+  <div class="tab-panel" id="tab-product"></div>
+  <div class="tab-panel" id="tab-brand"></div>
+  <div class="tab-panel" id="tab-snapshot"></div>
+</div>
+
+<script>
+const DATA = /*DATA_PLACEHOLDER*/;
+const PW = "pellets123";
+
+/* ---------- gate ---------- */
+function checkPw(){
+  const v = document.getElementById('pw').value;
+  if (v === PW){ localStorage.setItem('chewy_auth','1'); showApp(); }
+  else document.getElementById('pwerr').textContent = 'Incorrect password';
+}
+document.getElementById('pw').addEventListener('keydown',e=>{ if(e.key==='Enter') checkPw(); });
+function showApp(){
+  document.getElementById('gate').style.display='none';
+  document.getElementById('app').style.display='flex';
+  init();
+}
+
+/* ---------- helpers ---------- */
+const CAT = '#12805c', FF = '#d98324';
+const BRAND_COLOR = {'Catalyst': CAT, 'Feline Fresh': FF};
+const PALETTE = ['#12805c','#0057e7','#d98324','#7b1fa2','#c2185b','#00838f',
+                 '#5d4037','#455a64','#e64a19','#2e7d32','#1565c0','#ad1457',
+                 '#6a1b9a','#00695c'];
+const monthLabel = m => {
+  const [y,mo] = m.split('-');
+  return new Date(y, mo-1, 1).toLocaleDateString('en-US',{month:'short',year:'2-digit'});
+};
+const fmt$ = v => v==null ? '—' :
+  (Math.abs(v)>=1e6 ? '$'+(v/1e6).toFixed(2)+'M' :
+   Math.abs(v)>=1e3 ? '$'+(v/1e3).toFixed(1)+'K' : '$'+v.toFixed(0));
+const fmt$full = v => v==null ? '—' : '$'+Math.round(v).toLocaleString();
+const fmtN = v => v==null ? '—' : Math.round(v).toLocaleString();
+const fmtPct = v => v==null ? '—' : v.toFixed(1)+'%';
+const months = DATA.months.filter(m => m !== DATA.partial_month);
+const xlabels = months.map(monthLabel);
+const partialNote = DATA.partial_month
+  ? monthLabel(DATA.partial_month)+' excluded (partial — report pulled mid-month)'
+  : '';
+
+function parts(brand){
+  return Object.keys(DATA.products).filter(p => !brand || DATA.products[p].brand===brand)
+    .sort((a,b)=> sumSeries(b,'retail') - sumSeries(a,'retail'));
+}
+function sumSeries(part, metric){
+  const s = (metric==='wholesale') ? (DATA.wholesale[part]||{}) : DATA.series[part][metric];
+  return months.reduce((t,m)=> t + (s[m]||0), 0);
+}
+function seriesArr(part, metric){
+  const s = (metric==='wholesale') ? (DATA.wholesale[part]||{}) : DATA.series[part][metric];
+  return months.map(m => m in s ? s[m] : null);
+}
+function brandSeriesArr(brand, metric){
+  const ps = parts(brand);
+  return months.map(m => {
+    let sum=0, any=false;
+    ps.forEach(p=>{
+      const s = (metric==='wholesale') ? (DATA.wholesale[p]||{}) : DATA.series[p][metric];
+      if (m in s){ sum += s[m]; any=true; }
+    });
+    return any ? sum : null;
+  });
+}
+/* units-weighted average for rate metrics (autoship, oos) at brand level */
+function brandWeightedArr(brand, metric){
+  const ps = parts(brand);
+  return months.map(m => {
+    let num=0, den=0;
+    ps.forEach(p=>{
+      const s = DATA.series[p][metric], u = DATA.series[p].units[m]||0;
+      if (m in s){ num += s[m]*u; den += u; }
+    });
+    return den ? num/den : null;
+  });
+}
+
+/* ---------- tabs ---------- */
+let built = {overview:false, product:false, brand:false, snapshot:false};
+function init(){
+  document.getElementById('hdrmeta').textContent =
+    'Chewy sell-through · through '+monthLabel(months[months.length-1])+
+    (partialNote?' · '+partialNote:'')+' · Private & Confidential';
+  document.querySelectorAll('.tab-btn').forEach(b=>{
+    b.onclick = ()=>{
+      document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      const t = b.dataset.tab;
+      document.getElementById('tab-'+t).classList.add('active');
+      buildTab(t);
+      window.dispatchEvent(new Event('resize'));
+    };
+  });
+  buildTab('overview');
+}
+function buildTab(t){
+  if (built[t]) return;
+  built[t] = true;
+  ({overview:buildOverview, product:buildProduct, brand:buildBrand,
+    snapshot:buildSnapshot})[t]();
+}
+
+const LAYOUT = extra => Object.assign({
+  margin:{l:55,r:12,t:8,b:38}, font:{size:11}, showlegend:false,
+  xaxis:{tickvals:xlabels.map((_,i)=>i), ticktext:xlabels, tickangle:-40, automargin:true},
+  hovermode:'x unified', plot_bgcolor:'#fff', paper_bgcolor:'#fff'
+}, extra||{});
+const CFG = {displayModeBar:false, responsive:true};
+
+/* ---------- Overview ---------- */
+function buildOverview(){
+  const el = document.getElementById('tab-overview');
+  const last = months[months.length-1];
+  const totRetail = parts().reduce((t,p)=> t + (DATA.series[p].retail[last]||0), 0);
+  const totUnits  = parts().reduce((t,p)=> t + (DATA.series[p].units[last]||0), 0);
+  // FY YTD from Chewy Summary (authoritative)
+  let fy26=0, fy25=0;
+  Object.values(DATA.fy_summary).forEach(f=>{ fy26+=f.fy26_ytd||0; fy25+=f.fy25_ytd||0; });
+  const fyChg = fy25 ? (fy26-fy25)/fy25*100 : null;
+  const catRetail = brandSeriesArr('Catalyst','retail').reduce((t,v)=>t+(v||0),0);
+  const ffRetail  = brandSeriesArr('Feline Fresh','retail').reduce((t,v)=>t+(v||0),0);
+  const avgAuto = brandWeightedArr('Catalyst','autoship')[months.length-1];
+
+  el.innerHTML = `
+    <div class="kpi-row">
+      <div class="kpi-card"><div class="kpi-label">Retail $ — ${monthLabel(last)}</div>
+        <div class="kpi-value">${fmt$(totRetail)}</div><div class="kpi-sub">latest month, both brands</div></div>
+      <div class="kpi-card"><div class="kpi-label">Units — ${monthLabel(last)}</div>
+        <div class="kpi-value">${fmtN(totUnits)}</div><div class="kpi-sub">latest month, both brands</div></div>
+      <div class="kpi-card"><div class="kpi-label">FY26 YTD Retail $</div>
+        <div class="kpi-value">${fmt$(fy26)}<span class="kpi-chg ${fyChg>=0?'up':'down'}">${fyChg==null?'':(fyChg>=0?'▲':'▼')+Math.abs(fyChg).toFixed(0)+'%'}</span></div>
+        <div class="kpi-sub">vs ${fmt$(fy25)} FY25 YTD</div></div>
+      <div class="kpi-card"><div class="kpi-label">Retail $ (16 mo)</div>
+        <div class="kpi-value">${fmt$(catRetail+ffRetail)}</div>
+        <div class="kpi-sub"><span class="brand-dot" style="background:${CAT}"></span>Catalyst ${fmt$(catRetail)} · <span class="brand-dot" style="background:${FF}"></span>FF ${fmt$(ffRetail)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Autoship % (Catalyst)</div>
+        <div class="kpi-value">${fmtPct(avgAuto)}</div><div class="kpi-sub">subscription share, latest mo</div></div>
+      <div class="kpi-card" style="border-left-color:${FF}"><div class="kpi-label">Wholesale $</div>
+        <div class="kpi-value">${DATA.have_wholesale?fmt$(0):'—'}</div>
+        <div class="kpi-sub">${DATA.have_wholesale?'price × units':'pending unit prices'}</div></div>
+    </div>
+    ${DATA.have_wholesale?'':'<div class="note">💡 <b>Wholesale $</b> charts activate once per-SKU wholesale prices are supplied (<code>WHOLESALE_PRICES</code> in <code>chewy_extract.py</code>). Wholesale $ = price × units, so it will break out by product and brand.</div>'}
+    <div class="chart-grid">
+      <div class="chart-card"><h3>Retail $ by Brand</h3><div class="chart-div" id="ov-retail"></div></div>
+      <div class="chart-card"><h3>Units by Brand</h3><div class="chart-div" id="ov-units"></div></div>
+      <div class="chart-card full"><h3>Total Retail $ — All Products</h3><div class="chart-div" id="ov-total"></div></div>
+    </div>`;
+
+  const brands = ['Catalyst','Feline Fresh'];
+  Plotly.newPlot('ov-retail', brands.map(b=>({
+    x:xlabels, y:brandSeriesArr(b,'retail'), name:b, type:'scatter', mode:'lines+markers',
+    line:{color:BRAND_COLOR[b],width:2.5}, marker:{size:5}
+  })), LAYOUT({showlegend:true, legend:{orientation:'h',y:1.12}, yaxis:{tickprefix:'$',tickformat:'.2s'}}), CFG);
+
+  Plotly.newPlot('ov-units', brands.map(b=>({
+    x:xlabels, y:brandSeriesArr(b,'units'), name:b, type:'scatter', mode:'lines+markers',
+    line:{color:BRAND_COLOR[b],width:2.5}, marker:{size:5}
+  })), LAYOUT({showlegend:true, legend:{orientation:'h',y:1.12}, yaxis:{tickformat:',d'}}), CFG);
+
+  const totalArr = months.map((m,i)=> (brandSeriesArr('Catalyst','retail')[i]||0)+(brandSeriesArr('Feline Fresh','retail')[i]||0));
+  Plotly.newPlot('ov-total', [
+    {x:xlabels, y:brandSeriesArr('Catalyst','retail'), name:'Catalyst', type:'bar', marker:{color:CAT}},
+    {x:xlabels, y:brandSeriesArr('Feline Fresh','retail'), name:'Feline Fresh', type:'bar', marker:{color:FF}}
+  ], LAYOUT({barmode:'stack', showlegend:true, legend:{orientation:'h',y:1.1}, yaxis:{tickprefix:'$',tickformat:'.2s'}}), CFG);
+}
+
+/* ---------- By Product ---------- */
+let prodState = {brand:'Catalyst', selected:new Set()};
+function buildProduct(){
+  const el = document.getElementById('tab-product');
+  el.innerHTML = `
+    <div class="filter-bar" id="prod-brandbar">
+      <span class="lbl">Brand:</span>
+      <label class="chip"><input type="radio" name="pbrand" value="Catalyst" checked> Catalyst Pet</label>
+      <label class="chip"><input type="radio" name="pbrand" value="Feline Fresh"> Feline Fresh</label>
+    </div>
+    <div class="filter-bar" id="prod-chips"></div>
+    <div class="chart-grid" id="prod-charts"></div>
+    <div class="table-card"><h3>Monthly detail — <span id="prod-tbl-title"></span></h3>
+      <div style="overflow-x:auto"><table class="grid" id="prod-table"></table></div></div>`;
+  el.querySelectorAll('input[name=pbrand]').forEach(r=>{
+    r.onchange = ()=>{ prodState.brand=r.value; prodState.selected.clear(); renderProdChips(); renderProd(); };
+  });
+  renderProdChips();
+  renderProd();
+}
+function renderProdChips(){
+  const ps = parts(prodState.brand);
+  if (prodState.selected.size===0) ps.slice(0,8).forEach(p=>prodState.selected.add(p));
+  const bar = document.getElementById('prod-chips');
+  bar.innerHTML = `<span class="lbl">SKUs:</span>` + ps.map(p=>{
+    const pr = DATA.products[p];
+    return `<label class="chip"><input type="checkbox" value="${p}" ${prodState.selected.has(p)?'checked':''}> ${pr.short}</label>`;
+  }).join('') + `<span class="chip-btns"><button data-a="all">All</button><button data-a="none">None</button></span>`;
+  bar.querySelectorAll('input').forEach(c=>c.onchange=()=>{
+    c.checked?prodState.selected.add(c.value):prodState.selected.delete(c.value); renderProd();
+  });
+  bar.querySelectorAll('.chip-btns button').forEach(b=>b.onclick=()=>{
+    prodState.selected.clear();
+    if (b.dataset.a==='all') ps.forEach(p=>prodState.selected.add(p));
+    renderProdChips(); renderProd();
+  });
+}
+function renderProd(){
+  const sel = [...prodState.selected];
+  document.getElementById('prod-tbl-title').textContent = prodState.brand;
+  const defs = [
+    ['retail','Retail $', v=>({tickprefix:'$',tickformat:'.2s'})],
+    ['units','Units', v=>({tickformat:',d'})],
+    ['wholesale','Wholesale $', v=>({tickprefix:'$',tickformat:'.2s'})],
+    ['autoship','Autoship %', v=>({ticksuffix:'%',range:[0,100]})],
+    ['oos','PDP OOS %', v=>({ticksuffix:'%'})],
+  ];
+  const grid = document.getElementById('prod-charts');
+  grid.innerHTML = defs.map(d=>`<div class="chart-card"><h3>${d[1]}</h3><div class="chart-div" id="pc-${d[0]}"></div></div>`).join('');
+  defs.forEach(d=>{
+    const metric=d[0];
+    if (metric==='wholesale' && !DATA.have_wholesale){
+      document.getElementById('pc-'+metric).innerHTML =
+        '<div style="display:flex;height:100%;align-items:center;justify-content:center;color:#aaa;font-size:.85rem;text-align:center;padding:0 20px">Pending per-SKU wholesale prices</div>';
+      return;
+    }
+    const traces = sel.map((p,i)=>({
+      x:xlabels, y:seriesArr(p,metric), name:DATA.products[p].short,
+      type:'scatter', mode:'lines+markers', line:{width:2,color:PALETTE[parts(prodState.brand).indexOf(p)%PALETTE.length]}, marker:{size:4}
+    }));
+    Plotly.newPlot('pc-'+metric, traces, LAYOUT({yaxis:d[2]()}), CFG);
+  });
+  renderProdTable(sel);
+}
+function renderProdTable(sel){
+  const t = document.getElementById('prod-table');
+  const head = `<tr><th>SKU</th><th>CT</th>`+xlabels.map(l=>`<th>${l}</th>`).join('')+`<th>Total</th></tr>`;
+  const rows = sel.map(p=>{
+    const pr = DATA.products[p], arr = seriesArr(p,'retail');
+    const tot = arr.reduce((t,v)=>t+(v||0),0);
+    return `<tr><td><span class="brand-dot" style="background:${BRAND_COLOR[pr.brand]}"></span>${pr.short}</td><td>${pr.ct||''}</td>`+
+      arr.map(v=>`<td>${v==null?'—':fmt$(v)}</td>`).join('')+`<td><b>${fmt$(tot)}</b></td></tr>`;
+  }).join('');
+  t.innerHTML = `<thead>${head}</thead><tbody><tr class="grp"><td colspan="${xlabels.length+3}">Retail $ by month</td></tr>${rows}</tbody>`;
+}
+
+/* ---------- By Brand ---------- */
+function buildBrand(){
+  const el = document.getElementById('tab-brand');
+  el.innerHTML = `
+    <div class="chart-grid">
+      <div class="chart-card"><h3>Retail $</h3><div class="chart-div" id="br-retail"></div></div>
+      <div class="chart-card"><h3>Units</h3><div class="chart-div" id="br-units"></div></div>
+      <div class="chart-card"><h3>Wholesale $</h3><div class="chart-div" id="br-wholesale"></div></div>
+      <div class="chart-card"><h3>Autoship % (units-weighted)</h3><div class="chart-div" id="br-autoship"></div></div>
+      <div class="chart-card"><h3>PDP OOS % (units-weighted)</h3><div class="chart-div" id="br-oos"></div></div>
+      <div class="chart-card"><h3>Avg Retail $ / Unit</h3><div class="chart-div" id="br-aov"></div></div>
+    </div>`;
+  const brands=['Catalyst','Feline Fresh'];
+  const mk = (id,fn,yax)=>Plotly.newPlot(id, brands.map(b=>({
+      x:xlabels, y:fn(b), name:b, type:'scatter', mode:'lines+markers',
+      line:{color:BRAND_COLOR[b],width:2.5}, marker:{size:5}
+    })), LAYOUT({showlegend:true, legend:{orientation:'h',y:1.12}, yaxis:yax}), CFG);
+  mk('br-retail', b=>brandSeriesArr(b,'retail'), {tickprefix:'$',tickformat:'.2s'});
+  mk('br-units', b=>brandSeriesArr(b,'units'), {tickformat:',d'});
+  mk('br-autoship', b=>brandWeightedArr(b,'autoship'), {ticksuffix:'%',range:[0,100]});
+  mk('br-oos', b=>brandWeightedArr(b,'oos'), {ticksuffix:'%'});
+  mk('br-aov', b=>months.map((m,i)=>{
+      const r=brandSeriesArr(b,'retail')[i], u=brandSeriesArr(b,'units')[i];
+      return (r&&u)? r/u : null;
+    }), {tickprefix:'$'});
+  if (DATA.have_wholesale){
+    mk('br-wholesale', b=>brandSeriesArr(b,'wholesale'), {tickprefix:'$',tickformat:'.2s'});
+  } else {
+    document.getElementById('br-wholesale').innerHTML =
+      '<div style="display:flex;height:100%;align-items:center;justify-content:center;color:#aaa;font-size:.85rem;text-align:center;padding:0 20px">Pending per-SKU wholesale prices</div>';
+  }
+}
+
+/* ---------- Chewy Snapshot ---------- */
+function buildSnapshot(){
+  const el = document.getElementById('tab-snapshot');
+  const snap = DATA.snapshot;
+  el.innerHTML = `
+    <div class="note">📄 Sourced from the latest Chewy Brand Snapshot PDFs (${snap.Catalyst.month}). Current-month view, not a time series.</div>
+    <div class="kpi-row">
+      <div class="kpi-card"><div class="kpi-label">Catalyst — Avg Rating</div><div class="kpi-value">★ ${snap.Catalyst.rating.toFixed(2)}</div></div>
+      <div class="kpi-card" style="border-left-color:${FF}"><div class="kpi-label">Feline Fresh — Avg Rating</div><div class="kpi-value">★ ${snap['Feline Fresh'].rating.toFixed(2)}</div></div>
+    </div>
+    <div class="chart-grid">
+      <div class="chart-card"><h3>Catalyst — Top 10 States (units)</h3><div class="chart-div" id="sn-cat"></div></div>
+      <div class="chart-card"><h3>Feline Fresh — Top 10 States (units)</h3><div class="chart-div" id="sn-ff"></div></div>
+    </div>`;
+  const bar = (id,rows,color)=>{
+    const r = rows.slice().reverse();
+    Plotly.newPlot(id, [{x:r.map(s=>s[1]), y:r.map(s=>s[0]), type:'bar', orientation:'h',
+      marker:{color}, text:r.map(s=>fmtN(s[1])), textposition:'auto'}],
+      LAYOUT({margin:{l:40,r:12,t:8,b:30}, xaxis:{tickformat:',d'}, yaxis:{automargin:true}}), CFG);
+  };
+  bar('sn-cat', snap.Catalyst.top_states, CAT);
+  bar('sn-ff', snap['Feline Fresh'].top_states, FF);
+}
+
+/* auto-enter if already authed (runs after all decls are initialized) */
+if (localStorage.getItem('chewy_auth')==='1') showApp();
+</script>
+</body>
+</html>
