@@ -20,10 +20,14 @@ re-run. Until then wholesale $ renders as pending.
 import json
 import os
 from collections import defaultdict
+from datetime import date
 
 import openpyxl
 
+import chewy_snapshots
+
 HERE = os.path.dirname(os.path.abspath(__file__))
+SNAP_FOLDER = os.path.join(HERE, "Chewy Brand Snapshots")
 XLSX = os.path.join(HERE, "Chewy Brand Snapshots",
                     "Catalyst_Feline Fresh SKU L52W Report 5.4 (1).xlsx")
 TEMPLATE = os.path.join(HERE, "chewy_dashboard_template.html")
@@ -62,21 +66,11 @@ def wholesale_price(part, month):
         return None
     return p["new"] if month >= WHOLESALE_CHANGEOVER else p["base"]
 
-# Per-SKU customer sales UNITS for the two most recent months, read from the
-# May-2026 and June-2026 Brand Snapshot PDFs (Excel only had a partial May).
-# Verified: PDF "Customer Sales Units" == Excel "Units Sold" (exact monthly
-# match Jul'25-Apr'26). Values are the PDF "Top 10 Products" lists; Poop Bags
-# (11th, not in top 10) is the brand total minus the top-10 sum.
-PDF_MONTHLY_UNITS = {
-    "2026-05": {"241764": 7775, "241761": 1310, "241758": 1255, "241763": 1175,
-                "241757": 453, "965502": 369, "241760": 304, "1633142": 143,
-                "1665670": 72, "1674830": 48, "1685430": 5,
-                "1932190": 484, "1932198": 248, "1932182": 203},
-    "2026-06": {"241764": 7918, "241761": 1377, "241758": 1366, "241763": 1037,
-                "241757": 373, "965502": 325, "241760": 253, "1633142": 159,
-                "1665670": 45, "1674830": 31, "1685430": 11,
-                "1932198": 365, "1932190": 333, "1932182": 183},
-}
+# Per-SKU customer sales UNITS for months beyond the Excel are auto-parsed from
+# the Brand Snapshot PDFs (chewy_snapshots.py) at runtime — drop a new snapshot
+# PDF in SNAP_FOLDER and its month appears. Verified: PDF "Customer Sales Units"
+# == Excel "Units Sold" exactly. Snapshots list only the top-10 SKUs, so
+# sub-top-10 items (Poop Bags) aren't captured for PDF months.
 
 # Shelf (list) retail prices -> "implied retail $" = units * shelf price, shown
 # alongside actual Net Sales. Catalyst LITTER steps +5% at RETAIL_CHANGEOVER
@@ -118,23 +112,37 @@ CANADA_FF = {
 }
 CANADA_WHOLESALE = {"40-lb (18.14 kg)": 15.99, "20-lb (9.07 kg)": 9.79}
 
-# Latest-month brand snapshot (from the June 2026 Brand Snapshot PDFs).
-SNAPSHOT = {
-    "Catalyst": {
-        "month": "June 2026",
-        "rating": 4.19,
-        "top_states": [["CA", 1293], ["PA", 762], ["NY", 761], ["TX", 689],
-                       ["FL", 679], ["OH", 578], ["NC", 457], ["MI", 450],
-                       ["IL", 414], ["VA", 404]],
-    },
-    "Feline Fresh": {
-        "month": "June 2026",
-        "rating": 4.02,
-        "top_states": [["VA", 99], ["CA", 98], ["OH", 63], ["IL", 50],
-                       ["NY", 50], ["PA", 49], ["FL", 42], ["TX", 38],
-                       ["NC", 36], ["MI", 24]],
-    },
-}
+# The latest-month brand snapshot (rating + top states) is auto-derived from the
+# newest snapshot PDF per brand in build_snapshots().
+
+_MONTH_NAMES = ["", "January", "February", "March", "April", "May", "June",
+                "July", "August", "September", "October", "November",
+                "December"]
+
+
+def month_label_long(m):
+    """'YYYY-MM' -> 'June 2026'."""
+    y, mo = m.split("-")
+    return f"{_MONTH_NAMES[int(mo)]} {y}"
+
+
+def build_snapshots():
+    """Parse the snapshot PDFs -> (units_by_month, snapshot). units_by_month
+    merges Catalyst+FF per-SKU units per month; snapshot holds the newest
+    month's rating + top states per brand."""
+    units_by_month = defaultdict(dict)
+    latest = {}
+    for s in chewy_snapshots.parse_folder(SNAP_FOLDER):
+        if not s["sku_units"]:
+            continue
+        units_by_month[s["month"]].update(s["sku_units"])
+        b = s["brand"]
+        if b not in latest or s["month"] > latest[b]["month"]:
+            latest[b] = s
+    snapshot = {b: {"month": month_label_long(s["month"]),
+                    "rating": s["rating"], "top_states": s["top_states"]}
+                for b, s in latest.items()}
+    return units_by_month, snapshot
 
 
 def ym(dt):
@@ -281,18 +289,30 @@ def main():
     months, products, series = load_flat(wb)
     fy_summary = load_summary(wb, products, series, months)
 
-    # ---- Splice in May & June 2026 from the Brand Snapshot PDFs ----
-    # Calibrate a realized $/unit per SKU from the trailing Excel actuals
-    # (done before overwriting the partial May).
+    # ---- Splice in months beyond the Excel from the Brand Snapshot PDFs ----
+    # The Excel's last COMPLETE month (a mid-month pull leaves a partial tail).
+    excel_months = sorted({m for p in series for m in series[p]["units"]})
+    def _mtot(mm):
+        return sum(series[p]["units"].get(mm, 0) for p in series)
+    complete_last = excel_months[-1]
+    if len(excel_months) >= 4:
+        prior = sorted(_mtot(m) for m in excel_months[-4:-1])
+        if prior[1] and _mtot(excel_months[-1]) < 0.5 * prior[1]:
+            complete_last = excel_months[-2]
+
+    units_by_month, snapshot = build_snapshots()
+    pdf_months = sorted(m for m in units_by_month if m > complete_last)
+
+    # Calibrate a realized $/unit per SKU from the trailing Excel actuals.
     realized = {}
     for part in products:
         u = sum(series[part]["units"].get(m, 0) for m in PRICE_REF_MONTHS)
         n = sum(series[part]["retail"].get(m, 0) for m in PRICE_REF_MONTHS)
         realized[part] = (n / u) if u else None
-    for nm, units_by_part in PDF_MONTHLY_UNITS.items():
+    for nm in pdf_months:
         if nm not in months:
             months.append(nm)
-        for part, u in units_by_part.items():
+        for part, u in units_by_month[nm].items():
             series[part]["units"][nm] = u          # overwrite partial / add
             # Realized $/unit is calibrated from post-changeover (Oct'25+)
             # actuals, so it already reflects current pricing — no extra step.
@@ -303,7 +323,6 @@ def main():
             series[part]["autoship"].pop(nm, None)
             series[part]["oos"].pop(nm, None)
     months = sorted(months)
-    pdf_months = sorted(PDF_MONTHLY_UNITS.keys())
 
     # Detect a partial trailing month (report pulled mid-month): its total
     # units fall far below the recent run-rate. Excluded from charts/KPIs.
@@ -353,7 +372,7 @@ def main():
         "implied": implied,
         "canada": canada,
         "fy_summary": fy_summary,
-        "snapshot": SNAPSHOT,
+        "snapshot": snapshot,
         "partial_month": partial_month,
         "pdf_months": pdf_months,
         "generated": months[-1],
