@@ -74,11 +74,16 @@
 
   /* ── Charts ── */
   .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 18px; }
+  /* .big = fixed columns so charts stay large; two rows on wide screens */
+  .chart-grid.big { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  @media (max-width: 1200px) { .chart-grid.big { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 760px)  { .chart-grid.big { grid-template-columns: 1fr; } }
   .chart-card { background: #fff; border-radius: 12px; padding: 18px;
                 box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
   .chart-card h3 { font-size: 0.8rem; font-weight: 700; color: #666; text-transform: uppercase;
                    letter-spacing: 0.05em; margin-bottom: 10px; }
   .chart-div { width: 100%; height: 300px; }
+  .chart-grid.big .chart-div { height: 400px; }
   .full { grid-column: 1 / -1; }
 
   .note { background: #fff8e6; border: 1px solid #f0d98a; color: #8a6d00; border-radius: 8px;
@@ -250,6 +255,17 @@ const LAYOUT = extra => Object.assign({
   hovermode:'x unified', plot_bgcolor:'#fff', paper_bgcolor:'#fff'
 }, extra||{});
 const CFG = {displayModeBar:false, responsive:true};
+// hovertemplate by value kind: '$' dollars, '$u' $/unit, '%' percent, 'n' count
+const HT = kind => '%{fullData.name}: ' + (
+  kind==='$'  ? '$%{y:,.0f}' :
+  kind==='$u' ? '$%{y:,.2f}' :
+  kind==='%'  ? '%{y:.1f}%'  : '%{y:,.0f}'
+) + '<extra></extra>';
+const htKind = (metric, mode) =>
+  mode==='mom' ? '%' :
+  mode==='pu' && (metric==='retail'||metric==='implied'||metric==='wholesale') ? '$u' :
+  (metric==='retail'||metric==='implied'||metric==='wholesale') ? '$' :
+  metric==='units' ? 'n' : '%';
 
 /* ---------- Overview ---------- */
 function buildOverview(){
@@ -304,20 +320,20 @@ function buildOverview(){
   const brands = ['Catalyst','Feline Fresh'];
   Plotly.newPlot('ov-retail', brands.map(b=>({
     x:xlabels, y:brandSeriesArr(b,'retail'), name:b, type:'scatter', mode:'lines+markers',
-    line:{color:BRAND_COLOR[b],width:2.5}, marker:{size:5}
+    line:{color:BRAND_COLOR[b],width:2.5}, marker:{size:5}, hovertemplate:HT('$')
   })), LAYOUT({showlegend:true, legend:{orientation:'h',y:1.12}, yaxis:{tickprefix:'$',tickformat:'.2s'}}), CFG);
 
   Plotly.newPlot('ov-units', brands.map(b=>({
     x:xlabels, y:brandSeriesArr(b,'units'), name:b, type:'scatter', mode:'lines+markers',
-    line:{color:BRAND_COLOR[b],width:2.5}, marker:{size:5}
+    line:{color:BRAND_COLOR[b],width:2.5}, marker:{size:5}, hovertemplate:HT('n')
   })), LAYOUT({showlegend:true, legend:{orientation:'h',y:1.12}, yaxis:{tickformat:',d'}}), CFG);
 
   const impliedTot = months.map((m,i)=> (brandSeriesArr('Catalyst','implied')[i]||0)+(brandSeriesArr('Feline Fresh','implied')[i]||0));
   Plotly.newPlot('ov-total', [
-    {x:xlabels, y:brandSeriesArr('Catalyst','retail'), name:'Catalyst (net)', type:'bar', marker:{color:CAT}},
-    {x:xlabels, y:brandSeriesArr('Feline Fresh','retail'), name:'Feline Fresh (net)', type:'bar', marker:{color:FF}},
+    {x:xlabels, y:brandSeriesArr('Catalyst','retail'), name:'Catalyst (net)', type:'bar', marker:{color:CAT}, hovertemplate:HT('$')},
+    {x:xlabels, y:brandSeriesArr('Feline Fresh','retail'), name:'Feline Fresh (net)', type:'bar', marker:{color:FF}, hovertemplate:HT('$')},
     {x:xlabels, y:impliedTot, name:'Implied at list', type:'scatter', mode:'lines+markers',
-     line:{color:'#555',dash:'dot',width:2}, marker:{size:4}}
+     line:{color:'#555',dash:'dot',width:2}, marker:{size:4}, hovertemplate:HT('$')}
   ], LAYOUT({barmode:'stack', showlegend:true, legend:{orientation:'h',y:1.1}, yaxis:{tickprefix:'$',tickformat:'.2s'}}), CFG);
 }
 
@@ -336,7 +352,8 @@ function buildProduct(){
       <label class="chip"><input type="radio" name="pview" value="mom"> MoM % growth</label>
     </div>
     <div class="filter-bar" id="prod-chips"></div>
-    <div class="chart-grid" id="prod-charts"></div>
+    <div class="kpi-row" id="prod-totals" style="margin-bottom:16px"></div>
+    <div class="chart-grid big" id="prod-charts"></div>
     <div class="table-card"><h3>Monthly detail — <span id="prod-tbl-title"></span></h3>
       <div style="overflow-x:auto"><table class="grid" id="prod-table"></table></div></div>`;
   el.querySelectorAll('input[name=pbrand]').forEach(r=>{
@@ -368,6 +385,7 @@ function renderProdChips(){
 function renderProd(){
   const sel = [...prodState.selected];
   const view = prodState.view, pu = view==='pu', mom = view==='mom';
+  renderProdTotals(sel);
   document.getElementById('prod-tbl-title').textContent =
     prodState.brand + (pu ? ' · per unit ($/bag)' : mom ? ' · MoM % growth' : '');
   const dollar = new Set(['retail','implied','wholesale']);
@@ -393,15 +411,31 @@ function renderProd(){
       return;
     }
     const asPU = pu && dollar.has(metric), asMoM = mom && numeric.has(metric);
+    const kind = htKind(metric, asMoM?'mom':asPU?'pu':'tot');
     const traces = sel.map((p,i)=>({
       x:xlabels, y: asPU ? perUnitArr(p,metric) : asMoM ? momArr(p,metric) : seriesArr(p,metric),
-      name:DATA.products[p].short,
+      name:DATA.products[p].short, hovertemplate:HT(kind),
       type:'scatter', mode:'lines+markers', line:{width:2,color:PALETTE[parts(prodState.brand).indexOf(p)%PALETTE.length]}, marker:{size:4}
     }));
     const yax = asPU ? {tickprefix:'$'} : asMoM ? {ticksuffix:'%',zeroline:true} : d[2]();
     Plotly.newPlot('pc-'+metric, traces, LAYOUT({yaxis:yax}), CFG);
   });
   renderProdTable(sel);
+}
+function renderProdTotals(sel){
+  const sum = metric => sel.reduce((t,p)=> t + sumSeries(p,metric), 0);
+  const net = sum('retail'), imp = sum('implied'), u = sum('units'), w = sum('wholesale');
+  const disc = imp ? (imp-net)/imp*100 : null;
+  const gm = net ? (net-w)/net*100 : null;
+  const card = (lbl,val,sub,accent)=>`<div class="kpi-card"${accent?` style="border-left-color:${accent}"`:''}>
+    <div class="kpi-label">${lbl}</div><div class="kpi-value">${val}</div><div class="kpi-sub">${sub||''}</div></div>`;
+  document.getElementById('prod-totals').innerHTML =
+    card('Net Sales $ (17 mo)', fmt$(net), `${sel.length} SKU${sel.length!==1?'s':''} selected`) +
+    card('Implied Retail $ (list)', fmt$(imp), disc==null?'':`${disc.toFixed(0)}% below list`, '#888') +
+    card('Units (17 mo)', fmtN(u), 'total sell-through') +
+    card('Wholesale $ (17 mo)', fmt$(w), 'units × cost') +
+    card('Avg Net $/Unit', u?'$'+(net/u).toFixed(2):'—', 'realized') +
+    card('Chewy Margin %', gm==null?'—':gm.toFixed(0)+'%', 'net vs cost');
 }
 function renderProdTable(sel){
   const view = prodState.view, pu = view==='pu', mom = view==='mom';
@@ -444,8 +478,29 @@ function renderProdTable(sel){
 /* ---------- By Brand ---------- */
 function buildBrand(){
   const el = document.getElementById('tab-brand');
+  const brands=['Catalyst','Feline Fresh'];
+  const bt = b => {
+    const net=brandSeriesArr(b,'retail').reduce((t,v)=>t+(v||0),0);
+    const imp=brandSeriesArr(b,'implied').reduce((t,v)=>t+(v||0),0);
+    const u=brandSeriesArr(b,'units').reduce((t,v)=>t+(v||0),0);
+    const w=brandSeriesArr(b,'wholesale').reduce((t,v)=>t+(v||0),0);
+    return {net,imp,u,w};
+  };
+  const tC=bt('Catalyst'), tF=bt('Feline Fresh');
+  const tT={net:tC.net+tF.net, imp:tC.imp+tF.imp, u:tC.u+tF.u, w:tC.w+tF.w};
+  const trow=(lbl,t,color)=>`<tr><td><span class="brand-dot" style="background:${color}"></span>${lbl}</td>`+
+    `<td>${fmt$(t.net)}</td><td>${fmt$(t.imp)}</td><td>${t.imp?((t.imp-t.net)/t.imp*100).toFixed(0)+'%':'—'}</td>`+
+    `<td>${fmtN(t.u)}</td><td>${fmt$(t.w)}</td><td>${t.u?'$'+(t.net/t.u).toFixed(2):'—'}</td>`+
+    `<td>${t.net?((t.net-t.w)/t.net*100).toFixed(0)+'%':'—'}</td></tr>`;
   el.innerHTML = `
-    <div class="chart-grid">
+    <div class="table-card" style="margin-top:0">
+      <h3>Totals — all ${months.length} months</h3>
+      <table class="grid">
+        <thead><tr><th>Brand</th><th>Net Sales $</th><th>Implied (list) $</th><th>Disc vs list</th><th>Units</th><th>Wholesale $</th><th>Avg net $/unit</th><th>Chewy margin</th></tr></thead>
+        <tbody>${trow('Catalyst',tC,CAT)}${trow('Feline Fresh',tF,FF)}<tr class="grp">${trow('Total (US)',tT,'#333').replace('<tr>','').replace('</tr>','')}</tr></tbody>
+      </table>
+    </div>
+    <div class="chart-grid big" style="margin-top:18px">
       <div class="chart-card"><h3>Net Sales $ (actual)</h3><div class="chart-div" id="br-retail"></div></div>
       <div class="chart-card"><h3>Implied Retail $ (list)</h3><div class="chart-div" id="br-implied"></div></div>
       <div class="chart-card"><h3>Units</h3><div class="chart-div" id="br-units"></div></div>
@@ -458,31 +513,30 @@ function buildBrand(){
     ${DATA.canada&&DATA.canada.months.length?`<div class="chart-card full" style="margin-top:18px">
       <h3>🇨🇦 Feline Fresh — Chewy Canada (units)</h3>
       <div class="note" style="margin-bottom:10px">Chewy CA kg SKUs, from the Brand Snapshot PDFs. Reported Aug '25 – Mar '26 only (dropped afterward) and <b>not included in the US totals above</b>. Wholesale $ shown; retail $ n/a (CAD pricing not provided).</div>
-      <div class="chart-div" id="ca-chart" style="height:260px"></div></div>`:''}`;
-  const brands=['Catalyst','Feline Fresh'];
-  const mk = (id,fn,yax)=>Plotly.newPlot(id, brands.map(b=>({
+      <div class="chart-div" id="ca-chart" style="height:300px"></div></div>`:''}`;
+  const mk = (id,fn,yax,kind)=>Plotly.newPlot(id, brands.map(b=>({
       x:xlabels, y:fn(b), name:b, type:'scatter', mode:'lines+markers',
-      line:{color:BRAND_COLOR[b],width:2.5}, marker:{size:5}
+      line:{color:BRAND_COLOR[b],width:2.5}, marker:{size:5}, hovertemplate:HT(kind)
     })), LAYOUT({showlegend:true, legend:{orientation:'h',y:1.12}, yaxis:yax}), CFG);
-  mk('br-retail', b=>brandSeriesArr(b,'retail'), {tickprefix:'$',tickformat:'.2s'});
-  mk('br-implied', b=>brandSeriesArr(b,'implied'), {tickprefix:'$',tickformat:'.2s'});
-  mk('br-units', b=>brandSeriesArr(b,'units'), {tickformat:',d'});
-  mk('br-autoship', b=>brandWeightedArr(b,'autoship'), {ticksuffix:'%',range:[0,100]});
-  mk('br-oos', b=>brandWeightedArr(b,'oos'), {ticksuffix:'%'});
+  mk('br-retail', b=>brandSeriesArr(b,'retail'), {tickprefix:'$',tickformat:'.2s'}, '$');
+  mk('br-implied', b=>brandSeriesArr(b,'implied'), {tickprefix:'$',tickformat:'.2s'}, '$');
+  mk('br-units', b=>brandSeriesArr(b,'units'), {tickformat:',d'}, 'n');
+  mk('br-autoship', b=>brandWeightedArr(b,'autoship'), {ticksuffix:'%',range:[0,100]}, '%');
+  mk('br-oos', b=>brandWeightedArr(b,'oos'), {ticksuffix:'%'}, '%');
   mk('br-aov', b=>months.map((m,i)=>{
       const r=brandSeriesArr(b,'retail')[i], u=brandSeriesArr(b,'units')[i];
       return (r&&u)? r/u : null;
-    }), {tickprefix:'$'});
+    }), {tickprefix:'$'}, '$u');
   mk('br-disc', b=>months.map((m,i)=>{
       const net=brandSeriesArr(b,'retail')[i], imp=brandSeriesArr(b,'implied')[i];
       return (net!=null&&imp) ? (imp-net)/imp*100 : null;
-    }), {ticksuffix:'%'});
-  mk('br-wholesale', b=>brandSeriesArr(b,'wholesale'), {tickprefix:'$',tickformat:'.2s'});
+    }), {ticksuffix:'%'}, '%');
+  mk('br-wholesale', b=>brandSeriesArr(b,'wholesale'), {tickprefix:'$',tickformat:'.2s'}, '$');
   if (DATA.canada&&DATA.canada.months.length){
     const cm=DATA.canada.months, skus=Object.keys(DATA.canada.units);
     const cl=cm.map(monthLabel);
     Plotly.newPlot('ca-chart', skus.map((s,i)=>({
-      x:cl, y:cm.map(m=>DATA.canada.units[s][m]??null), name:s, type:'bar', marker:{color:i?FF:'#b5651d'}
+      x:cl, y:cm.map(m=>DATA.canada.units[s][m]??null), name:s, type:'bar', marker:{color:i?FF:'#b5651d'}, hovertemplate:HT('n')
     })), LAYOUT({barmode:'stack', showlegend:true, legend:{orientation:'h',y:1.15},
       xaxis:{}, yaxis:{tickformat:',d'}}), CFG);
   }
@@ -505,8 +559,8 @@ function buildSnapshot(){
   const bar = (id,rows,color)=>{
     const r = rows.slice().reverse();
     Plotly.newPlot(id, [{x:r.map(s=>s[1]), y:r.map(s=>s[0]), type:'bar', orientation:'h',
-      marker:{color}, text:r.map(s=>fmtN(s[1])), textposition:'auto'}],
-      LAYOUT({margin:{l:40,r:12,t:8,b:30}, xaxis:{tickformat:',d'}, yaxis:{automargin:true}}), CFG);
+      marker:{color}, text:r.map(s=>fmtN(s[1])), textposition:'auto', hovertemplate:'%{y}: %{x:,.0f} units<extra></extra>'}],
+      LAYOUT({margin:{l:40,r:12,t:8,b:30}, xaxis:{tickformat:',d'}, yaxis:{automargin:true}, hovermode:'closest'}), CFG);
   };
   bar('sn-cat', snap.Catalyst.top_states, CAT);
   bar('sn-ff', snap['Feline Fresh'].top_states, FF);
