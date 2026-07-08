@@ -1,0 +1,141 @@
+name: Chewy report auto-ingest
+
+# Polls the reports inbox for Jeff's Chewy "Brand Snapshot" PDF(s), saves them
+# to the private data repo, rebuilds the Chewy dashboard, emails the recap when
+# a new complete month appears, and publishes to GitHub Pages — hands-off.
+#
+# One-time setup required before this works:
+#   - Seed the private data repo (homedoctorpro/catalyst-walmart-data) with a
+#     `chewy/` folder containing the existing Brand Snapshot PDFs AND the
+#     "Catalyst_Feline Fresh SKU L52W Report ....xlsx" (the ETL reads it for
+#     history). New PDFs land there automatically after that.
+#   - Secrets already shared with the Walmart workflow: EMAIL_USER,
+#     EMAIL_APP_PASSWORD, DATA_REPO_DEPLOY_KEY.
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"   # a few times a day (snapshots are monthly)
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: "Rebuild from current data even if no new email"
+        type: boolean
+        default: false
+      skip_email:
+        description: "Build/publish only, no email"
+        type: boolean
+        default: false
+      dev_email:
+        description: "Email the dev recipient (Phil) only"
+        type: boolean
+        default: false
+
+concurrency:
+  group: chewy-report
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # push regenerated chewy_dashboard.html (Pages)
+
+jobs:
+  ingest-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout dashboard repo (code + templates)
+        uses: actions/checkout@v4
+
+      - name: Checkout private data repo (Chewy PDFs + Excel + state)
+        uses: actions/checkout@v4
+        with:
+          repository: homedoctorpro/catalyst-walmart-data
+          path: _data
+          ssh-key: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Poll inbox for new Brand Snapshot PDFs
+        id: poll
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
+        run: |
+          mkdir -p _data/chewy
+          python chewy_cloud_poller.py \
+            --inbox-dir _data/chewy \
+            --state-file _data/.chewy_processed_message_ids
+
+      - name: Decide whether to build
+        id: gate
+        run: |
+          if [ "${{ steps.poll.outputs.found }}" = "true" ] || [ "${{ inputs.force_rebuild }}" = "true" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            echo "No new snapshot email and no force_rebuild — nothing to do."
+          fi
+
+      - name: Commit new PDFs to data repo
+        if: steps.poll.outputs.found == 'true'
+        working-directory: _data
+        run: |
+          git config user.name  "catalyst-bot"
+          git config user.email "ligneticsdata@gmail.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "Add Chewy Brand Snapshot PDF(s): ${{ steps.poll.outputs.files }}"
+            git push
+          fi
+
+      - name: Stage snapshot sources for the build
+        if: steps.gate.outputs.build == 'true'
+        run: |
+          mkdir -p "Chewy Brand Snapshots"
+          cp _data/chewy/*.pdf  "Chewy Brand Snapshots/" 2>/dev/null || true
+          cp _data/chewy/*.xlsx "Chewy Brand Snapshots/" 2>/dev/null || true
+          ls -1 "Chewy Brand Snapshots" | sed 's/^/  staged: /' || true
+
+      - name: Build Chewy dashboard
+        if: steps.gate.outputs.build == 'true'
+        run: python chewy_extract.py
+
+      - name: Email the recap
+        if: steps.gate.outputs.build == 'true' && inputs.skip_email != true
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
+        run: |
+          python chewy_email.py \
+            --state-file _data/.chewy_last_emailed_month \
+            ${{ inputs.dev_email == true && '--dev-only' || '' }}
+
+      - name: Persist email state to data repo
+        if: steps.gate.outputs.build == 'true' && inputs.skip_email != true && inputs.dev_email != true
+        working-directory: _data
+        run: |
+          git config user.name  "catalyst-bot"
+          git config user.email "ligneticsdata@gmail.com"
+          git add .chewy_last_emailed_month
+          if ! git diff --cached --quiet; then
+            git commit -m "Chewy: recorded emailed month"
+            git push
+          fi
+
+      - name: Publish regenerated dashboard to Pages
+        if: steps.gate.outputs.build == 'true'
+        run: |
+          git config user.name  "catalyst-bot"
+          git config user.email "ligneticsdata@gmail.com"
+          git add chewy_dashboard.html
+          if ! git diff --cached --quiet; then
+            git commit -m "Auto-rebuild Chewy dashboard"
+            git push
+          else
+            echo "Chewy dashboard unchanged — nothing to publish."
+          fi

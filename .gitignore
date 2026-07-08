@@ -3,3 +3,10 @@ credentials.py
 __pycache__/
 *.pyc
 .env
+.gstack/
+
+# Chewy pipeline (generated / raw data / state)
+chewy_email_preview.html
+.chewy_last_emailed_month
+.chewy_processed_message_ids
+Chewy Brand Snapshots/
