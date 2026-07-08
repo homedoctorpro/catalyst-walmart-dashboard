@@ -19,12 +19,19 @@ Usage:
 """
 import os
 import re
+import io
 import ssl
 import json
+import base64
 import smtplib
 import argparse
 from email.mime.text import MIMEText
+from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DASHBOARD = os.path.join(HERE, "chewy_dashboard.html")
@@ -113,6 +120,35 @@ def brand_parts(d, brand):
     return [p for p, v in d["products"].items() if v["brand"] == brand]
 
 
+def make_units_png(d):
+    """Last-12-month unit-sales line chart -> PNG bytes."""
+    months = d["months"][-12:]
+    xs = range(len(months))
+    total = [_val(d, list(d["products"].keys()), "units", m) for m in months]
+    labels = [f"{_MONTHS[int(m[5:])][:3]} {m[2:4]}" for m in months]
+
+    fig, ax = plt.subplots(figsize=(5.6, 2.5), dpi=150)
+    ax.plot(xs, total, color="#12805c", lw=2.6, marker="o", ms=4,
+            markerfacecolor="#12805c")
+    ax.fill_between(xs, total, color="#12805c", alpha=0.08)
+    ax.set_xticks(list(xs))
+    ax.set_xticklabels(labels, fontsize=7.5, rotation=45, ha="right",
+                       color="#666")
+    ax.set_ylim(bottom=0)
+    ax.tick_params(axis="y", labelsize=7.5, colors="#666", length=0)
+    ax.yaxis.set_major_formatter(lambda v, _: f"{v/1000:.0f}K" if v else "0")
+    for sp in ("top", "right", "left"):
+        ax.spines[sp].set_visible(False)
+    ax.spines["bottom"].set_color("#ddd")
+    ax.grid(axis="y", color="#eee", lw=0.8)
+    ax.set_axisbelow(True)
+    fig.tight_layout(pad=0.4)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", bbox_inches="tight")
+    plt.close(fig)
+    return buf.getvalue()
+
+
 def _cell(d, parts, metric, last, prev, yoy_month, months):
     cur = _val(d, parts, metric, last)
     return {
@@ -145,8 +181,18 @@ def build_summary(d):
             products.append({"short": v["short"], "brand": v["brand"], **blk})
     products.sort(key=lambda x: -x["retail"]["cur"])
 
+    # implied discount = (list retail - net sales) / list retail, latest month
+    def discount(parts):
+        imp = _val(d, parts, "implied", last)
+        net = _val(d, parts, "retail", last)
+        return (imp - net) / imp * 100 if imp else None
+    disc = {"overall": discount(allp)}
+    for b in ("Catalyst", "Feline Fresh"):
+        disc[b] = discount(brand_parts(d, b))
+
     return {"last": last, "prev": prev, "yoy_month": yoy_month,
-            "overall": overall, "brands": brands, "products": products}
+            "overall": overall, "brands": brands, "products": products,
+            "discount": disc}
 
 
 def _g(v):
@@ -164,53 +210,76 @@ def _mval(metric, v):
     return num(v) if metric == "units" else money(v)
 
 
-def render_html(d, s):
+def render_html(d, s, img_src):
     last, prev = s["last"], s["prev"]
 
-    # ---- Overall: three full-width stacked cards (stack fine on mobile) ----
+    # ---- Overall: three full-width stacked cards (value + MoM) ----
     over = ""
     for metric, label in METRICS:
         c = s["overall"][metric]
         over += f"""
       <div style="background:#fff;border-radius:12px;border-left:5px solid {CAT};
-           padding:14px 18px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.1);">
+           padding:13px 18px;margin-bottom:9px;box-shadow:0 1px 3px rgba(0,0,0,.1);">
         <table role="presentation" width="100%" style="border-collapse:collapse;"><tr>
           <td style="vertical-align:middle;">
             <div style="font-size:12px;font-weight:700;color:#7a7a7a;text-transform:uppercase;letter-spacing:.04em;">{label}</div>
-            <div style="font-size:26px;font-weight:800;color:#16281f;line-height:1.1;margin-top:2px;">{_mval(metric, c['cur'])}</div>
+            <div style="font-size:25px;font-weight:800;color:#16281f;line-height:1.1;margin-top:2px;">{_mval(metric, c['cur'])}</div>
           </td>
           <td style="vertical-align:middle;text-align:right;white-space:nowrap;">{_g(c['mom'])}</td>
         </tr></table>
       </div>"""
 
-    # ---- Narrow growth table: name + 3 short MoM% columns (mobile-safe) ----
+    # ---- implied discount vs list ----
+    dsc = s["discount"]
+
+    def dchip(name, v, color):
+        val = "—" if v is None else f"{v:.0f}%"
+        return f"""<td style="text-align:center;padding:6px;">
+          <div style="font-size:11px;color:#7a7a7a;"><span style="color:{color};">●</span> {name}</div>
+          <div style="font-size:20px;font-weight:800;color:#16281f;">{val}</div></td>"""
+    disc_card = f"""
+      <div style="background:#fff;border-radius:12px;padding:13px 14px;margin-top:14px;box-shadow:0 1px 3px rgba(0,0,0,.1);">
+        <div style="font-size:13px;font-weight:800;color:#0d5c43;margin:2px 6px 4px;">Discount vs list price</div>
+        <div style="font-size:11px;color:#9a9a9a;margin:0 6px 6px;">how far net sell-through sits below list retail ({mlabel(last)})</div>
+        <table role="presentation" width="100%" style="border-collapse:collapse;"><tr>
+          {dchip("Overall", dsc["overall"], "#555")}
+          {dchip("Catalyst", dsc["Catalyst"], CAT)}
+          {dchip("Feline Fresh", dsc["Feline Fresh"], FF)}
+        </tr></table>
+      </div>"""
+
+    # ---- value + MoM table (each cell: value over a MoM pill) ----
+    def vcell(metric, mc):
+        return f"""<td style="padding:8px 3px;border-top:1px solid #eee;text-align:center;">
+          <div style="font-size:12.5px;font-weight:700;color:#222;">{_mval(metric, mc['cur'])}</div>
+          <div style="margin-top:3px;">{_g(mc['mom'])}</div></td>"""
+
     def rows_html(rows_data):
         out = ""
         for r in rows_data:
             color = r.get("color") or (CAT if r.get("brand") == "Catalyst" else FF)
             name = r.get("name") or r.get("short")
             out += f"""<tr>
-          <td style="padding:9px 6px;border-top:1px solid #eee;">
-            <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:{color};margin-right:7px;"></span>
-            <span style="font-size:13px;color:#222;">{name}</span></td>
-          <td style="padding:9px 4px;border-top:1px solid #eee;text-align:center;">{_g(r['units']['mom'])}</td>
-          <td style="padding:9px 4px;border-top:1px solid #eee;text-align:center;">{_g(r['wholesale']['mom'])}</td>
-          <td style="padding:9px 4px;border-top:1px solid #eee;text-align:center;">{_g(r['retail']['mom'])}</td>
+          <td style="padding:8px 4px;border-top:1px solid #eee;">
+            <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:{color};margin-right:6px;"></span>
+            <span style="font-size:12.5px;color:#222;">{name}</span></td>
+          {vcell('units', r['units'])}{vcell('wholesale', r['wholesale'])}{vcell('retail', r['retail'])}
         </tr>"""
         return out
 
     def card(title, rows_data):
         return f"""
-      <div style="background:#fff;border-radius:12px;padding:14px 14px 6px;margin-top:14px;box-shadow:0 1px 3px rgba(0,0,0,.1);">
+      <div style="background:#fff;border-radius:12px;padding:14px 12px 6px;margin-top:14px;box-shadow:0 1px 3px rgba(0,0,0,.1);">
         <div style="font-size:13px;font-weight:800;color:#0d5c43;margin:2px 6px 8px;">{title}</div>
-        <table role="presentation" width="100%" style="border-collapse:collapse;">
-          <tr style="color:#9a9a9a;font-size:10px;text-transform:uppercase;letter-spacing:.03em;">
-            <td style="padding:0 6px 4px;">MoM growth</td>
-            <td style="padding:0 4px 4px;text-align:center;">Units</td>
-            <td style="padding:0 4px 4px;text-align:center;">Whsl&nbsp;$</td>
-            <td style="padding:0 4px 4px;text-align:center;">Retail&nbsp;$</td></tr>
+        <table role="presentation" width="100%" style="border-collapse:collapse;table-layout:fixed;">
+          <tr style="color:#9a9a9a;font-size:9.5px;text-transform:uppercase;letter-spacing:.02em;">
+            <td style="padding:0 4px 4px;width:34%;"></td>
+            <td style="padding:0 3px 4px;text-align:center;">Units</td>
+            <td style="padding:0 3px 4px;text-align:center;">Whsl&nbsp;$</td>
+            <td style="padding:0 3px 4px;text-align:center;">Retail&nbsp;$</td></tr>
           {rows_html(rows_data)}
         </table>
+        <div style="font-size:9.5px;color:#b3b3b3;margin:6px 6px 2px;">value = {mlabel(last)} · pill = MoM vs {mlabel(prev)}</div>
       </div>"""
 
     return f"""<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -221,8 +290,14 @@ def render_html(d, s):
       <div style="font-size:12px;opacity:.82;margin-top:3px;">Catalyst &amp; Feline Fresh · growth vs {mlabel(prev)}</div>
     </div>
 
-    <div style="font-size:11px;font-weight:800;color:#7a7a7a;text-transform:uppercase;letter-spacing:.05em;margin:16px 6px 8px;">Overall</div>
+    <div style="background:#fff;border-radius:12px;padding:12px 10px 6px;margin-top:14px;box-shadow:0 1px 3px rgba(0,0,0,.1);">
+      <div style="font-size:13px;font-weight:800;color:#0d5c43;margin:2px 8px 6px;">Monthly unit sales · last 12 mo</div>
+      <img src="{img_src}" width="100%" style="display:block;max-width:100%;border-radius:6px;" alt="Monthly unit sales">
+    </div>
+
+    <div style="font-size:11px;font-weight:800;color:#7a7a7a;text-transform:uppercase;letter-spacing:.05em;margin:16px 6px 8px;">Overall — {mlabel(last)}</div>
     {over}
+    {disc_card}
     {card("By Brand", s["brands"])}
     {card("By Product", s["products"])}
 
@@ -248,12 +323,18 @@ def write_state(month):
         f.write(month)
 
 
-def send(html, subject, recipients):
-    msg = MIMEMultipart("alternative")
+def send(html, subject, recipients, png):
+    msg = MIMEMultipart("related")
     msg["Subject"] = subject
     msg["From"] = SENDER
     msg["To"] = ", ".join(recipients)
-    msg.attach(MIMEText(html, "html"))
+    alt = MIMEMultipart("alternative")
+    alt.attach(MIMEText(html, "html"))
+    msg.attach(alt)
+    img = MIMEImage(png, "png")
+    img.add_header("Content-ID", "<unitschart>")
+    img.add_header("Content-Disposition", "inline", filename="units.png")
+    msg.attach(img)
     pw = _cred("EMAIL_APP_PASSWORD")
     if not pw:
         raise SystemExit("[chewy_email] EMAIL_APP_PASSWORD not set")
@@ -280,11 +361,12 @@ def main():
 
     d = load_payload()
     s = build_summary(d)
-    html = render_html(d, s)
+    png = make_units_png(d)
     subject = f"Chewy Sales Recap — {mlabel(s['last'])} (Catalyst & Feline Fresh)"
 
+    data_uri = "data:image/png;base64," + base64.b64encode(png).decode()
     with open(PREVIEW, "w", encoding="utf-8") as f:
-        f.write(html)
+        f.write(render_html(d, s, data_uri))
     print(f"[chewy_email] latest month {s['last']}, preview -> {PREVIEW}")
 
     if args.dry_run:
@@ -305,7 +387,7 @@ def main():
         return
 
     recipients = DEV_RECIPIENTS if args.dev_only else EMAIL_TO
-    send(html, subject, recipients)
+    send(render_html(d, s, "cid:unitschart"), subject, recipients, png)
     print(f"[chewy_email] sent '{subject}' to {len(recipients)} recipient(s).")
     if not args.dev_only:
         write_state(s["last"])
