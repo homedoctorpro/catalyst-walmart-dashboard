@@ -190,6 +190,10 @@ function perUnitArr(part, metric){
   const s = mmap(part, metric), u = DATA.series[part].units;
   return months.map(m => (m in s && u[m]) ? s[m]/u[m] : null);
 }
+function momArr(part, metric){   // month-over-month % change
+  const a = seriesArr(part, metric);
+  return a.map((v,i)=> (i>0 && a[i-1]) ? (v-a[i-1])/a[i-1]*100 : null);
+}
 function brandSeriesArr(brand, metric){
   const ps = parts(brand);
   return months.map(m => {
@@ -318,7 +322,7 @@ function buildOverview(){
 }
 
 /* ---------- By Product ---------- */
-let prodState = {brand:'Catalyst', selected:new Set(), perUnit:false};
+let prodState = {brand:'Catalyst', selected:new Set(), view:'tot'};
 function buildProduct(){
   const el = document.getElementById('tab-product');
   el.innerHTML = `
@@ -329,6 +333,7 @@ function buildProduct(){
       <span class="lbl" style="margin-left:auto">View:</span>
       <label class="chip"><input type="radio" name="pview" value="tot" checked> Totals</label>
       <label class="chip"><input type="radio" name="pview" value="pu"> Per unit ($/bag)</label>
+      <label class="chip"><input type="radio" name="pview" value="mom"> MoM % growth</label>
     </div>
     <div class="filter-bar" id="prod-chips"></div>
     <div class="chart-grid" id="prod-charts"></div>
@@ -338,7 +343,7 @@ function buildProduct(){
     r.onchange = ()=>{ prodState.brand=r.value; prodState.selected.clear(); renderProdChips(); renderProd(); };
   });
   el.querySelectorAll('input[name=pview]').forEach(r=>{
-    r.onchange = ()=>{ prodState.perUnit = (r.value==='pu'); renderProd(); };
+    r.onchange = ()=>{ prodState.view = r.value; renderProd(); };
   });
   renderProdChips();
   renderProd();
@@ -362,12 +367,13 @@ function renderProdChips(){
 }
 function renderProd(){
   const sel = [...prodState.selected];
-  const pu = prodState.perUnit;
+  const view = prodState.view, pu = view==='pu', mom = view==='mom';
   document.getElementById('prod-tbl-title').textContent =
-    prodState.brand + (pu ? ' · per unit ($/bag)' : '');
-  const puLabel = {retail:'Net Sales $/unit (realized)', implied:'List $/unit',
-                   wholesale:'Cost $/unit'};
+    prodState.brand + (pu ? ' · per unit ($/bag)' : mom ? ' · MoM % growth' : '');
   const dollar = new Set(['retail','implied','wholesale']);
+  const numeric = new Set(['retail','implied','units','wholesale']);
+  const puLabel = {retail:'Net Sales $/unit (realized)', implied:'List $/unit', wholesale:'Cost $/unit'};
+  const momLabel = {retail:'Net Sales MoM %', implied:'Implied Retail MoM %', units:'Units MoM %', wholesale:'Wholesale MoM %'};
   const defs = [
     ['retail','Net Sales $ (actual)', v=>({tickprefix:'$',tickformat:'.2s'})],
     ['implied','Implied Retail $ (list)', v=>({tickprefix:'$',tickformat:'.2s'})],
@@ -376,7 +382,7 @@ function renderProd(){
     ['autoship','Autoship %', v=>({ticksuffix:'%',range:[0,100]})],
     ['oos','PDP OOS %', v=>({ticksuffix:'%'})],
   ];
-  const title = d => (pu && dollar.has(d[0])) ? puLabel[d[0]] : d[1];
+  const title = d => (pu && dollar.has(d[0])) ? puLabel[d[0]] : (mom && numeric.has(d[0])) ? momLabel[d[0]] : d[1];
   const grid = document.getElementById('prod-charts');
   grid.innerHTML = defs.map(d=>`<div class="chart-card"><h3>${title(d)}</h3><div class="chart-div" id="pc-${d[0]}"></div></div>`).join('');
   defs.forEach(d=>{
@@ -386,34 +392,52 @@ function renderProd(){
         '<div style="display:flex;height:100%;align-items:center;justify-content:center;color:#aaa;font-size:.85rem;text-align:center;padding:0 20px">Pending per-SKU wholesale prices</div>';
       return;
     }
-    const perUnit = pu && dollar.has(metric);
+    const asPU = pu && dollar.has(metric), asMoM = mom && numeric.has(metric);
     const traces = sel.map((p,i)=>({
-      x:xlabels, y: perUnit ? perUnitArr(p,metric) : seriesArr(p,metric), name:DATA.products[p].short,
+      x:xlabels, y: asPU ? perUnitArr(p,metric) : asMoM ? momArr(p,metric) : seriesArr(p,metric),
+      name:DATA.products[p].short,
       type:'scatter', mode:'lines+markers', line:{width:2,color:PALETTE[parts(prodState.brand).indexOf(p)%PALETTE.length]}, marker:{size:4}
     }));
-    const yax = perUnit ? {tickprefix:'$'} : d[2]();
+    const yax = asPU ? {tickprefix:'$'} : asMoM ? {ticksuffix:'%',zeroline:true} : d[2]();
     Plotly.newPlot('pc-'+metric, traces, LAYOUT({yaxis:yax}), CFG);
   });
   renderProdTable(sel);
 }
 function renderProdTable(sel){
-  const pu = prodState.perUnit;
+  const view = prodState.view, pu = view==='pu', mom = view==='mom';
   const t = document.getElementById('prod-table');
-  const money = pu ? (v=>'$'+v.toFixed(2)) : fmt$;
   const head = `<tr><th>SKU</th><th>CT</th>`+xlabels.map(l=>`<th>${l}</th>`).join('')+`<th>${pu?'Avg':'Total'}</th></tr>`;
-  const rows = sel.map(p=>{
-    const pr = DATA.products[p];
-    const arr = pu ? perUnitArr(p,'retail') : seriesArr(p,'retail');
-    let last;
-    if (pu){
-      const u = seriesArr(p,'units').reduce((t,v)=>t+(v||0),0);
-      const n = seriesArr(p,'retail').reduce((t,v)=>t+(v||0),0);
-      last = u ? n/u : null;
-    } else last = arr.reduce((t,v)=>t+(v||0),0);
-    return `<tr><td><span class="brand-dot" style="background:${BRAND_COLOR[pr.brand]}"></span>${pr.short}</td><td>${pr.ct||''}</td>`+
-      arr.map(v=>`<td>${v==null?'—':money(v)}</td>`).join('')+`<td><b>${last==null?'—':money(last)}</b></td></tr>`;
-  }).join('');
-  const grp = pu ? 'Net Sales $/unit by month (realized)' : 'Net Sales $ by month (actual)';
+  let grp, rows;
+  if (mom){
+    grp = 'Units by month, with MoM % growth';
+    rows = sel.map(p=>{
+      const pr = DATA.products[p], u = seriesArr(p,'units'), g = momArr(p,'units');
+      const tot = u.reduce((t,v)=>t+(v||0),0);
+      const cells = u.map((v,i)=>{
+        if (v==null) return '<td>—</td>';
+        const mm = g[i];
+        const badge = mm==null ? '' :
+          `<br><span style="font-size:.7rem;color:${mm>=0?'#12805c':'#d32f2f'}">${mm>=0?'▲':'▼'}${Math.abs(mm).toFixed(0)}%</span>`;
+        return `<td>${fmtN(v)}${badge}</td>`;
+      }).join('');
+      return `<tr><td><span class="brand-dot" style="background:${BRAND_COLOR[pr.brand]}"></span>${pr.short}</td><td>${pr.ct||''}</td>${cells}<td><b>${fmtN(tot)}</b></td></tr>`;
+    }).join('');
+  } else {
+    const money = pu ? (v=>'$'+v.toFixed(2)) : fmt$;
+    rows = sel.map(p=>{
+      const pr = DATA.products[p];
+      const arr = pu ? perUnitArr(p,'retail') : seriesArr(p,'retail');
+      let last;
+      if (pu){
+        const u = seriesArr(p,'units').reduce((t,v)=>t+(v||0),0);
+        const n = seriesArr(p,'retail').reduce((t,v)=>t+(v||0),0);
+        last = u ? n/u : null;
+      } else last = arr.reduce((t,v)=>t+(v||0),0);
+      return `<tr><td><span class="brand-dot" style="background:${BRAND_COLOR[pr.brand]}"></span>${pr.short}</td><td>${pr.ct||''}</td>`+
+        arr.map(v=>`<td>${v==null?'—':money(v)}</td>`).join('')+`<td><b>${last==null?'—':money(last)}</b></td></tr>`;
+    }).join('');
+    grp = pu ? 'Net Sales $/unit by month (realized)' : 'Net Sales $ by month (actual)';
+  }
   t.innerHTML = `<thead>${head}</thead><tbody><tr class="grp"><td colspan="${xlabels.length+3}">${grp}</td></tr>${rows}</tbody>`;
 }
 
