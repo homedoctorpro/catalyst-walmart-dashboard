@@ -30,25 +30,37 @@ TEMPLATE = os.path.join(HERE, "chewy_dashboard_template.html")
 OUTPUT = os.path.join(HERE, "chewy_dashboard.html")
 
 # ---------------------------------------------------------------------------
-# Wholesale unit prices, keyed by Chewy part number (fill in when available).
-# wholesale $ = price * units_sold.  Leave as None to render "pending".
+# Wholesale unit prices, keyed by Chewy part number.  wholesale $ = price *
+# units_sold.  Each entry: {"base": <through Sep 2026>, "new": <from Oct 2026>}.
+# Total changeover to "new" pricing at WHOLESALE_CHANGEOVER (Sep is a blended
+# month but uses Aug/base pricing per Lignetics).  None = no price -> pending.
+# Prices per Lignetics wholesale sheet (Catalyst only; FF prices TBD).
 # ---------------------------------------------------------------------------
+WHOLESALE_CHANGEOVER = "2026-10"  # first month billed at "new" pricing
 WHOLESALE_PRICES = {
-    "241757": None,   # Catalyst Healthy 10-lb
-    "241758": None,   # Catalyst Healthy 20-lb
-    "965502": None,   # Catalyst Healthy 30-lb
-    "241760": None,   # Catalyst Unscented 10-lb
-    "241761": None,   # Catalyst Unscented 20-lb
-    "241763": None,   # Catalyst Multi-Cat 10-lb
-    "241764": None,   # Catalyst Multi-Cat 20-lb
-    "1633142": None,  # Catalyst Pine Pellet 20-lb
-    "1665670": None,  # Catalyst Sisal Mat
-    "1674830": None,  # Catalyst Litter Scoop
-    "1685430": None,  # Catalyst Poop Bags
-    "1932182": None,  # Feline Fresh Pine 10-lb
-    "1932190": None,  # Feline Fresh Pine 20-lb
-    "1932198": None,  # Feline Fresh Pine 40-lb
+    "241757": {"base": 9.80, "new": 10.29},    # CT01 Healthy 10-lb
+    "241758": {"base": 15.75, "new": 16.54},   # CT02 Healthy 20-lb
+    "965502": {"base": 23.25, "new": 24.37},   # CT08 Healthy 30-lb
+    "241760": {"base": 9.80, "new": 10.29},    # CT03 Unscented 10-lb
+    "241761": {"base": 15.75, "new": 16.49},   # CT04 Unscented 20-lb
+    "241763": {"base": 9.80, "new": 10.29},    # CT05 Multi-Cat 10-lb
+    "241764": {"base": 15.75, "new": 16.52},   # CT06 Multi-Cat 20-lb
+    "1633142": {"base": 13.29, "new": 13.95},  # CT19 Pine Pellet 20-lb
+    "1665670": {"base": 24.49, "new": 24.49},  # CT09 Sisal Mat
+    "1674830": {"base": 16.79, "new": 16.79},  # FW01 Litter Scoop
+    "1685430": {"base": 6.19, "new": 6.19},    # CT18 Poop Bags
+    "1932182": None,   # Feline Fresh Pine 10-lb (TBD)
+    "1932190": None,   # Feline Fresh Pine 20-lb (TBD)
+    "1932198": None,   # Feline Fresh Pine 40-lb (TBD)
 }
+
+
+def wholesale_price(part, month):
+    """Per-unit wholesale price for a part in a given 'YYYY-MM' month."""
+    p = WHOLESALE_PRICES.get(part)
+    if not p:
+        return None
+    return p["new"] if month >= WHOLESALE_CHANGEOVER else p["base"]
 
 # Latest-month brand snapshot (from the June 2026 Brand Snapshot PDFs).
 SNAPSHOT = {
@@ -210,13 +222,13 @@ def main():
         if med and lu < 0.5 * med:
             partial_month = last
 
-    # Compute wholesale $ series where a price is known.
+    # Compute wholesale $ series (price schedule * units) where priced.
     wholesale = {}
     for part, s in series.items():
-        price = WHOLESALE_PRICES.get(part)
-        if price:
-            wholesale[part] = {m: round(price * u, 2)
-                               for m, u in s["units"].items()}
+        if not WHOLESALE_PRICES.get(part):
+            continue
+        wholesale[part] = {m: round(wholesale_price(part, m) * u, 2)
+                           for m, u in s["units"].items()}
     have_wholesale = bool(wholesale)
 
     payload = {

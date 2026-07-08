@@ -244,6 +244,8 @@ function buildOverview(){
   const last = months[months.length-1];
   const totRetail = parts().reduce((t,p)=> t + (DATA.series[p].retail[last]||0), 0);
   const totUnits  = parts().reduce((t,p)=> t + (DATA.series[p].units[last]||0), 0);
+  const totWholesale = parts().reduce((t,p)=> t + ((DATA.wholesale[p]||{})[last]||0), 0);
+  const ffWholesale = parts('Feline Fresh').some(p=>DATA.wholesale[p]);
   // FY YTD from Chewy Summary (authoritative)
   let fy26=0, fy25=0;
   Object.values(DATA.fy_summary).forEach(f=>{ fy26+=f.fy26_ytd||0; fy25+=f.fy25_ytd||0; });
@@ -266,9 +268,9 @@ function buildOverview(){
         <div class="kpi-sub"><span class="brand-dot" style="background:${CAT}"></span>Catalyst ${fmt$(catRetail)} · <span class="brand-dot" style="background:${FF}"></span>FF ${fmt$(ffRetail)}</div></div>
       <div class="kpi-card"><div class="kpi-label">Autoship % (Catalyst)</div>
         <div class="kpi-value">${fmtPct(avgAuto)}</div><div class="kpi-sub">subscription share, latest mo</div></div>
-      <div class="kpi-card" style="border-left-color:${FF}"><div class="kpi-label">Wholesale $</div>
-        <div class="kpi-value">${DATA.have_wholesale?fmt$(0):'—'}</div>
-        <div class="kpi-sub">${DATA.have_wholesale?'price × units':'pending unit prices'}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Wholesale $ — ${monthLabel(last)}</div>
+        <div class="kpi-value">${DATA.have_wholesale?fmt$(totWholesale):'—'}</div>
+        <div class="kpi-sub">${DATA.have_wholesale?(ffWholesale?'price × units, latest mo':'Catalyst only · FF pending'):'pending unit prices'}</div></div>
     </div>
     ${DATA.have_wholesale?'':'<div class="note">💡 <b>Wholesale $</b> charts activate once per-SKU wholesale prices are supplied (<code>WHOLESALE_PRICES</code> in <code>chewy_extract.py</code>). Wholesale $ = price × units, so it will break out by product and brand.</div>'}
     <div class="chart-grid">
