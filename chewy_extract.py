@@ -303,23 +303,17 @@ def main():
     units_by_month, snapshot = build_snapshots()
     pdf_months = sorted(m for m in units_by_month if m > complete_last)
 
-    # Calibrate a realized $/unit per SKU from the trailing Excel actuals.
-    realized = {}
-    for part in products:
-        u = sum(series[part]["units"].get(m, 0) for m in PRICE_REF_MONTHS)
-        n = sum(series[part]["retail"].get(m, 0) for m in PRICE_REF_MONTHS)
-        realized[part] = (n / u) if u else None
+    # Snapshot PDFs report UNITS only — Chewy gives no net-sales $, autoship, or
+    # OOS in them. So for these months we keep units (known) and let wholesale $
+    # = units × cost be computed later (known), but leave retail $ / autoship /
+    # OOS BLANK rather than estimating. Net-sales-derived metrics (margin,
+    # discount, retail growth) are therefore blank for these months too.
     for nm in pdf_months:
         if nm not in months:
             months.append(nm)
         for part, u in units_by_month[nm].items():
             series[part]["units"][nm] = u          # overwrite partial / add
-            # Realized $/unit is calibrated from post-changeover (Oct'25+)
-            # actuals, so it already reflects current pricing — no extra step.
-            rp = realized.get(part)
-            if rp:
-                series[part]["retail"][nm] = round(rp * u, 2)
-            # per-SKU autoship/OOS aren't in the PDFs -> drop any partial value
+            series[part]["retail"].pop(nm, None)   # unknown -> blank
             series[part]["autoship"].pop(nm, None)
             series[part]["oos"].pop(nm, None)
     months = sorted(months)

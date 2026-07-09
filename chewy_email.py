@@ -100,7 +100,9 @@ METRICS = [("units", "Units"), ("wholesale", "Wholesale $"),
 
 
 def _val(d, parts, metric, month):
-    tot = 0
+    """Sum of a metric over parts for a month, or None if none is known
+    (so a genuinely-unknown value renders blank, not $0)."""
+    tot, seen = 0, False
     for p in parts:
         if metric == "wholesale":
             src = d["wholesale"].get(p, {})
@@ -108,12 +110,16 @@ def _val(d, parts, metric, month):
             src = d["implied"].get(p, {})
         else:
             src = d["series"][p][metric]
-        tot += src.get(month, 0)
-    return tot
+        if month in src:
+            tot += src[month]
+            seen = True
+    return tot if seen else None
 
 
 def _growth(a, b):
-    return (a - b) / b * 100 if b else None
+    if a is None or not b:
+        return None
+    return (a - b) / b * 100
 
 
 def brand_parts(d, brand):
@@ -149,50 +155,59 @@ def make_units_png(d):
     return buf.getvalue()
 
 
-def _cell(d, parts, metric, last, prev, yoy_month, months):
-    cur = _val(d, parts, metric, last)
-    return {
-        "cur": cur,
-        "mom": _growth(cur, _val(d, parts, metric, prev)),
-        "yoy": _growth(cur, _val(d, parts, metric, yoy_month))
-        if yoy_month in months else None,
-    }
-
-
 def build_summary(d):
     months = d["months"]
-    last, prev = months[-1], months[-2]
-    yoy_month = f"{int(last[:4])-1}-{last[5:]}"
     allp = list(d["products"].keys())
+    u_last, u_prev = months[-1], months[-2]        # units/wholesale (snapshot)
+    # net sales $ is only known where retail exists (from the L52W Excel)
+    r_months = [m for m in months if _val(d, allp, "retail", m) is not None]
+    n_last = r_months[-1] if r_months else None
+    n_prev = (months[months.index(n_last) - 1]
+              if n_last and months.index(n_last) > 0 else None)
 
-    def block(parts):
-        return {m: _cell(d, parts, m, last, prev, yoy_month, months)
-                for m, _ in METRICS}
+    def cell(parts, metric, last, prev):
+        cur = _val(d, parts, metric, last)
+        return {"cur": cur, "mom": _growth(cur, _val(d, parts, metric, prev))}
 
-    overall = block(allp)
-    brands = []
+    def uw(parts):
+        return {"units": cell(parts, "units", u_last, u_prev),
+                "wholesale": cell(parts, "wholesale", u_last, u_prev)}
+
+    def net(parts):
+        r = cell(parts, "retail", n_last, n_prev)
+        cost = _val(d, parts, "wholesale", n_last)
+        r["cost"] = cost
+        r["margin"] = ((r["cur"] - cost) / r["cur"] * 100
+                       if r["cur"] and cost is not None else None)
+        return {"retail": r}
+
+    uw_s = {"overall": uw(allp), "brands": [], "products": []}
+    nm_s = {"overall": net(allp), "brands": [], "products": []}
     for b, color in (("Catalyst", CAT), ("Feline Fresh", FF)):
-        brands.append({"name": b, "color": color, **block(brand_parts(d, b))})
-
-    products = []
+        bp = brand_parts(d, b)
+        uw_s["brands"].append({"name": b, "color": color, **uw(bp)})
+        nm_s["brands"].append({"name": b, "color": color, **net(bp)})
     for p, v in d["products"].items():
-        blk = block([p])
-        if blk["retail"]["cur"] or blk["units"]["cur"]:
-            products.append({"short": v["short"], "brand": v["brand"], **blk})
-    products.sort(key=lambda x: -x["retail"]["cur"])
+        if _val(d, [p], "units", u_last):
+            uw_s["products"].append({"short": v["short"], "brand": v["brand"],
+                                     **uw([p])})
+        blk = net([p])
+        if blk["retail"]["cur"]:
+            nm_s["products"].append({"short": v["short"], "brand": v["brand"],
+                                     **blk})
+    uw_s["products"].sort(key=lambda x: -(x["wholesale"]["cur"] or 0))
+    nm_s["products"].sort(key=lambda x: -(x["retail"]["cur"] or 0))
 
-    # implied discount = (list retail - net sales) / list retail, latest month
     def discount(parts):
-        imp = _val(d, parts, "implied", last)
-        net = _val(d, parts, "retail", last)
-        return (imp - net) / imp * 100 if imp else None
+        imp = _val(d, parts, "implied", n_last)
+        r = _val(d, parts, "retail", n_last)
+        return (imp - r) / imp * 100 if imp and r is not None else None
     disc = {"overall": discount(allp)}
     for b in ("Catalyst", "Feline Fresh"):
         disc[b] = discount(brand_parts(d, b))
 
-    return {"last": last, "prev": prev, "yoy_month": yoy_month,
-            "overall": overall, "brands": brands, "products": products,
-            "discount": disc}
+    return {"u_last": u_last, "u_prev": u_prev, "n_last": n_last,
+            "n_prev": n_prev, "uw": uw_s, "nm": nm_s, "discount": disc}
 
 
 def _g(v):
@@ -210,51 +225,37 @@ def _mval(metric, v):
     return num(v) if metric == "units" else money(v)
 
 
-def render_html(d, s, img_src):
-    last, prev = s["last"], s["prev"]
+UW_METRICS = [("units", "Units"), ("wholesale", "Wholesale $")]
 
-    # ---- Overall: three full-width stacked cards (value + MoM) ----
-    over = ""
-    for metric, label in METRICS:
-        c = s["overall"][metric]
-        over += f"""
+
+def render_html(d, s, img_src):
+    ul, up = s["u_last"], s["u_prev"]
+    nl = s["n_last"]
+
+    def big_card(label, value, mom):
+        return f"""
       <div style="background:#fff;border-radius:12px;border-left:5px solid {CAT};
            padding:13px 18px;margin-bottom:9px;box-shadow:0 1px 3px rgba(0,0,0,.1);">
         <table role="presentation" width="100%" style="border-collapse:collapse;"><tr>
           <td style="vertical-align:middle;">
             <div style="font-size:12px;font-weight:700;color:#7a7a7a;text-transform:uppercase;letter-spacing:.04em;">{label}</div>
-            <div style="font-size:25px;font-weight:800;color:#16281f;line-height:1.1;margin-top:2px;">{_mval(metric, c['cur'])}</div>
+            <div style="font-size:25px;font-weight:800;color:#16281f;line-height:1.1;margin-top:2px;">{value}</div>
           </td>
-          <td style="vertical-align:middle;text-align:right;white-space:nowrap;">{_g(c['mom'])}</td>
+          <td style="vertical-align:middle;text-align:right;white-space:nowrap;">{_g(mom)}</td>
         </tr></table>
       </div>"""
 
-    # ---- implied discount vs list ----
-    dsc = s["discount"]
+    over = ""
+    for metric, label in UW_METRICS:
+        c = s["uw"]["overall"][metric]
+        over += big_card(label, _mval(metric, c["cur"]), c["mom"])
 
-    def dchip(name, v, color):
-        val = "—" if v is None else f"{v:.0f}%"
-        return f"""<td style="text-align:center;padding:6px;">
-          <div style="font-size:11px;color:#7a7a7a;"><span style="color:{color};">●</span> {name}</div>
-          <div style="font-size:20px;font-weight:800;color:#16281f;">{val}</div></td>"""
-    disc_card = f"""
-      <div style="background:#fff;border-radius:12px;padding:13px 14px;margin-top:14px;box-shadow:0 1px 3px rgba(0,0,0,.1);">
-        <div style="font-size:13px;font-weight:800;color:#0d5c43;margin:2px 6px 4px;">Discount vs list price</div>
-        <div style="font-size:11px;color:#9a9a9a;margin:0 6px 6px;">how far net sell-through sits below list retail ({mlabel(last)})</div>
-        <table role="presentation" width="100%" style="border-collapse:collapse;"><tr>
-          {dchip("Overall", dsc["overall"], "#555")}
-          {dchip("Catalyst", dsc["Catalyst"], CAT)}
-          {dchip("Feline Fresh", dsc["Feline Fresh"], FF)}
-        </tr></table>
-      </div>"""
-
-    # ---- value + MoM table (each cell: value over a MoM pill) ----
     def vcell(metric, mc):
         return f"""<td style="padding:8px 3px;border-top:1px solid #eee;text-align:center;">
           <div style="font-size:12.5px;font-weight:700;color:#222;">{_mval(metric, mc['cur'])}</div>
           <div style="margin-top:3px;">{_g(mc['mom'])}</div></td>"""
 
-    def rows_html(rows_data):
+    def uw_rows(rows_data):
         out = ""
         for r in rows_data:
             color = r.get("color") or (CAT if r.get("brand") == "Catalyst" else FF)
@@ -263,31 +264,47 @@ def render_html(d, s, img_src):
           <td style="padding:8px 4px;border-top:1px solid #eee;">
             <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:{color};margin-right:6px;"></span>
             <span style="font-size:12.5px;color:#222;">{name}</span></td>
-          {vcell('units', r['units'])}{vcell('wholesale', r['wholesale'])}{vcell('retail', r['retail'])}
+          {vcell('units', r['units'])}{vcell('wholesale', r['wholesale'])}
         </tr>"""
         return out
 
-    def card(title, rows_data):
+    def uw_card(title, rows_data):
         return f"""
       <div style="background:#fff;border-radius:12px;padding:14px 12px 6px;margin-top:14px;box-shadow:0 1px 3px rgba(0,0,0,.1);">
         <div style="font-size:13px;font-weight:800;color:#0d5c43;margin:2px 6px 8px;">{title}</div>
         <table role="presentation" width="100%" style="border-collapse:collapse;table-layout:fixed;">
-          <tr style="color:#9a9a9a;font-size:9.5px;text-transform:uppercase;letter-spacing:.02em;">
-            <td style="padding:0 4px 4px;width:34%;"></td>
+          <tr style="color:#9a9a9a;font-size:9.5px;text-transform:uppercase;">
+            <td style="padding:0 4px 4px;width:44%;"></td>
             <td style="padding:0 3px 4px;text-align:center;">Units</td>
-            <td style="padding:0 3px 4px;text-align:center;">Whsl&nbsp;$</td>
-            <td style="padding:0 3px 4px;text-align:center;">Retail&nbsp;$</td></tr>
-          {rows_html(rows_data)}
+            <td style="padding:0 3px 4px;text-align:center;">Wholesale&nbsp;$</td></tr>
+          {uw_rows(rows_data)}
         </table>
-        <div style="font-size:9.5px;color:#b3b3b3;margin:6px 6px 2px;">value = {mlabel(last)} · pill = MoM vs {mlabel(prev)}</div>
+        <div style="font-size:9.5px;color:#b3b3b3;margin:6px 6px 2px;">value = {mlabel(ul)} · pill = MoM vs {mlabel(up)}</div>
       </div>"""
 
-    # ---- Chewy net margin table (net sell-through vs wholesale cost) ----
-    def marginpct(net, cost):
-        return (net - cost) / net * 100 if net else None
+    nc = s["nm"]["overall"]["retail"]
+    n_over = big_card("Net Sales $", money(nc["cur"]), nc["mom"])
 
-    def mrow(name, color, net, cost, bold=False):
-        m = marginpct(net, cost)
+    dsc = s["discount"]
+
+    def dchip(name, v, color):
+        val = "—" if v is None else f"{v:.0f}%"
+        return f"""<td style="text-align:center;padding:6px;">
+          <div style="font-size:11px;color:#7a7a7a;"><span style="color:{color};">●</span> {name}</div>
+          <div style="font-size:20px;font-weight:800;color:#16281f;">{val}</div></td>"""
+    disc_card = f"""
+      <div style="background:#fff;border-radius:12px;padding:13px 14px;margin-top:12px;box-shadow:0 1px 3px rgba(0,0,0,.1);">
+        <div style="font-size:13px;font-weight:800;color:#0d5c43;margin:2px 6px 4px;">Discount vs list price</div>
+        <div style="font-size:11px;color:#9a9a9a;margin:0 6px 6px;">net sell-through below list retail</div>
+        <table role="presentation" width="100%" style="border-collapse:collapse;"><tr>
+          {dchip("Overall", dsc["overall"], "#555")}
+          {dchip("Catalyst", dsc["Catalyst"], CAT)}
+          {dchip("Feline Fresh", dsc["Feline Fresh"], FF)}
+        </tr></table>
+      </div>"""
+
+    def mrow(name, color, r, bold=False):
+        net_, cost, m = r["cur"], r["cost"], r["margin"]
         if m is None:
             badge = '<span style="color:#c7c7c7;">—</span>'
         else:
@@ -298,24 +315,21 @@ def render_html(d, s, img_src):
           <td style="padding:8px 4px;border-top:1px solid #eee;">
             <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:{color};margin-right:6px;"></span>
             <span style="font-size:12.5px;font-weight:{fw};color:#222;">{name}</span></td>
-          <td style="padding:8px 3px;border-top:1px solid #eee;text-align:center;font-size:12px;color:#444;">{money(net)}</td>
+          <td style="padding:8px 3px;border-top:1px solid #eee;text-align:center;font-size:12px;color:#444;">{money(net_)}</td>
           <td style="padding:8px 3px;border-top:1px solid #eee;text-align:center;font-size:12px;color:#444;">{money(cost)}</td>
           <td style="padding:8px 3px;border-top:1px solid #eee;text-align:center;font-size:14px;">{badge}</td>
         </tr>"""
 
-    ov = s["overall"]
-    mrows = mrow("All products", "#555", ov["retail"]["cur"],
-                 ov["wholesale"]["cur"], True)
-    for b in s["brands"]:
-        mrows += mrow(b["name"], b["color"], b["retail"]["cur"],
-                      b["wholesale"]["cur"], True)
-    for p in s["products"]:
-        mrows += mrow(p["short"], CAT if p["brand"] == "Catalyst" else FF,
-                      p["retail"]["cur"], p["wholesale"]["cur"])
+    ov = s["nm"]["overall"]["retail"]
+    mrows = mrow("All products", "#555", ov, True)
+    for b in s["nm"]["brands"]:
+        mrows += mrow(b["name"], b["color"], b["retail"], True)
+    for p in s["nm"]["products"]:
+        mrows += mrow(p["short"], CAT if p["brand"] == "Catalyst" else FF, p["retail"])
     margin_card = f"""
-      <div style="background:#fff;border-radius:12px;padding:14px 12px 8px;margin-top:14px;box-shadow:0 1px 3px rgba(0,0,0,.1);">
-        <div style="font-size:13px;font-weight:800;color:#0d5c43;margin:2px 6px 3px;">Chewy net margin — {mlabel(last)}</div>
-        <div style="font-size:10.5px;color:#9a9a9a;margin:0 6px 6px;">(net sales − wholesale cost) ÷ net sales · what Chewy keeps after discounts</div>
+      <div style="background:#fff;border-radius:12px;padding:14px 12px 8px;margin-top:12px;box-shadow:0 1px 3px rgba(0,0,0,.1);">
+        <div style="font-size:13px;font-weight:800;color:#0d5c43;margin:2px 6px 3px;">Chewy net margin</div>
+        <div style="font-size:10.5px;color:#9a9a9a;margin:0 6px 6px;">(net sales − wholesale cost) ÷ net sales</div>
         <table role="presentation" width="100%" style="border-collapse:collapse;table-layout:fixed;">
           <tr style="color:#9a9a9a;font-size:9.5px;text-transform:uppercase;">
             <td style="padding:0 4px 4px;width:40%;"></td>
@@ -330,8 +344,8 @@ def render_html(d, s, img_src):
 <body style="margin:0;background:#eef1f0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#16281f;">
   <div style="max-width:460px;margin:0 auto;padding:14px;">
     <div style="background:#0d5c43;color:#fff;border-radius:12px;padding:16px 18px;">
-      <div style="font-size:18px;font-weight:800;">🐾 Chewy Sales — {mlabel(last)}</div>
-      <div style="font-size:12px;opacity:.82;margin-top:3px;">Catalyst &amp; Feline Fresh · growth vs {mlabel(prev)}</div>
+      <div style="font-size:18px;font-weight:800;">🐾 Chewy Sales — {mlabel(ul)}</div>
+      <div style="font-size:12px;opacity:.82;margin-top:3px;">Catalyst &amp; Feline Fresh · units through {mlabel(ul)} · net sales through {mlabel(nl)}</div>
     </div>
 
     <div style="background:#fff;border-radius:12px;padding:12px 10px 6px;margin-top:14px;box-shadow:0 1px 3px rgba(0,0,0,.1);">
@@ -339,11 +353,16 @@ def render_html(d, s, img_src):
       <img src="{img_src}" width="100%" style="display:block;max-width:100%;border-radius:6px;" alt="Monthly unit sales">
     </div>
 
-    <div style="font-size:11px;font-weight:800;color:#7a7a7a;text-transform:uppercase;letter-spacing:.05em;margin:16px 6px 8px;">Overall — {mlabel(last)}</div>
+    <div style="font-size:11px;font-weight:800;color:#7a7a7a;text-transform:uppercase;letter-spacing:.05em;margin:16px 6px 4px;">Units &amp; wholesale — {mlabel(ul)}</div>
+    <div style="font-size:10.5px;color:#9a9a9a;margin:0 6px 8px;">from the monthly Brand Snapshot (units actual; wholesale $ = units × your cost)</div>
     {over}
+    {uw_card("By Brand", s["uw"]["brands"])}
+    {uw_card("By Product", s["uw"]["products"])}
+
+    <div style="font-size:11px;font-weight:800;color:#7a7a7a;text-transform:uppercase;letter-spacing:.05em;margin:20px 6px 4px;">Net sales &amp; margin — {mlabel(nl)}</div>
+    <div style="font-size:10.5px;color:#9a9a9a;margin:0 6px 8px;">latest reported (Chewy's L52W report; the snapshot has no $, so this trails units)</div>
+    {n_over}
     {disc_card}
-    {card("By Brand", s["brands"])}
-    {card("By Product", s["products"])}
     {margin_card}
 
     <div style="text-align:center;margin-top:20px;">
@@ -407,27 +426,27 @@ def main():
     d = load_payload()
     s = build_summary(d)
     png = make_units_png(d)
-    subject = f"Chewy Sales Recap — {mlabel(s['last'])} (Catalyst & Feline Fresh)"
+    subject = f"Chewy Sales Recap — {mlabel(s['u_last'])} (Catalyst & Feline Fresh)"
 
     data_uri = "data:image/png;base64," + base64.b64encode(png).decode()
     with open(PREVIEW, "w", encoding="utf-8") as f:
         f.write(render_html(d, s, data_uri))
-    print(f"[chewy_email] latest month {s['last']}, preview -> {PREVIEW}")
+    print(f"[chewy_email] latest month {s['u_last']}, preview -> {PREVIEW}")
 
     if args.dry_run:
         return
 
-    if not args.force and read_state() == s["last"]:
-        print(f"[chewy_email] {s['last']} already emailed — skipping "
+    if not args.force and read_state() == s["u_last"]:
+        print(f"[chewy_email] {s['u_last']} already emailed — skipping "
               "(use --force to resend).")
         return
 
     # Wait until BOTH brands have data for the latest month (a single-brand
     # snapshot arriving first shouldn't trigger a half-empty recap).
-    present = {b["name"] for b in s["brands"] if b["units"]["cur"] > 0}
+    present = {b["name"] for b in s["uw"]["brands"] if b["units"]["cur"] > 0}
     if not args.force and not {"Catalyst", "Feline Fresh"} <= present:
         missing = {"Catalyst", "Feline Fresh"} - present
-        print(f"[chewy_email] {s['last']} incomplete — waiting for "
+        print(f"[chewy_email] {s['u_last']} incomplete — waiting for "
               f"{', '.join(sorted(missing))} snapshot (use --force to send).")
         return
 
@@ -435,7 +454,7 @@ def main():
     send(render_html(d, s, "cid:unitschart"), subject, recipients, png)
     print(f"[chewy_email] sent '{subject}' to {len(recipients)} recipient(s).")
     if not args.dev_only:
-        write_state(s["last"])
+        write_state(s["u_last"])
 
 
 if __name__ == "__main__":
