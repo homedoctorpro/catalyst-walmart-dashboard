@@ -173,6 +173,13 @@ const xlabels = months.map(monthLabel);
 const partialNote = DATA.partial_month
   ? monthLabel(DATA.partial_month)+' excluded (partial — report pulled mid-month)'
   : '';
+// Net sales $ is only known where retail exists (snapshot months report units
+// only). Net-based figures use the latest month that actually has retail data.
+const retailMonths = months.filter(m =>
+  Object.keys(DATA.products).some(p => m in DATA.series[p].retail));
+const netLast = retailMonths.length ? retailMonths[retailMonths.length-1]
+                                    : months[months.length-1];
+const unitsOnlyMonths = months.filter(m => !retailMonths.includes(m));
 
 function parts(brand){
   return Object.keys(DATA.products).filter(p => !brand || DATA.products[p].brand===brand)
@@ -297,19 +304,20 @@ const htKind = (metric, mode) =>
 /* ---------- Overview ---------- */
 function buildOverview(){
   const el = document.getElementById('tab-overview');
-  const last = months[months.length-1];
-  const totRetail = parts().reduce((t,p)=> t + (DATA.series[p].retail[last]||0), 0);
+  const last = months[months.length-1];        // units/wholesale month
   const totUnits  = parts().reduce((t,p)=> t + (DATA.series[p].units[last]||0), 0);
   const totWholesale = parts().reduce((t,p)=> t + ((DATA.wholesale[p]||{})[last]||0), 0);
   const ffWholesale = parts('Feline Fresh').some(p=>DATA.wholesale[p]);
+  // Net sales $ is only known through netLast (snapshot months report units only)
+  const totRetail = parts().reduce((t,p)=> t + (DATA.series[p].retail[netLast]||0), 0);
+  const totImplied = parts().reduce((t,p)=> t + ((DATA.implied[p]||{})[netLast]||0), 0);
+  const discPct = totImplied ? (totImplied-totRetail)/totImplied*100 : null;
   // FY YTD from Chewy Summary (authoritative)
   let fy26=0, fy25=0;
   Object.values(DATA.fy_summary).forEach(f=>{ fy26+=f.fy26_ytd||0; fy25+=f.fy25_ytd||0; });
   const fyChg = fy25 ? (fy26-fy25)/fy25*100 : null;
   const catRetail = brandSeriesArr('Catalyst','retail').reduce((t,v)=>t+(v||0),0);
   const ffRetail  = brandSeriesArr('Feline Fresh','retail').reduce((t,v)=>t+(v||0),0);
-  const totImplied = parts().reduce((t,p)=> t + ((DATA.implied[p]||{})[last]||0), 0);
-  const discPct = totImplied ? (totImplied-totRetail)/totImplied*100 : null;
   const autoArr = brandWeightedArr('Catalyst','autoship');
   let ai = months.length-1; while(ai>=0 && autoArr[ai]==null) ai--;
   const avgAuto = ai>=0 ? autoArr[ai] : null;
@@ -317,12 +325,12 @@ function buildOverview(){
 
   el.innerHTML = `
     <div class="kpi-row">
-      <div class="kpi-card"><div class="kpi-label">Net Sales $ — ${monthLabel(last)}</div>
-        <div class="kpi-value">${fmt$(totRetail)}</div><div class="kpi-sub">actual, both brands</div></div>
-      <div class="kpi-card" style="border-left-color:#888"><div class="kpi-label">Implied Retail $ — ${monthLabel(last)}</div>
+      <div class="kpi-card"><div class="kpi-label">Net Sales $ — ${monthLabel(netLast)}</div>
+        <div class="kpi-value">${fmt$(totRetail)}</div><div class="kpi-sub">actual (latest reported)</div></div>
+      <div class="kpi-card" style="border-left-color:#888"><div class="kpi-label">Implied Retail $ — ${monthLabel(netLast)}</div>
         <div class="kpi-value">${fmt$(totImplied)}</div><div class="kpi-sub">at list · ${discPct==null?'':discPct.toFixed(0)+'% below list'}</div></div>
       <div class="kpi-card"><div class="kpi-label">Units — ${monthLabel(last)}</div>
-        <div class="kpi-value">${fmtN(totUnits)}</div><div class="kpi-sub">latest month, both brands</div></div>
+        <div class="kpi-value">${fmtN(totUnits)}</div><div class="kpi-sub">latest snapshot, both brands</div></div>
       <div class="kpi-card"><div class="kpi-label">FY26 YTD Retail $</div>
         <div class="kpi-value">${fmt$(fy26)}<span class="kpi-chg ${fyChg>=0?'up':'down'}">${fyChg==null?'':(fyChg>=0?'▲':'▼')+Math.abs(fyChg).toFixed(0)+'%'}</span></div>
         <div class="kpi-sub">vs ${fmt$(fy25)} FY25 YTD</div></div>
@@ -336,8 +344,8 @@ function buildOverview(){
         <div class="kpi-sub">${DATA.have_wholesale?(ffWholesale?'price × units, latest mo':'Catalyst only · FF pending'):'pending unit prices'}</div></div>
     </div>
     ${DATA.have_wholesale?'':'<div class="note">💡 <b>Wholesale $</b> charts activate once per-SKU wholesale prices are supplied (<code>WHOLESALE_PRICES</code> in <code>chewy_extract.py</code>). Wholesale $ = price × units, so it will break out by product and brand.</div>'}
-    ${(DATA.pdf_months&&DATA.pdf_months.length)?`<div class="note">📄 <b>${DATA.pdf_months.map(monthLabel).join(' & ')}</b> come from the Brand Snapshot PDFs: per-SKU units are actual; retail $ = units × each SKU's recent average selling price; wholesale $ = units × cost. Autoship % and PDP OOS % aren't in the snapshots, so those two charts end at ${monthLabel(months[months.length-1-DATA.pdf_months.length])}.</div>`:''}
-    <div class="note">🏷️ <b>Net Sales $</b> = what Chewy actually rang up (their reported revenue, reconciles to Chewy's Summary). <b>Implied Retail $</b> = units × your list price. The gap is the promo/autoship discount.</div>
+    ${unitsOnlyMonths.length?`<div class="note">📄 <b>${unitsOnlyMonths.map(monthLabel).join(' & ')}</b> come from the Brand Snapshot PDFs, which report <b>units only</b>. Units &amp; wholesale $ (units × cost) are shown for these months; <b>net sales $, margin, autoship % and PDP OOS % are left blank</b> until Chewy's L52W report lands (latest net sales: <b>${monthLabel(netLast)}</b>).</div>`:''}
+    <div class="note">🏷️ <b>Net Sales $</b> = what Chewy actually rang up (reconciles to Chewy's Summary). <b>Implied Retail $</b> = units × your list price. The gap is the promo/autoship discount.</div>
     <div class="chart-grid">
       <div class="chart-card"><h3>Net Sales $ by Brand</h3><div class="chart-div" id="ov-retail"></div></div>
       <div class="chart-card"><h3>Units by Brand</h3><div class="chart-div" id="ov-units"></div></div>
@@ -460,18 +468,21 @@ function renderProd(){
   renderProdTable(sel);
 }
 function renderProdTotals(sel){
-  const sum = metric => sel.reduce((t,p)=> t + sumSeries(p,metric), 0);
-  const net = sum('retail'), imp = sum('implied'), u = sum('units'), w = sum('wholesale');
-  const disc = imp ? (imp-net)/imp*100 : null;
-  const gm = net ? (net-w)/net*100 : null;
+  const sumM = (metric,mlist) => sel.reduce((t,p)=> t + mlist.reduce((x,m)=>x+(mmap(p,metric)[m]||0),0), 0);
+  const net = sumM('retail',months), imp = sumM('implied',months), u = sumM('units',months), w = sumM('wholesale',months);
+  // margin / discount / avg computed only over months where net sales is known
+  const netR = sumM('retail',retailMonths), wR = sumM('wholesale',retailMonths),
+        uR = sumM('units',retailMonths), impR = sumM('implied',retailMonths);
+  const disc = impR ? (impR-netR)/impR*100 : null;
+  const gm = netR ? (netR-wR)/netR*100 : null;
   const card = (lbl,val,sub,accent)=>`<div class="kpi-card"${accent?` style="border-left-color:${accent}"`:''}>
     <div class="kpi-label">${lbl}</div><div class="kpi-value">${val}</div><div class="kpi-sub">${sub||''}</div></div>`;
   document.getElementById('prod-totals').innerHTML =
-    card('Net Sales $ (17 mo)', fmt$(net), `${sel.length} SKU${sel.length!==1?'s':''} selected`) +
+    card('Net Sales $', fmt$(net), `${sel.length} SKU${sel.length!==1?'s':''} · thru ${monthLabel(netLast)}`) +
     card('Implied Retail $ (list)', fmt$(imp), disc==null?'':`${disc.toFixed(0)}% below list`, '#888') +
-    card('Units (17 mo)', fmtN(u), 'total sell-through') +
-    card('Wholesale $ (17 mo)', fmt$(w), 'units × cost') +
-    card('Avg Net $/Unit', u?'$'+(net/u).toFixed(2):'—', 'realized') +
+    card('Units', fmtN(u), 'total sell-through') +
+    card('Wholesale $', fmt$(w), 'units × cost') +
+    card('Avg Net $/Unit', uR?'$'+(netR/uR).toFixed(2):'—', 'realized') +
     card('Chewy Margin %', gm==null?'—':gm.toFixed(0)+'%', 'net vs cost');
 }
 function renderProdTable(sel){
@@ -517,21 +528,21 @@ function buildBrand(){
   const el = document.getElementById('tab-brand');
   const brands=['Catalyst','Feline Fresh'];
   const bt = b => {
-    const net=brandSeriesArr(b,'retail').reduce((t,v)=>t+(v||0),0);
-    const imp=brandSeriesArr(b,'implied').reduce((t,v)=>t+(v||0),0);
-    const u=brandSeriesArr(b,'units').reduce((t,v)=>t+(v||0),0);
-    const w=brandSeriesArr(b,'wholesale').reduce((t,v)=>t+(v||0),0);
-    return {net,imp,u,w};
+    const bsum=(metric,ml)=>{ const arr=brandSeriesArr(b,metric); return ml.reduce((t,m)=>t+(arr[months.indexOf(m)]||0),0); };
+    // units/wholesale over all months; net-based over retail-known months only
+    return {u:bsum('units',months), w:bsum('wholesale',months),
+            netR:bsum('retail',retailMonths), impR:bsum('implied',retailMonths),
+            uR:bsum('units',retailMonths), wR:bsum('wholesale',retailMonths)};
   };
   const tC=bt('Catalyst'), tF=bt('Feline Fresh');
-  const tT={net:tC.net+tF.net, imp:tC.imp+tF.imp, u:tC.u+tF.u, w:tC.w+tF.w};
+  const tT={u:tC.u+tF.u, w:tC.w+tF.w, netR:tC.netR+tF.netR, impR:tC.impR+tF.impR, uR:tC.uR+tF.uR, wR:tC.wR+tF.wR};
   const trow=(lbl,t,color)=>`<tr><td><span class="brand-dot" style="background:${color}"></span>${lbl}</td>`+
-    `<td>${fmt$(t.net)}</td><td>${fmt$(t.imp)}</td><td>${t.imp?((t.imp-t.net)/t.imp*100).toFixed(0)+'%':'—'}</td>`+
-    `<td>${fmtN(t.u)}</td><td>${fmt$(t.w)}</td><td>${t.u?'$'+(t.net/t.u).toFixed(2):'—'}</td>`+
-    `<td>${t.net?((t.net-t.w)/t.net*100).toFixed(0)+'%':'—'}</td></tr>`;
+    `<td>${fmt$(t.netR)}</td><td>${fmt$(t.impR)}</td><td>${t.impR?((t.impR-t.netR)/t.impR*100).toFixed(0)+'%':'—'}</td>`+
+    `<td>${fmtN(t.u)}</td><td>${fmt$(t.w)}</td><td>${t.uR?'$'+(t.netR/t.uR).toFixed(2):'—'}</td>`+
+    `<td>${t.netR?((t.netR-t.wR)/t.netR*100).toFixed(0)+'%':'—'}</td></tr>`;
   el.innerHTML = `
     <div class="table-card" style="margin-top:0">
-      <h3>Totals — all ${months.length} months</h3>
+      <h3>Totals — units &amp; wholesale thru ${monthLabel(months[months.length-1])} · net sales thru ${monthLabel(netLast)}</h3>
       <table class="grid">
         <thead><tr><th>Brand</th><th>Net Sales $</th><th>Implied (list) $</th><th>Disc vs list</th><th>Units</th><th>Wholesale $</th><th>Avg net $/unit</th><th>Chewy margin</th></tr></thead>
         <tbody>${trow('Catalyst',tC,CAT)}${trow('Feline Fresh',tF,FF)}<tr class="grp">${trow('Total (US)',tT,'#333').replace('<tr>','').replace('</tr>','')}</tr></tbody>
