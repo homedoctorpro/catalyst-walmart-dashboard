@@ -102,6 +102,69 @@ COOP = {
     "growth_weekly": 0.03,            # +3%/week scenario
 }
 
+# Endcap program goes live 2026-08-01. "Stocked before" is fixed at the last
+# weekly report BEFORE this date; cohorts are then tracked forward.
+ENDCAP_LIVE_DATE = "2026-08-01"
+
+
+def build_endcap_cohorts(all_store_weeks, traited, endcap, week_dates):
+    """Track weekly U/S/W for three endcap cohorts (fixed at the pre-Aug-1 baseline):
+      A = endcap + stocked before      B = no endcap + stocked before
+      C = endcap + NOT stocked before
+    "Stocked before" = traited AND present in the baseline week's feed. U/S/W =
+    cohort units that week / fixed cohort store count (includes zero-sellers)."""
+    if not endcap or not endcap.get("rows"):
+        return None
+    live  = date.fromisoformat(ENDCAP_LIVE_DATE)
+    weeks = sorted(w for w in all_store_weeks if w in week_dates)
+    if not weeks:
+        return None
+    pre      = [w for w in weeks if date.fromisoformat(week_dates[w]) < live]
+    baseline = pre[-1] if pre else None
+
+    tset = set()
+    if traited and traited.get("by_sku"):
+        for a in traited["by_sku"].values():
+            tset.update(str(x) for x in a)
+    endcap_set = {str(r["store_number"]) for r in endcap["rows"]}
+
+    if baseline:
+        feed_b = {str(s) for s in all_store_weeks.get(baseline, {})}
+        stocked_before = tset & feed_b
+    else:
+        stocked_before = set()
+
+    cohorts = {
+        "A": endcap_set & stocked_before,     # endcap + stocked before
+        "B": stocked_before - endcap_set,     # no endcap + stocked before
+        "C": endcap_set - stocked_before,     # endcap + NOT stocked before
+    }
+    sizes = {k: len(v) for k, v in cohorts.items()}
+
+    series = {}
+    for w in weeks:
+        wd = all_store_weeks.get(w, {})
+        row = {}
+        for k, sset in cohorts.items():
+            units = sum((wd.get(sn) or {}).get("total_qty") or 0 for sn in sset)
+            n = sizes[k]
+            row[k + "_units"] = units
+            row[k + "_usw"]   = round(units / n, 3) if n else None
+        series[w] = row
+
+    return {
+        "live_date":     ENDCAP_LIVE_DATE,
+        "baseline_week": baseline,
+        "weeks":         weeks,
+        "sizes":         sizes,
+        "series":        series,
+        "labels": {
+            "A": "Endcap + stocked before",
+            "B": "No endcap + stocked before",
+            "C": "Endcap + not stocked before",
+        },
+    }
+
 
 def build_coop(rollback, metrics, week_dates):
     """Project the $150k rollback co-op: exhaustion date + total profit, two ways."""
@@ -1174,6 +1237,14 @@ def main():
         print(f"\nForecast baseline: frozen {forecast_baseline['meta'].get('frozen_as_of')} "
               f"(from week {forecast_baseline['meta'].get('generated_from_week')})")
 
+    # Endcap cohort U/S/W tracker (fixed at pre-Aug-1 baseline, tracked forward).
+    endcap_data = {"rows": endcap_rows, "summary": endcap_summary}
+    endcap_cohorts = build_endcap_cohorts(all_store_weeks, traited, endcap_data, week_dates)
+    if endcap_cohorts:
+        s = endcap_cohorts["sizes"]
+        print(f"\nEndcap cohorts (baseline {endcap_cohorts['baseline_week']}, live {ENDCAP_LIVE_DATE}): "
+              f"A endcap+stocked={s['A']:,}, B no-endcap+stocked={s['B']:,}, C endcap+new={s['C']:,}")
+
     data = {
         "weeks":       sorted(files.keys()),
         "store_weeks": store_weeks_list,
@@ -1190,7 +1261,8 @@ def main():
         "state_inventory":  state_inventory,
         "week_labels":  week_labels,
         "week_dates":   week_dates,
-        "endcap":      {"rows": endcap_rows, "summary": endcap_summary},
+        "endcap":      endcap_data,
+        "endcap_cohorts": endcap_cohorts,
         "trial_repeat": trial_repeat,
         "traited": traited,
         "supply_plan": supply_plan,

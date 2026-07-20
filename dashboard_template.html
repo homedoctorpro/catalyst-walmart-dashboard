@@ -1361,6 +1361,7 @@
     <div class="endcap-sub-tabs">
       <button class="endcap-sub-btn active" onclick="switchEndcapView('map',this)">🗺️ Map</button>
       <button class="endcap-sub-btn"        onclick="switchEndcapView('table',this)">📋 Table</button>
+      <button class="endcap-sub-btn"        onclick="switchEndcapView('cohort',this)">📈 U/S/W Lift</button>
     </div>
 
     <div id="endcap-view-map" class="endcap-view active">
@@ -1398,6 +1399,23 @@
           </tr></thead>
           <tbody id="endcap-tbody"></tbody>
         </table>
+      </div>
+    </div>
+
+    <div id="endcap-view-cohort" class="endcap-view">
+      <div style="background:#fff;border-radius:10px;padding:14px 18px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:14px;font-size:13px;color:#444;line-height:1.6;">
+        <div style="font-weight:700;color:#222;margin-bottom:4px;">Endcap Lift — Units / Store / Week by cohort</div>
+        Cohorts are fixed at the <strong id="cohort-baseline-lbl">baseline</strong> (last report before the endcap goes live <strong>8/1/26</strong>).
+        <strong>Stocked before</strong> = traited <em>and</em> selling that week. U/S/W = cohort units ÷ the cohort's fixed store count (zero-sellers included).
+        Compare <span style="color:#0057e7;font-weight:600">endcap-stocked</span> vs <span style="color:#2e7d32;font-weight:600">no-endcap-stocked</span> for lift on existing stores, and watch <span style="color:#e67300;font-weight:600">endcap-new</span> ramp from zero.
+      </div>
+      <div id="endcap-cohort-cards" class="endcap-kpi-row" style="grid-template-columns:repeat(3,1fr);"></div>
+      <div class="chart-card"><h3 style="margin:0 0 4px">U/S/W by cohort — weekly</h3><div id="endcap-cohort-chart" class="chart-div"></div></div>
+      <div class="metrics-table-card" style="margin-top:14px;">
+        <h3>Cohort U/S/W — weekly table</h3>
+        <div class="store-list-scroll" style="max-height:360px;">
+          <table class="store-list-tbl" id="endcap-cohort-table"><thead id="endcap-cohort-thead"></thead><tbody id="endcap-cohort-tbody"></tbody></table>
+        </div>
       </div>
     </div>
   </div>
@@ -6159,6 +6177,71 @@ function switchEndcapView(view, btn) {
   btn.classList.add("active");
   document.getElementById("endcap-view-" + view).classList.add("active");
   if (view === "map" && window._endcapMap) setTimeout(() => window._endcapMap.invalidateSize(), 50);
+  if (view === "cohort") renderEndcapCohorts();
+}
+
+// Endcap cohort U/S/W tracker: 3 fixed cohorts, weekly velocity, Aug-1 marker.
+const ENDCAP_COHORT_STYLE = [
+  { k:"A", color:"#0057e7" },   // endcap + stocked before
+  { k:"B", color:"#2e7d32" },   // no endcap + stocked before
+  { k:"C", color:"#e67300" },   // endcap + not stocked before (net-new)
+];
+function renderEndcapCohorts() {
+  const co = DATA.endcap_cohorts;
+  const chartEl = document.getElementById("endcap-cohort-chart");
+  if (!co || !co.weeks || !co.weeks.length) {
+    if (chartEl) chartEl.innerHTML = "<p style='color:#888;padding:20px'>No endcap cohort data yet.</p>";
+    return;
+  }
+  document.getElementById("cohort-baseline-lbl").textContent =
+    "baseline (" + (co.baseline_week ? weekLabel(co.baseline_week) : "—") + ")";
+
+  const weeks = co.weeks;
+  const x = weeks.map(weekLabel);
+  const last = weeks[weeks.length - 1];
+
+  // Cohort summary cards
+  document.getElementById("endcap-cohort-cards").innerHTML = ENDCAP_COHORT_STYLE.map(c => {
+    const usw = co.series[last] ? co.series[last][c.k + "_usw"] : null;
+    return `<div class="endcap-kpi" style="border-left:4px solid ${c.color}">
+      <div class="endcap-kpi-lbl">${co.labels[c.k]}</div>
+      <div class="endcap-kpi-val" style="color:${c.color}">${co.sizes[c.k].toLocaleString()} <span style="font-size:.75rem;color:#999">stores</span></div>
+      <div style="font-size:.8rem;color:#666;margin-top:2px">U/S/W ${usw != null ? usw.toFixed(2) : "—"} <span style="color:#aaa">(${weekLabel(last)})</span></div>
+    </div>`;
+  }).join("");
+
+  // Weekly line chart with Aug-1 marker
+  const traces = ENDCAP_COHORT_STYLE.map(c => ({
+    x, y: weeks.map(w => (co.series[w] ? co.series[w][c.k + "_usw"] : null)),
+    name: co.labels[c.k], type:"scatter", mode:"lines+markers", connectgaps:false,
+    line:{ color:c.color, width:2.5 }, marker:{ size:6, color:c.color },
+    hovertemplate: "%{y:.2f} U/S/W<extra>" + co.labels[c.k] + "</extra>",
+  }));
+  const liveIdx  = weeks.findIndex(w => (DATA.week_dates[w] || "") >= co.live_date);
+  const boundary = (liveIdx < 0 ? weeks.length : liveIdx) - 0.5;
+  const layout = { ...PLOTLY_LAYOUT_BASE,
+    yaxis:{ ...PLOTLY_LAYOUT_BASE.yaxis, title:"Units/Store/Week" },
+    shapes:[{ type:"line", xref:"x", yref:"paper", x0:boundary, x1:boundary, y0:0, y1:1,
+              line:{ color:"#d32f2f", width:1.5, dash:"dot" } }],
+    annotations:[{ x:boundary, xref:"x", y:1, yref:"paper", yanchor:"bottom", xanchor:"left",
+              text:"🎯 Endcap live 8/1", showarrow:false, font:{ size:10, color:"#d32f2f" },
+              bgcolor:"rgba(255,255,255,0.75)" }],
+  };
+  Plotly.react("endcap-cohort-chart", traces, layout, { responsive:true, displayModeBar:false });
+
+  // Weekly table (latest first)
+  document.getElementById("endcap-cohort-thead").innerHTML =
+    `<tr><th>Week</th>${ENDCAP_COHORT_STYLE.map(c =>
+      `<th style="color:${c.color}">${co.labels[c.k]}<br><span style="font-weight:400;color:#999">U/S/W (units)</span></th>`).join("")}</tr>`;
+  document.getElementById("endcap-cohort-tbody").innerHTML = weeks.slice().reverse().map(w => {
+    const r = co.series[w] || {};
+    const cells = ENDCAP_COHORT_STYLE.map(c => {
+      const u = r[c.k + "_usw"], un = r[c.k + "_units"];
+      return `<td>${u != null ? u.toFixed(2) : "—"} <span style="color:#bbb;font-size:.85em">(${(un || 0).toLocaleString()})</span></td>`;
+    }).join("");
+    const isBase = w === co.baseline_week;
+    return `<tr${isBase ? ' style="background:#fff8e1"' : ""}><td>${weekLabel(w)}${isBase ? ' <span style="color:#f9a825;font-size:.7rem">◀ baseline</span>' : ""}</td>${cells}</tr>`;
+  }).join("");
 }
 
 function endcapPopup(r) {
