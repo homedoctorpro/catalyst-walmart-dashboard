@@ -27,8 +27,13 @@ import imaplib
 import argparse
 from email.header import decode_header, make_header
 
+# IMAP subject anchor. Kept deliberately short ("Weekly Sales Report") so it
+# matches wording variants Hailey has used — e.g. "Weekly Sales Report Catalyst"
+# and "Weekly Sales Reports Catalyst" (plural). The real gate is downstream: a
+# message only ingests if it also has a 2026XX week code and an xlsx/xlsb
+# attachment, so a loose subject anchor can't pull in the wrong file.
 IMAP_HOST = "imap.gmail.com"
-SUBJECT_MATCH = "Weekly Sales Report Catalyst"
+SUBJECT_MATCH = "Weekly Sales Report"
 WEEK_RE = re.compile(r"(2026\d{2})")
 ATTACH_EXTS = (".xlsx", ".xlsb")
 
