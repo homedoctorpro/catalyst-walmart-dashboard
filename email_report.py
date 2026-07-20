@@ -5,6 +5,7 @@ Usage standalone: python email_report.py --dry-run
 """
 
 import os, sys, smtplib, math, argparse, io, base64
+from datetime import date
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -328,6 +329,81 @@ def make_oos_map(data):
     plt.close(fig)
     return b64
 
+# ── Rollback co-op tracker (top of email) ─────────────────────────────────────
+def build_coop_section(data):
+    """Red tracker card: $150k co-op burn, exhaustion date, and projected profit."""
+    rb = data.get("rollback")
+    co = data.get("coop")
+    if not rb or not rb.get("start_week") or not co:
+        return ""
+
+    def usd(v):   return f"${int(round(v)):,}"
+    def usdk(v):  return (f"${v/1000:.0f}k" if abs(v) >= 100000
+                          else (f"${v/1000:.1f}k" if abs(v) >= 1000 else usd(v)))
+    def md(iso):
+        d = date.fromisoformat(iso); return f'{d.strftime("%b")} {d.day}'
+    end_lbl = (lambda d: f'{d.strftime("%b")} {d.day}, {d.strftime("%y")}')(date.fromisoformat(co["end_date"]))
+    pct     = min(100.0, co["spent"] / co["fee"] * 100)
+    ex_flat = md(co["flat"]["exhaust_date"])   if co["flat"]["exhaust_date"]   else f"after {end_lbl}"
+    ex_grow = md(co["growth"]["exhaust_date"]) if co["growth"]["exhaust_date"] else f"after {end_lbl}"
+
+    def two(a, b): return f'{a} <span style="color:#bbb">&middot;</span> {b}'
+
+    def stat(label, main, sub):
+        return f"""<td width="33%" valign="top" style="padding:6px 8px;">
+          <div style="font-size:9px;font-weight:700;color:#a33;text-transform:uppercase;letter-spacing:.04em;">{label}</div>
+          <div style="font-size:17px;font-weight:800;color:#1a1a2e;line-height:1.15;margin-top:2px;">{main}</div>
+          <div style="font-size:10px;color:#888;margin-top:1px;">{sub or "&nbsp;"}</div>
+        </td>"""
+
+    return f"""
+    <table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:22px;">
+      <tr><td style="background:#fff;border:1px solid #ffcdd2;border-top:3px solid #d32f2f;border-radius:12px;padding:16px 18px;">
+        <div style="font-weight:800;font-size:15px;color:#c62828;font-family:Arial,Helvetica,sans-serif;">
+          &#128315; Rollback Co-op Tracker &mdash; 15&nbsp;lb ${rb["pre_price"]:.2f} &rarr; ${rb["price"]:.2f}
+        </div>
+        <div style="font-size:11px;color:#888;margin:2px 0 12px;">
+          ${co["fee"]/1000:.0f}k co-op funds the ${co["discount"]:.2f}/unit rollback &middot; ends {end_lbl}
+        </div>
+
+        <table width="100%" cellspacing="0" cellpadding="0" style="font-size:12px;color:#555;margin-bottom:5px;">
+          <tr><td align="left">Co-op used: <strong>{usd(co["spent"])}</strong> of {usdk(co["fee"])}</td>
+              <td align="right">{co["units_to_date"]:,} / {co["units_covered"]:,} units</td></tr>
+        </table>
+        <table width="100%" cellspacing="0" cellpadding="0" style="height:12px;background:#f0e0e0;border-radius:6px;margin-bottom:14px;">
+          <tr><td width="{pct:.0f}%" style="background:#e53935;height:12px;border-radius:6px;font-size:0;line-height:0;">&nbsp;</td>
+              <td style="font-size:0;line-height:0;">&nbsp;</td></tr>
+        </table>
+
+        <table width="100%" cellspacing="0" cellpadding="0">
+          <tr>
+            {stat("Units @ rollback (to date)", f'{co["units_to_date"]:,}', "&#8776; " + usd(rb["dollars_total"]) + " retail")}
+            {stat("Co-op remaining", usdk(co["remaining"]), f'{co["units_remaining"]:,} units')}
+            {stat("Run rate", f'{co["run_rate"]:,}/wk', "latest wk (" + wl(co["as_of_week"]) + ")")}
+          </tr>
+          <tr>
+            {stat("Co-op used up (est.)", two(ex_flat, ex_grow), "flat &middot; +3%/wk")}
+            {stat("Profit to date", usd(co["profit_to_date"]), "@ $" + f'{co["profit_coop"]:.2f}' + "/unit")}
+            {stat("Exp. profit by " + end_lbl, two(usdk(co["flat"]["profit_total"]), usdk(co["growth"]["profit_total"])), "flat &middot; +3%/wk")}
+          </tr>
+          <tr>
+            {stat("Rollback $ split &mdash; us / WMT", two(f'{co["flat"]["our_pct"]:.0f}/{co["flat"]["wm_pct"]:.0f}%', f'{co["growth"]["our_pct"]:.0f}/{co["growth"]["wm_pct"]:.0f}%'), "flat &middot; +3%/wk")}
+            {stat("Total rollback $ (all units)", two(usdk(co["flat"]["total_discount"]), usdk(co["growth"]["total_discount"])), "flat &middot; +3%/wk")}
+            {stat("&nbsp;", "&nbsp;", "&nbsp;")}
+          </tr>
+        </table>
+
+        <div style="margin-top:12px;font-size:10px;color:#999;line-height:1.5;border-top:1px solid #f2e0e0;padding-top:9px;">
+          Profit is <strong>${co["profit_coop"]:.2f}/unit</strong> while our ${co["fee"]/1000:.0f}k co-op funds the ${co["discount"]:.2f} rollback
+          (first {co["units_covered"]:,} units), then <strong>${co["profit_post"]:.2f}/unit</strong> once used up &mdash; Walmart funds the discount beyond that.
+          Our ${co["fee"]/1000:.0f}k is fixed, so the split is our share of the <em>total</em> rollback discount.
+          Projections run at {co["run_rate"]:,}/wk through {end_lbl}; "+3%/wk" compounds weekly.
+          Straddle-week rollback units are imputed from the blended price.
+        </div>
+      </td></tr>
+    </table>"""
+
+
 # ── HTML builder ──────────────────────────────────────────────────────────────
 def build_html(data):
     weeks       = data["weeks"]
@@ -424,6 +500,9 @@ def build_html(data):
       {kpi_box("Wholesale $",  fmt_usd(total.get("wholesale_dollars")), total.get("wholesale_dollars"), p_tot.get("wholesale_dollars"), sub=(f"≈ {fmt_usd(total.get('wholesale_dollars') * 52 / 12)}/mo run-rate" if total.get("wholesale_dollars") else None))}
     </tr></table>
     {usw_chart_html}"""
+
+    # ── Rollback co-op tracker (top of email) ───────────────────────────────────
+    coop_html = build_coop_section(data)
 
     # ── Highlights / auto-commentary ────────────────────────────────────────────
     highlights_html = build_highlights(
@@ -689,6 +768,7 @@ def build_html(data):
 
   <!-- Body -->
   <div class="body-card">
+    {coop_html}
     {highlights_html}
     {kpi_html}
     {sku_html}

@@ -71,6 +71,186 @@ WHOLESALE_PRICE = {
     "CATALYSTPET34LBUNSCE":  12.98,
 }
 
+# ── Price rollback ───────────────────────────────────────────────────────────
+# Walmart rolled BOTH 15 lb Catalyst SKUs (Original + Unscented) from $18.24 to
+# $15.97 starting 2026-07-13 — mid fiscal week 202624. The weekly feed has no
+# per-day price, so "units sold at the rollback price" is IMPUTED from each
+# week's blended implied price (pos_dollars / pos_qty) via a two-price back-out:
+#     units@rollback = qty * (P_pre - P_blended) / (P_pre - P_rollback)
+# where P_pre is the SKU's trailing pre-rollback implied price. Fully-post
+# weeks count all units; fully-pre weeks count zero. build_rollback() below.
+ROLLBACK = {
+    "date":      "2026-07-13",                          # first day at rollback price
+    "pre_price": 18.24,                                 # headline pre-rollback shelf price
+    "price":     15.97,                                 # rollback price (both 15 lb scents)
+    "skus":      ["CATALYST15ORIG", "CATALYST15UNSCEN"],
+}
+
+
+# ── Rollback co-op tracker ───────────────────────────────────────────────────
+# We pay a fixed $150k co-op fee that funds the $2.27/unit rollback discount for
+# 150000/2.27 = 66,079 units. While that fund is being consumed our per-unit
+# profit is $0.99 (we absorb the $2.27); once it's exhausted profit returns to
+# $3.26. The rollback program ends 2026-10-31. build_coop() projects cumulative
+# units, the co-op exhaustion date, and total profit two ways — flat at the
+# latest weekly run rate, and +3%/week growth.
+COOP = {
+    "fee":           150000.0,
+    "end_date":      "2026-10-31",    # rollback program hard stop
+    "profit_coop":   0.99,            # $/unit while co-op fund is being consumed
+    "profit_post":   3.26,            # $/unit after co-op fund is exhausted
+    "growth_weekly": 0.03,            # +3%/week scenario
+}
+
+
+def build_coop(rollback, metrics, week_dates):
+    """Project the $150k rollback co-op: exhaustion date + total profit, two ways."""
+    if not rollback or not rollback.get("start_week") or not rollback.get("by_week"):
+        return None
+    fee      = COOP["fee"]
+    discount = round(rollback["pre_price"] - rollback["price"], 2)   # $2.27
+    if discount <= 0:
+        return None
+    units_covered = int(fee // discount)
+    end   = date.fromisoformat(COOP["end_date"])
+    skus  = rollback["skus"]
+    p_coop, p_post = COOP["profit_coop"], COOP["profit_post"]
+
+    as_of_wk = sorted(rollback["by_week"])[-1]
+    as_of    = date.fromisoformat(week_dates[as_of_wk])
+    # Run rate = latest week's full 15 lb volume (both scents) — go-forward every
+    # unit sells at the rollback price.
+    run = sum(((metrics.get(as_of_wk, {}).get(s) or {}).get("pos_qty") or 0) for s in skus)
+
+    units_to_date = rollback["units_total"]
+
+    fut = []
+    d = as_of + timedelta(days=7)
+    while d <= end:
+        fut.append(d)
+        d += timedelta(days=7)
+
+    def project(growth):
+        cum, profit, exhaust = units_to_date, units_to_date * p_coop, None
+        for i, wend in enumerate(fut, start=1):
+            if growth:
+                wk = run * ((1 + COOP["growth_weekly"]) ** i)   # +3% compounded each week
+            else:
+                wk = float(run)
+            start, end_c = cum, cum + wk
+            coop_u = max(0.0, min(end_c, units_covered) - start)
+            profit += coop_u * p_coop + (wk - coop_u) * p_post
+            if exhaust is None and end_c >= units_covered and wk > 0:
+                frac = (units_covered - start) / wk
+                exhaust = (wend - timedelta(days=7)) + timedelta(days=round(frac * 7))
+            cum = end_c
+        total_disc = round(cum * discount, 2)          # total rollback discount $
+        our_share  = round(min(fee, total_disc), 2)    # we pay $150k (fixed) first
+        wm_share   = round(total_disc - our_share, 2)   # Walmart funds the remainder
+        return {
+            "units_total":  int(round(cum)),
+            "units_coop":   int(min(round(cum), units_covered)),
+            "units_post":   int(max(0, round(cum) - units_covered)),
+            "profit_total": round(profit, 2),
+            "exhaust_date": exhaust.isoformat() if exhaust else None,
+            "total_discount": total_disc,
+            "our_share":    our_share,
+            "wm_share":     wm_share,
+            "our_pct":      round(our_share / total_disc * 100, 1) if total_disc else None,
+            "wm_pct":       round(wm_share / total_disc * 100, 1) if total_disc else None,
+        }
+
+    return {
+        "fee": fee, "discount": discount, "units_covered": units_covered,
+        "end_date": COOP["end_date"], "growth_weekly": COOP["growth_weekly"],
+        "profit_coop": p_coop, "profit_post": p_post,
+        "as_of_week": as_of_wk, "as_of_date": as_of.isoformat(),
+        "run_rate": int(run),
+        "units_to_date": units_to_date,
+        "spent": round(units_to_date * discount, 2),
+        "remaining": round(fee - units_to_date * discount, 2),
+        "units_remaining": max(0, units_covered - units_to_date),
+        "profit_to_date": round(units_to_date * p_coop, 2),
+        "future_weeks": len(fut),
+        "flat":   project(False),
+        "growth": project(True),
+    }
+
+
+def build_rollback(metrics, week_dates):
+    """Impute cumulative 15 lb units sold at the rollback price. See ROLLBACK.
+
+    Returns a dict for the dashboard/email, or None if no rollback-era week
+    has data yet.
+    """
+    rb_date = date.fromisoformat(ROLLBACK["date"])
+    price   = ROLLBACK["price"]
+    skus    = ROLLBACK["skus"]
+    weeks   = sorted(w for w in week_dates)
+
+    def implied(w, sku):
+        m = metrics.get(w, {}).get(sku, {})
+        d, q = m.get("pos_dollars"), m.get("pos_qty")
+        return (d / q) if d and q else None
+
+    # Per-SKU pre-rollback baseline = mean implied price over up to 4 fully-pre
+    # weeks (week END before the rollback date). Captures each scent's own price.
+    baseline = {}
+    for sku in skus:
+        pre = [implied(w, sku) for w in weeks
+               if date.fromisoformat(week_dates[w]) < rb_date]
+        pre = [p for p in pre if p]
+        baseline[sku] = round(sum(pre[-4:]) / len(pre[-4:]), 4) if pre else ROLLBACK["pre_price"]
+
+    by_week = {}
+    units_by_sku = {sku: 0 for sku in skus}
+    start_week = None
+    partial = None
+    for w in weeks:
+        end   = date.fromisoformat(week_dates[w])
+        start = end - timedelta(days=6)
+        if end < rb_date:
+            continue                                    # fully pre-rollback
+        if start_week is None:
+            start_week = w
+        row = {}
+        for sku in skus:
+            q = metrics.get(w, {}).get(sku, {}).get("pos_qty")
+            if not q:
+                continue
+            if start >= rb_date:
+                u = q                                   # entire week at rollback price
+            else:
+                imp   = implied(w, sku)
+                denom = baseline[sku] - price
+                frac  = ((baseline[sku] - imp) / denom) if (imp is not None and denom) else 0.0
+                frac  = min(1.0, max(0.0, frac))
+                u = int(round(q * frac))
+            row[sku] = u
+            units_by_sku[sku] += u
+        by_week[w] = row
+        if start < rb_date <= end and partial is None:
+            partial = {"week": w, "days_pre": (rb_date - start).days,
+                       "days_roll": (end - rb_date).days + 1}
+
+    if start_week is None:
+        return None
+
+    units_total = sum(units_by_sku.values())
+    return {
+        "date":           ROLLBACK["date"],
+        "pre_price":      ROLLBACK["pre_price"],
+        "price":          price,
+        "skus":           skus,
+        "start_week":     start_week,
+        "baseline_price": baseline,
+        "by_week":        by_week,
+        "units_by_sku":   units_by_sku,
+        "units_total":    units_total,
+        "dollars_total":  round(units_total * price, 2),
+        "partial":        partial,
+    }
+
 # ── Ecomm product matching ───────────────────────────────────────────────────
 # Catalyst products are matched by tokens (brand + size + scent) so format
 # wobble (extra commas, " Bag" suffix, spacing) doesn't break the join.
@@ -939,6 +1119,26 @@ def main():
     week_labels = {w: compute_week_label(w) for w in all_week_codes}
     week_dates  = {w: d for w in all_week_codes if (d := compute_week_date(w))}
 
+    # Price rollback: impute cumulative 15 lb units sold at the $15.97 rollback price.
+    rollback = build_rollback(metrics, week_dates)
+    if rollback:
+        p = rollback.get("partial")
+        pnote = (f", partial start week {p['week']}: {p['days_roll']}/7 days"
+                 if p else "")
+        print(f"\nRollback: 15 lb ${ROLLBACK['pre_price']:.2f}→${ROLLBACK['price']:.2f} "
+              f"from {ROLLBACK['date']} (start {rollback['start_week']}{pnote}); "
+              f"imputed {rollback['units_total']:,} units @ rollback "
+              f"(≈${rollback['dollars_total']:,.0f})")
+
+    # Co-op tracker: project the $150k fund's exhaustion + total profit (flat & +3%/mo).
+    coop = build_coop(rollback, metrics, week_dates)
+    if coop:
+        print(f"  Co-op $150k: {coop['units_covered']:,} units covered; "
+              f"{coop['units_to_date']:,} used (${coop['spent']:,.0f}). "
+              f"Exhausts flat {coop['flat']['exhaust_date']} / +3% {coop['growth']['exhaust_date']}; "
+              f"total profit by {coop['end_date']}: flat ${coop['flat']['profit_total']:,.0f} / "
+              f"+3% ${coop['growth']['profit_total']:,.0f}")
+
     # 5c. Endcap data (optional - requires EndcapStoreList.xlsx + Store & DC Addresses.xlsx)
     print("\nBuilding endcap store data...")
     try:
@@ -995,6 +1195,8 @@ def main():
         "traited": traited,
         "supply_plan": supply_plan,
         "forecast_baseline": forecast_baseline,
+        "rollback": rollback,
+        "coop": coop,
     }
 
     # 7. Read template and embed JSON

@@ -646,6 +646,9 @@
 
   <!-- ── Tab 1: Metrics ─────────────────────────────────────────────────── -->
   <div id="tab-metrics" class="tab-panel active">
+    <!-- Rollback co-op tracker (top of dashboard) -->
+    <div id="coop-tracker" style="display:none;margin:0 0 22px;"></div>
+
     <!-- KPI Row -->
     <div class="kpi-row" id="kpi-row">
       <div class="kpi-card" style="border-left-color:#0057e7">
@@ -2398,10 +2401,72 @@ function initDashboard() {
     document.getElementById("header-range").textContent =
       `Weeks ${DATA.weeks[0]} – ${DATA.weeks[DATA.weeks.length-1]}`;
   buildKPIs();
+  renderCoopTracker();
   buildMetricFilter();
   buildMetricCharts();
   buildMetricsTable();
   buildSkuFilters();
+}
+
+// ══ Rollback Co-op Tracker (top of dashboard) ═════════════════════════════════
+function renderCoopTracker() {
+  const el = document.getElementById("coop-tracker");
+  const co = DATA.coop, rb = DATA.rollback;
+  if (!el || !co || !rb) return;
+
+  const usd  = v => "$" + Math.round(v).toLocaleString();
+  const usdK = v => Math.abs(v) >= 1000 ? "$" + (v/1000).toFixed(v>=100000?0:1) + "k" : usd(v);
+  const md   = iso => new Date(iso + "T00:00:00")
+                 .toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const pct  = Math.min(100, co.spent / co.fee * 100);
+  const endLbl = new Date(co.end_date + "T00:00:00")
+                 .toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" });
+  const exFlat = co.flat.exhaust_date   ? md(co.flat.exhaust_date)   : "after " + endLbl;
+  const exGrow = co.growth.exhaust_date ? md(co.growth.exhaust_date) : "after " + endLbl;
+
+  const stat = (label, main, sub) =>
+    `<div style="flex:1 1 160px;min-width:150px;">
+       <div style="font-size:10px;font-weight:700;color:#a33;text-transform:uppercase;letter-spacing:.04em;">${label}</div>
+       <div style="font-size:18px;font-weight:800;color:#1a1a2e;line-height:1.15;margin-top:2px;">${main}</div>
+       <div style="font-size:11px;color:#777;margin-top:1px;">${sub || "&nbsp;"}</div>
+     </div>`;
+
+  const twoWay = (flat, grow) =>
+    `<span style="color:#1a1a2e">${flat}</span> <span style="color:#bbb">·</span> ${grow}`;
+
+  el.innerHTML =
+    `<div style="background:#fff;border:1px solid #ffcdd2;border-top:3px solid #d32f2f;border-radius:12px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,.05);">
+       <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
+         <div style="font-weight:800;font-size:15px;color:#c62828;">🔻 Rollback Co-op Tracker — 15&nbsp;lb $${rb.pre_price.toFixed(2)} → $${rb.price.toFixed(2)}</div>
+         <div style="font-size:11px;color:#888;">$${(co.fee/1000).toFixed(0)}k co-op funds the $${co.discount.toFixed(2)}/unit rollback · ends ${endLbl}</div>
+       </div>
+
+       <div style="margin-bottom:6px;font-size:12px;color:#555;display:flex;justify-content:space-between;">
+         <span>Co-op fund used: <strong>${usd(co.spent)}</strong> of ${usdK(co.fee)}</span>
+         <span>${co.units_to_date.toLocaleString()} / ${co.units_covered.toLocaleString()} units</span>
+       </div>
+       <div style="height:12px;background:#f0e0e0;border-radius:6px;overflow:hidden;margin-bottom:16px;">
+         <div style="height:100%;width:${pct.toFixed(1)}%;background:linear-gradient(90deg,#e53935,#ff7043);"></div>
+       </div>
+
+       <div style="display:flex;flex-wrap:wrap;gap:16px;">
+         ${stat("Units @ rollback (to date)", co.units_to_date.toLocaleString(), "≈ " + usd(rb.dollars_total) + " retail")}
+         ${stat("Co-op remaining", usdK(co.remaining), co.units_remaining.toLocaleString() + " units")}
+         ${stat("Run rate", co.run_rate.toLocaleString() + "/wk", "latest week (" + weekLabel(co.as_of_week) + ")")}
+         ${stat("Co-op used up (est.)", twoWay(exFlat, exGrow), "flat · +3%/wk")}
+         ${stat("Profit to date", usd(co.profit_to_date), "@ $" + co.profit_coop.toFixed(2) + "/unit")}
+         ${stat("Exp. total profit by " + endLbl, twoWay(usdK(co.flat.profit_total), usdK(co.growth.profit_total)), "flat · +3%/wk")}
+         ${stat("Rollback $ split — us / WMT", twoWay(co.flat.our_pct + "/" + co.flat.wm_pct + "%", co.growth.our_pct + "/" + co.growth.wm_pct + "%"), "flat · +3%/wk")}
+       </div>
+
+       <div style="margin-top:14px;font-size:11px;color:#888;line-height:1.5;border-top:1px solid #f2e0e0;padding-top:10px;">
+         Profit is <strong>$${co.profit_coop.toFixed(2)}/unit</strong> while our $${(co.fee/1000).toFixed(0)}k co-op funds the $${co.discount.toFixed(2)} rollback (first ${co.units_covered.toLocaleString()} units),
+         then <strong>$${co.profit_post.toFixed(2)}/unit</strong> once it's used up — Walmart funds the discount beyond that. Our $${(co.fee/1000).toFixed(0)}k is fixed, so the "split" is our share of the
+         <em>total</em> rollback discount (${usd(co.flat.total_discount)} flat · ${usd(co.growth.total_discount)} at +3%/wk). Projections run at the ${co.run_rate.toLocaleString()}/wk latest-week rate through ${endLbl};
+         "+3%/wk" compounds weekly. Straddle-week rollback units are imputed from the blended price.
+       </div>
+     </div>`;
+  el.style.display = "block";
 }
 
 // ══ KPI Cards ═════════════════════════════════════════════════════════════════
@@ -2484,11 +2549,33 @@ function makeTrace(label, xLabels, values, isTotal, hoverFmt) {
   };
 }
 
+// Vertical "rollback" reference line + label, overlaid on every weekly chart so
+// the price change is visible everywhere. Empty overlay when no rollback data.
+function rollbackOverlay() {
+  const rb = DATA.rollback;
+  if (!rb || !rb.start_week) return { shapes: [], annotations: [] };
+  const x = weekLabel(rb.start_week);
+  return {
+    shapes: [{
+      type: "line", xref: "x", yref: "paper",
+      x0: x, x1: x, y0: 0, y1: 1,
+      line: { color: "#d32f2f", width: 1.5, dash: "dot" }, layer: "below",
+    }],
+    annotations: [{
+      x: x, xref: "x", y: 1, yref: "paper", yanchor: "bottom", xanchor: "right",
+      text: "🔻 15lb $" + rb.pre_price.toFixed(2) + "→$" + rb.price.toFixed(2),
+      showarrow: false, font: { size: 9, color: "#d32f2f" },
+      bgcolor: "rgba(255,255,255,0.75)",
+    }],
+  };
+}
+
 function buildMetricCharts() {
   const weeks   = DATA.weeks;
   const xLabels = weeks.map(weekLabel);
   const met     = DATA.metrics;
   const cfg     = { responsive:true, displayModeBar:false };
+  const RB      = rollbackOverlay();
 
   function getVals(key, label) {
     return weeks.map(w => (met[w] && met[w][label] != null) ? met[w][label][key] : null);
@@ -2496,7 +2583,7 @@ function buildMetricCharts() {
 
   Plotly.newPlot("chart-usw",
     ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("usw", s), s==="Total", "%{y:.2f}")),
-    {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"Units/Store/Week"}}, cfg);
+    {...PLOTLY_LAYOUT_BASE, ...RB, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"Units/Store/Week"}}, cfg);
 
   // Adjusted U/S/W = usw / (instock_pct / 100)  — projects to 100% in-stock velocity
   Plotly.newPlot("chart-adj-usw",
@@ -2505,23 +2592,23 @@ function buildMetricCharts() {
         const m = (met[w]||{})[s]; if (!m || !m.usw || !m.instock_pct) return null;
         return Math.round(m.usw / (m.instock_pct / 100) * 100) / 100;
       }), s==="Total", "%{y:.2f}")),
-    {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"Adj. Units/Store/Week"}}, cfg);
+    {...PLOTLY_LAYOUT_BASE, ...RB, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"Adj. Units/Store/Week"}}, cfg);
 
   Plotly.newPlot("chart-instock",
     ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("instock_pct", s), s==="Total", "%{y:.2f}%")),
-    {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"%", range:[50,105], ticksuffix:"%"}}, cfg);
+    {...PLOTLY_LAYOUT_BASE, ...RB, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"%", range:[50,105], ticksuffix:"%"}}, cfg);
 
   Plotly.newPlot("chart-units",
     ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("pos_qty", s), s==="Total", "%{y:,.0f}")),
-    {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"Units"}}, cfg);
+    {...PLOTLY_LAYOUT_BASE, ...RB, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"Units"}}, cfg);
 
   Plotly.newPlot("chart-retail",
     ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("pos_dollars", s), s==="Total", "$%{y:,.0f}")),
-    {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"$", tickprefix:"$", tickformat:",.0f"}}, cfg);
+    {...PLOTLY_LAYOUT_BASE, ...RB, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"$", tickprefix:"$", tickformat:",.0f"}}, cfg);
 
   Plotly.newPlot("chart-wholesale",
     ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("wholesale_dollars", s), s==="Total", "$%{y:,.0f}")),
-    {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"$", tickprefix:"$", tickformat:",.0f"}}, cfg);
+    {...PLOTLY_LAYOUT_BASE, ...RB, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"$", tickprefix:"$", tickformat:",.0f"}}, cfg);
 }
 
 // ══ Metrics Table ═════════════════════════════════════════════════════════════
