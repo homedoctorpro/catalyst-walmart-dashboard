@@ -32,10 +32,10 @@ EMAIL_TO      = [
     "Amanda.Lourenco@quartile.com",
     "bjordan@lignetics.com",
     "jlatham@storandco.com",
-    "jdingus@lignetics.com",
-    "rdiefert@lignetics.com",
     "card@lignetics.com",
     "bking@lignetics.com",
+    "dnichols@lignetics.com",
+    "abright@lignetics.com",
 ]
 SMTP_HOST     = "smtp.gmail.com"
 SMTP_PORT     = 465   # SSL; falls back to 587/STARTTLS if needed
