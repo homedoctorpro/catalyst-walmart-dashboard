@@ -785,6 +785,12 @@
       <button class="ctrl-btn play" id="sales-play-btn" onclick="togglePlay('sales')">▶ Play</button>
     </div>
     <div class="sku-filter" id="sales-sku-filter"><label>SKU Filter:</label></div>
+    <div class="map-controls" style="gap:8px;margin-top:2px;">
+      <label>Map view:</label>
+      <button class="ctrl-btn active" id="smv-sales"  onclick="setSalesMapView('sales')">Sales volume</button>
+      <button class="ctrl-btn"        id="smv-endcap" onclick="setSalesMapView('endcap')">Endcap status</button>
+    </div>
+    <div id="endcap-legend" style="display:none;margin:8px 0 2px;font-size:12px;color:#555;line-height:1.7;"></div>
     <div class="sales-map-row">
       <div class="map-card"><div id="sales-map" class="map-div"></div></div>
       <div class="top-stores-card">
@@ -801,7 +807,7 @@
         </table>
       </div>
     </div>
-    <div class="chart-card" style="margin-top:14px;">
+    <div class="chart-card" id="sales-hist-card" style="margin-top:14px;">
       <h3>Units Sold Distribution — Store Histogram</h3>
       <div id="sales-hist-charts" style="display:flex;flex-direction:column;gap:10px;margin-top:8px;">
         <div id="sales-hist-row-15" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
@@ -5013,10 +5019,100 @@ function handleSkuFilter(tab, sku, checked) {
 // ══ Tab 2: Sales Map ══════════════════════════════════════════════════════════
 let salesWeekIdx = DATA.store_weeks.length - 1;
 let salesPlayTimer = null;
+let salesMapView   = "sales";   // "sales" | "endcap"
+
+// Traited (authorized) store set for a SKU selection — union of Hailey's
+// per-SKU authorized lists. Used to strip non-traited "phantom" stores from
+// the Sales Map, and (with in-feed presence) to classify endcap status.
+const HAS_TRAITED = !!(DATA.traited && DATA.traited.by_sku);
+function traitedForSkus(skuSet) {
+  const set = new Set();
+  const bs = (DATA.traited && DATA.traited.by_sku) || {};
+  Object.keys(bs).forEach(sku => { if (skuSet.has(sku)) bs[sku].forEach(s => set.add(String(s))); });
+  return set;
+}
+// Endcap store set + geo (from DATA.endcap.rows).
+const ENDCAP_SET = new Set();
+const ENDCAP_GEO = {};
+((DATA.endcap && DATA.endcap.rows) || []).forEach(r => {
+  const sn = String(r.store_number);
+  ENDCAP_SET.add(sn);
+  if (r.latitude && r.longitude)
+    ENDCAP_GEO[sn] = { lat:r.latitude, lon:r.longitude, city:r.city, state:r.state,
+                       street:r.street_address, qty:r.endcap_recommended_qty };
+});
+
+function setSalesMapView(mode) {
+  salesMapView = mode;
+  document.getElementById("smv-sales").classList.toggle("active",  mode === "sales");
+  document.getElementById("smv-endcap").classList.toggle("active", mode === "endcap");
+  const salesOnly = ["#tab-sales .top-stores-card", "#tab-sales .store-list-card", "#sales-hist-card"];
+  salesOnly.forEach(sel => { const e = document.querySelector(sel); if (e) e.style.display = mode === "endcap" ? "none" : ""; });
+  document.getElementById("endcap-legend").style.display = mode === "endcap" ? "block" : "none";
+  renderSalesMap();
+}
 
 function initSalesMap() {
   Plotly.newPlot("sales-map", [], geoLayout(), {responsive:true, displayModeBar:false});
   renderSalesMap();
+}
+
+// Endcap-status view: classify every relevant store into 3 buckets. "Stocks
+// today" = traited AND present in the selected week's feed for the chosen SKUs.
+function renderEndcapView(week, skuSet) {
+  const wData   = DATA.weekly_stores[week] || {};
+  const traited = traitedForSkus(skuSet);
+  const feed = new Set();
+  Object.entries(wData).forEach(([sn, sd]) => {
+    if (Object.keys(sd.skus || {}).some(sku => skuSet.has(sku))) feed.add(String(sn));
+  });
+  const stocks = sn => traited.has(sn) && feed.has(sn);
+  const geoFor = sn => {
+    const s = DATA.stores[sn];
+    if (s && s.lat && s.lon) return { lat:s.lat, lon:s.lon, city:s.city, state:s.state };
+    return ENDCAP_GEO[sn] || null;
+  };
+
+  const cat = () => ({ lat:[], lon:[], txt:[] });
+  const c1 = cat(), c2 = cat(), c3 = cat();   // stocks-no-EC, stocks+EC, EC-no-stock
+  let n1 = 0, n2 = 0, n3 = 0;
+
+  traited.forEach(sn => {
+    if (!feed.has(sn)) return;                // stocks = traited & feed
+    const inEc = ENDCAP_SET.has(sn);
+    if (inEc) n2++; else n1++;
+    const g = geoFor(sn); if (!g) return;
+    const c = inEc ? c2 : c1;
+    c.lat.push(g.lat); c.lon.push(g.lon);
+    c.txt.push(`Store #${sn}<br>${g.city||""}, ${g.state||""}<br>${inEc ? "Stocks + endcap" : "Stocks — no endcap"}`);
+  });
+  ENDCAP_SET.forEach(sn => {
+    if (stocks(sn)) return;
+    n3++;
+    const g = geoFor(sn); if (!g) return;
+    c3.lat.push(g.lat); c3.lon.push(g.lon);
+    c3.txt.push(`Store #${sn}<br>${g.city||""}, ${g.state||""}<br>Endcap — not stocking today`);
+  });
+
+  const mk = (c, color, name, n) => ({
+    type:"scattergeo", lat:c.lat, lon:c.lon, text:c.txt, hoverinfo:"text",
+    name:`${name} (${n.toLocaleString()})`,
+    marker:{ size:6, color, opacity:0.82, line:{ width:0.4, color:"#fff" } },
+  });
+  Plotly.react("sales-map", [
+    mk(c1, "#2e7d32", "Stocks — no endcap",     n1),
+    mk(c2, "#0057e7", "Stocks + endcap",        n2),
+    mk(c3, "#d32f2f", "Endcap — not stocking",  n3),
+  ], geoLayout());
+
+  const chip = (color, label, n) =>
+    `<span style="white-space:nowrap;color:${color};font-weight:600;">● ${label}: ${n.toLocaleString()}</span>`;
+  document.getElementById("endcap-legend").innerHTML =
+    `<div style="font-weight:700;color:#333;">Endcap status — ${weekLabel(week)} ` +
+    `<span style="font-weight:400;color:#999;">(stocking = traited &amp; in feed)</span></div>` +
+    chip("#2e7d32", "Stocks, no endcap", n1) + " &nbsp;&nbsp; " +
+    chip("#0057e7", "Stocks + endcap", n2) + " &nbsp;&nbsp; " +
+    chip("#d32f2f", "Endcap, not stocking", n3);
 }
 
 function renderSalesMap() {
@@ -5027,8 +5123,15 @@ function renderSalesMap() {
   const skuSet = selectedSkus.sales;
   const wData  = DATA.weekly_stores[week] || {};
 
+  if (salesMapView === "endcap") { renderEndcapView(week, skuSet); return; }
+
+  // Restrict the Sales Map to traited (authorized) stores — drop non-traited
+  // "phantom" listings so only real authorized stores show.
+  const traited = HAS_TRAITED ? traitedForSkus(skuSet) : null;
+
   const filteredStateSales = {};
   Object.entries(wData).forEach(([sn, sdata]) => {
+    if (traited && !traited.has(sn)) return;
     const info = DATA.stores[sn]; if (!info) return;
     const stName = ABBR_TO_STATE[info.state] || info.state;
     let qty = 0;
@@ -5049,8 +5152,9 @@ function renderSalesMap() {
   const dotLats=[], dotLons=[], dotText=[], dotColors=[], dotSqrt=[];
   const zeroLats=[], zeroLons=[], zeroText=[];
 
-  // Collect stores with sales from wData
+  // Collect stores with sales from wData (traited only)
   Object.entries(wData).forEach(([sn, sdata]) => {
+    if (traited && !traited.has(sn)) return;
     const info = DATA.stores[sn]; if (!info||!info.lat||!info.lon) return;
     let qty=0; const lines=[];
     Object.entries(sdata.skus||{}).forEach(([sku,sv]) => { if(skuSet.has(sku)){qty+=sv.qty||0; lines.push(`${sku}: ${sv.qty} units`);} });
@@ -5065,9 +5169,10 @@ function renderSalesMap() {
     }
   });
 
-  // Add stores not in wData at all (no record this week)
+  // Add stores not in wData at all (no record this week) — traited only
   const wDataKeys = new Set(Object.keys(wData));
   Object.entries(DATA.stores).forEach(([sn, info]) => {
+    if (traited && !traited.has(sn)) return;
     if (wDataKeys.has(sn) || !info.lat || !info.lon) return;
     zeroLats.push(info.lat); zeroLons.push(info.lon);
     zeroText.push(`Store #${sn}<br>${info.street||""}<br>${info.city}, ${info.state}<br><i>No sales data this week</i>`);
