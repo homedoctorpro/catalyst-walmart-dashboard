@@ -1434,9 +1434,15 @@
         <div class="trial-kpi"><div class="trial-kpi-lbl">Total Customers <span style="color:#bbb;font-weight:500">(panel)</span></div><div class="trial-kpi-val" id="trial-kpi-cust">—</div></div>
         <div class="trial-kpi" style="border-left-color:#2e7d32"><div class="trial-kpi-lbl">Repeat Customers, 2+ <span style="color:#bbb;font-weight:500">(panel)</span></div><div class="trial-kpi-val" id="trial-kpi-rep" style="color:#2e7d32">—</div></div>
         <div class="trial-kpi" style="border-left-color:#0057e7"><div class="trial-kpi-lbl">Repeat Rate (Cumulative)</div><div class="trial-kpi-val" id="trial-kpi-rate" style="color:#0057e7">—</div></div>
+        <div class="trial-kpi" style="border-left-color:#00695c"><div class="trial-kpi-lbl">Mature Repeat Rate <span style="color:#bbb;font-weight:500">(6-wk lag)</span></div><div class="trial-kpi-val" id="trial-kpi-mature" style="color:#00695c">—</div><div class="trial-kpi-sub" id="trial-kpi-mature-sub"></div></div>
         <div class="trial-kpi" style="border-left-color:#e63221"><div class="trial-kpi-lbl">Latest Week — Repeat %</div><div class="trial-kpi-val" id="trial-kpi-wkrepeat" style="color:#e63221">—</div><div class="trial-kpi-sub" id="trial-kpi-wkrepeat-sub"></div></div>
         <div class="trial-kpi" style="border-left-color:#e67300"><div class="trial-kpi-lbl">Card $ Cumulative <span style="color:#bbb;font-weight:500">(panel)</span></div><div class="trial-kpi-val" id="trial-kpi-dollars">—</div></div>
         <div class="trial-kpi" style="border-left-color:#9c27b0"><div class="trial-kpi-lbl">$ per Customer</div><div class="trial-kpi-val" id="trial-kpi-pc" style="color:#9c27b0">—</div></div>
+      </div>
+
+      <div class="chart-card" style="margin-top:14px">
+        <h3>📊 The Read <span style="font-weight:500;color:#999;font-size:0.78rem">— auto-computed from the data on every refresh</span></h3>
+        <div id="trial-analysis" style="font-size:0.85rem;color:#444;line-height:1.6"></div>
       </div>
 
       <div class="trial-filters">
@@ -1482,6 +1488,24 @@
         <div class="chart-card">
           <h3>Transaction-Count Distribution (Selected Product)</h3>
           <div id="chart-trial-buckets" class="chart-div" style="height:320px"></div>
+        </div>
+      </div>
+
+      <div class="chart-card" style="margin-top:14px">
+        <h3 style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span>Bucket Growth — Weekly Net Adds by Transaction Count (Selected Product)</span>
+          <span style="display:flex;gap:4px">
+            <button id="trial-bg-abs" class="ctrl-btn trial-bg-mode-btn active" onclick="setTrialBGMode('abs')"
+                    style="font-size:0.74rem;padding:4px 10px">Net adds</button>
+            <button id="trial-bg-pct" class="ctrl-btn trial-bg-mode-btn" onclick="setTrialBGMode('pct')"
+                    style="font-size:0.74rem;padding:4px 10px">Growth %</button>
+          </span>
+        </h3>
+        <div id="chart-trial-bucketgrowth" class="chart-div" style="height:340px"></div>
+        <div style="font-size:0.72rem;color:#999;margin-top:4px">
+          Net adds = week-over-week change in each cumulative bucket (customers entering the bucket minus those
+          graduating to the next one). Growth % = that change as a share of the bucket's prior-week size
+          (shown once a bucket reaches 100+ customers; 4-wk avg line smooths sampling noise).
         </div>
       </div>
 
@@ -2081,7 +2105,7 @@ function switchTab(name, btn) {
   if (name === "trial") {
     if (!trialInit) { initTrialRepeat(); trialInit = true; }
     else setTimeout(() => {
-      ["chart-trial-rate","chart-trial-cumcust","chart-trial-newcust","chart-trial-buckets","chart-trial-dollars","chart-trial-pc"]
+      ["chart-trial-rate","chart-trial-cumcust","chart-trial-newcust","chart-trial-buckets","chart-trial-bucketgrowth","chart-trial-dollars","chart-trial-pc"]
         .forEach(id => { const el = document.getElementById(id); if (el) Plotly.Plots.resize(el); });
     }, 50);
   }
@@ -6492,6 +6516,29 @@ function trialWeeklyNew(prod) {
   return tc.map((v, i) => i === 0 ? v : Math.max(0, v - tc[i-1]));
 }
 
+// Mature (lagged) repeat rate: repeaters(T) / total customers(T - lag).
+// The naive cumulative rate is dragged down by recent trialers who haven't had
+// time to repeat; lagging the denominator ~one bag-life (6 wks for a 15 lb bag)
+// measures repeat propensity against the base that HAS had time.
+const TRIAL_MATURE_LAG = 6;
+function trialRepeaters(prod, i) {
+  const c = prod.customers;
+  return (c["2"][i]||0) + (c["3"][i]||0) + (c["4"][i]||0) + (c["5"][i]||0) + (c["6+"][i]||0);
+}
+function trialMatureRateSeries(prod, lag) {
+  lag = lag || TRIAL_MATURE_LAG;
+  const tc = prod.total_customers, out = [];
+  for (let i = 0; i < tc.length; i++) {
+    const base = i >= lag ? tc[i - lag] : 0;
+    out.push(base ? trialRepeaters(prod, i) / base * 100 : null);
+  }
+  return out;
+}
+function trialLastNonNull(arr) {
+  for (let i = arr.length - 1; i >= 0; i--) if (arr[i] != null) return { v: arr[i], i };
+  return { v: null, i: -1 };
+}
+
 // Cumulative TRANSACTION count derived from buckets (6+ modeled as 6 — lower bound)
 function trialCumulativeTxns(prod) {
   const c = prod.customers;
@@ -6522,6 +6569,59 @@ function trialWeeklyNewVsRepeat(prod) {
     repeatPct.push(totalClamped > 0 ? rep / totalClamped * 100 : 0);
   }
   return { newTxns, repeatTxns, totalTxns, repeatPct };
+}
+
+let trialBGMode = "abs"; // 'abs' (weekly net adds) | 'pct' (w/w growth %, 4-wk avg)
+function setTrialBGMode(mode) {
+  trialBGMode = mode;
+  document.getElementById("trial-bg-abs").classList.toggle("active", mode === "abs");
+  document.getElementById("trial-bg-pct").classList.toggle("active", mode === "pct");
+  if (window._trialLayoutBase && window._trialCfg) renderTrialBucketGrowthChart(window._trialLayoutBase, window._trialCfg);
+}
+
+function renderTrialBucketGrowthChart(layoutBase, cfg) {
+  const prod = trialProd(trialSelectedProduct);
+  if (!prod) return;
+  const xLabels = trialProdWeeks(trialSelectedProduct).map(fmtTrialDate);
+  const buckets = ["1","2","3","4","5","6+"];
+  let series, yaxis;
+  if (trialBGMode === "abs") {
+    // Weekly net change in each cumulative bucket (entries minus graduations)
+    series = buckets.map(b => {
+      const cum = prod.customers[b];
+      return {
+        x: xLabels, y: cum.map((v, i) => i === 0 ? v : v - cum[i-1]),
+        name: b + " txn", type: "bar", marker: { color: TRIAL_BUCKET_COLORS[b] },
+        hovertemplate: b + " txn: %{y:,.0f}<extra></extra>",
+      };
+    });
+    yaxis = { ...layoutBase.yaxis, title: "Weekly net adds (customers)", tickformat: ",.0f" };
+  } else {
+    // W/W % growth per bucket, 4-wk trailing average, floor of 100 customers
+    series = buckets.map(b => {
+      const cum = prod.customers[b];
+      const raw = cum.map((v, i) => (i > 0 && cum[i-1] >= 100) ? (v - cum[i-1]) / cum[i-1] * 100 : null);
+      const y = raw.map((_, i) => {
+        const w = raw.slice(Math.max(0, i-3), i+1).filter(v => v != null);
+        return w.length ? w.reduce((a,c) => a+c, 0) / w.length : null;
+      });
+      return {
+        x: xLabels, y, name: b + " txn",
+        type: "scatter", mode: "lines+markers",
+        line: { color: TRIAL_BUCKET_COLORS[b], width: 2 },
+        marker:{ color: TRIAL_BUCKET_COLORS[b], size: 5 },
+        hovertemplate: b + " txn: +%{y:.1f}%/wk<extra></extra>",
+      };
+    });
+    yaxis = { ...layoutBase.yaxis, title: "W/W growth (4-wk avg)", ticksuffix: "%" };
+  }
+  Plotly.newPlot("chart-trial-bucketgrowth", series, {
+    ...layoutBase,
+    barmode: "relative",
+    title: { text: trialSelectedProduct, font: { size: 12 }, x: 0.02, y: 0.98 },
+    yaxis,
+    hovermode: "x unified",
+  }, cfg);
 }
 
 let trialNRMode = "abs"; // 'abs' | 'pct'
@@ -6581,6 +6681,13 @@ function initTrialRepeat() {
   document.getElementById("trial-kpi-cust").innerHTML = totalCust.toLocaleString() + dTag(dCust);
   document.getElementById("trial-kpi-rep").innerHTML = repeaters.toLocaleString() + dTag(dCust);
   document.getElementById("trial-kpi-rate").innerHTML = rate.toFixed(1) + "%" + dTag(dCust);
+  const matureAll = trialMatureRateSeries(all);
+  const matureNow = trialLastNonNull(matureAll);
+  if (matureNow.v != null) {
+    document.getElementById("trial-kpi-mature").innerHTML = matureNow.v.toFixed(1) + "%" + dTag(dCust);
+    document.getElementById("trial-kpi-mature-sub").textContent =
+      `repeaters ÷ customer base ${TRIAL_MATURE_LAG} wks prior`;
+  }
   document.getElementById("trial-kpi-dollars").innerHTML = "$" + Math.round(totalDollars).toLocaleString() + dTag(dDet);
   document.getElementById("trial-kpi-pc").innerHTML = "$" + dollarsPerCust.toFixed(2) + dTag(dDet);
 
@@ -6618,8 +6725,15 @@ function initTrialRepeat() {
     ...extra,
   });
 
-  // Repeat Rate over time
+  // Repeat Rate over time — naive cumulative per product + mature (lagged) line
   const rateSeries = [
+    {
+      x: xLabelsAll, y: matureAll, name: `Mature (${TRIAL_MATURE_LAG}-wk lag)`,
+      type: "scatter", mode: "lines+markers",
+      line:  { color: "#00695c", width: 3 },
+      marker:{ color: "#00695c", size: 6 },
+      hovertemplate: `Mature (${TRIAL_MATURE_LAG}-wk lag): %{y:.1f}%<extra></extra>`,
+    },
     allLine({ y: trialRepeatRateSeries(all), hovertemplate: "All Products: %{y:.1f}%<extra></extra>" }),
     ...skuNames.map(name => ({
       x: trialProdWeeks(name).map(fmtTrialDate), y: trialRepeatRateSeries(trialProd(name)), name,
@@ -6676,6 +6790,7 @@ function initTrialRepeat() {
   window._trialLayoutBase = layoutBase;
   window._trialCfg = cfg;
   renderTrialBucketChart(layoutBase, cfg);
+  renderTrialBucketGrowthChart(layoutBase, cfg);
   renderTrialNewRepeatChart(layoutBase, cfg);
 
   // Cumulative $ — 4 SKUs stacked + total line
@@ -6710,6 +6825,9 @@ function initTrialRepeat() {
   // Summary table
   renderTrialSummaryTable();
 
+  // Auto-computed analysis panel
+  renderTrialAnalysis(tr, all, custWeeks);
+
   // Product filter buttons
   document.querySelectorAll(".trial-prod-btn").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -6717,6 +6835,7 @@ function initTrialRepeat() {
       btn.classList.add("active");
       trialSelectedProduct = btn.dataset.prod;
       renderTrialBucketChart(layoutBase, cfg);
+      renderTrialBucketGrowthChart(layoutBase, cfg);
       renderTrialNewRepeatChart(layoutBase, cfg);
       // Also update the latest-week KPI to reflect the selected product
       const p = trialProd(trialSelectedProduct);
@@ -6758,6 +6877,18 @@ function renderTrialNewRepeatChart(layoutBase, cfg) {
     },
   ];
   const isPct = trialNRMode === "pct";
+  if (!isPct) {
+    // Repeat share of the week's purchases as a line on the right axis
+    // (redundant in Proportion mode, where the bars are already normalized)
+    traces.push({
+      x: xLabels, y: nr.repeatPct, name: "Repeat %",
+      type: "scatter", mode: "lines+markers",
+      line:  { color: "#00695c", width: 2.5 },
+      marker:{ color: "#00695c", size: 5 },
+      yaxis: "y2",
+      hovertemplate: "Repeat: %{y:.1f}% of week<extra></extra>",
+    });
+  }
   Plotly.newPlot("chart-trial-newrepeat", traces, {
     ...layoutBase,
     barmode: "stack",
@@ -6768,6 +6899,10 @@ function renderTrialNewRepeatChart(layoutBase, cfg) {
       ticksuffix: isPct ? "%" : "",
       tickformat: isPct ? ".0f" : ",.0f",
       range: isPct ? [0, 100] : undefined,
+    },
+    yaxis2: isPct ? undefined : {
+      overlaying: "y", side: "right", showgrid: false,
+      title: "Repeat % of week", ticksuffix: "%", range: [0, 100],
     },
     hovermode: "x unified",
   }, cfg);
@@ -6789,6 +6924,83 @@ function renderTrialBucketChart(layoutBase, cfg) {
       title: { text: trialSelectedProduct, font: { size: 12 }, x: 0.02, y: 0.98 },
       yaxis: { ...layoutBase.yaxis, title: "Customers (cumulative, by # txns)", tickformat: ",.0f" },
     }, cfg);
+}
+
+// "The Read" — narrative analysis with every number computed from the live
+// payload, so it stays correct on each data refresh without manual edits.
+function renderTrialAnalysis(tr, all, custWeeks) {
+  const el = document.getElementById("trial-analysis");
+  if (!el) return;
+  const L = TRIAL_MATURE_LAG;
+  const fmtD = fmtTrialDate;
+  const last = all.total_customers.length - 1;
+  const dataEnd = custWeeks[last];
+  const totalCust = all.total_customers[last] || 0;
+  const repNow = trialRepeaters(all, last);
+  const naive = totalCust ? repNow / totalCust * 100 : 0;
+
+  // Mature rate + stability over trailing 10 observations
+  const mature = trialMatureRateSeries(all);
+  const mNow = trialLastNonNull(mature);
+  if (mNow.v == null) { el.innerHTML = ""; return; }   // not enough weeks yet
+  const mWindow = mature.filter(v => v != null).slice(-10);
+  const mMin = Math.min(...mWindow), mMax = Math.max(...mWindow);
+  const spread = mMax - mMin;
+  const trendWord = spread <= 2.5 ? "stable" : (mWindow[mWindow.length-1] > mWindow[0] ? "rising" : "falling");
+
+  // Second-repeat conversion: 3+(T) / 2+(T-L)
+  const threePlus = ["3","4","5","6+"].reduce((s,b) => s + (all.customers[b][last]||0), 0);
+  const twoPlusLag = last >= L ? trialRepeaters(all, last - L) : 0;
+  const conv3 = twoPlusLag ? threePlus / twoPlusLag * 100 : null;
+  const sixNow = all.customers["6+"][last] || 0;
+  const sixPrev2 = all.customers["6+"][Math.max(0, last-2)] || 0;
+
+  // Weekly purchase mix + new-customer trend
+  const nr = trialWeeklyNewVsRepeat(all);
+  const shareAt = i => { const t = nr.newTxns[i] + nr.repeatTxns[i]; return t ? nr.repeatTxns[i] / t * 100 : null; };
+  const shareNow = shareAt(last), sharePrev = last >= 8 ? shareAt(last - 8) : null;
+  const newW = trialWeeklyNew(all);
+  const avg4 = i => { const s = newW.slice(Math.max(0, i-3), i+1); return s.reduce((a,b)=>a+b,0) / s.length; };
+  const newNow4 = avg4(last);
+  let peak4 = 0, peak4i = 0;
+  for (let i = 3; i <= last; i++) { const a = avg4(i); if (a > peak4) { peak4 = a; peak4i = i; } }
+  const peakRep = Math.max(...nr.repeatTxns.map(v => v||0));
+
+  // Per-SKU mature rates (extended series when available)
+  const skuRates = ["15O","34O","15U","34U"].map(name => {
+    const p = trialProd(name);
+    const m = trialLastNonNull(trialMatureRateSeries(p));
+    return { name, rate: m.v };
+  }).filter(s => s.rate != null);
+  const skuStr = skuRates.map(s => `<strong>${s.name} ${s.rate.toFixed(1)}%</strong>`).join(" · ");
+
+  // Rollback framing (15 lb $18.24 → $15.97 started 7/13/26)
+  const ROLLBACK_ISO = "2026-07-13";
+  const rollbackNote = dataEnd < ROLLBACK_ISO
+    ? `This data ends <strong>${fmtD(dataEnd)}</strong> — before the 7/13 rollback ($18.24 → $15.97 on 15 lb). The rollback's thesis is trial
+       acquisition, which is exactly what has been fading: the next refresh is the first clean read. Watch for weekly new customers to
+       reverse off the ~${(Math.round(newNow4/100)*100).toLocaleString()}/wk level — at a ~${mNow.v.toFixed(0)}% mature repeat rate, each incremental trialer converts to ≈${(mNow.v/100).toFixed(2)} retained customers.`
+    : `The 7/13 rollback ($18.24 → $15.97 on 15 lb) is now inside this window (data thru <strong>${fmtD(dataEnd)}</strong>). Judge it on weekly
+       new customers vs the pre-rollback ~${(Math.round(peak4/100)*100).toLocaleString()}/wk peak, then on whether those cohorts mature at the same ~${mNow.v.toFixed(0)}% rate ${L} weeks later.`;
+
+  el.innerHTML = `
+    <p style="margin:0 0 10px"><strong style="color:#00695c">True repeat rate is ~${mNow.v.toFixed(0)}%, and it's ${trendWord}.</strong>
+      The cumulative ${naive.toFixed(1)}% understates repeat propensity: it divides by every customer to date, including recent trialers who
+      haven't had time to buy again. Measured against the customer base from ${L} weeks earlier (≈ one 15 lb bag-life), the mature rate is
+      <strong>${mNow.v.toFixed(1)}%</strong> and has held a ${mMin.toFixed(1)}–${mMax.toFixed(1)}% band over the last ${mWindow.length} weeks — so the climbing cumulative line is mostly cohorts maturing, not behavior changing.</p>
+    ${conv3 != null ? `<p style="margin:0 0 10px"><strong>The barrier is the first repurchase, not retention after it.</strong>
+      Of customers who had repeated as of ${L} weeks ago, <strong>${conv3.toFixed(0)}%</strong> have already made a third purchase, and the 6+‑transaction
+      bucket is the fastest-growing (${sixPrev2.toLocaleString()} → ${sixNow.toLocaleString()} in two weeks). Once a customer repeats once, they mostly stay.</p>` : ""}
+    <p style="margin:0 0 10px"><strong>Repeat is becoming the volume base.</strong> Repeat purchases are now
+      <strong>${shareNow != null ? shareNow.toFixed(0) : "—"}%</strong> of weekly transactions${sharePrev != null ? ` (vs ${sharePrev.toFixed(0)}% eight weeks ago)` : ""}, peaking at ${peakRep.toLocaleString()}/wk.
+      Meanwhile weekly new customers have eased from a ${Math.round(peak4).toLocaleString()}/wk 4-wk-avg peak (${fmtD(custWeeks[peak4i])}) to ≈${Math.round(newNow4).toLocaleString()}/wk —
+      total volume is holding because repeat is backfilling the trial slowdown.</p>
+    <p style="margin:0 0 10px"><strong>Per-SKU mature rate (${L}-wk lag):</strong> ${skuStr}.
+      The 34 lb SKUs read structurally low — a bag lasts ~2× longer, so a ${L}-wk window undercounts them. The comparison that matters is
+      15U vs 15O (same bag size): the unscented gap is real.</p>
+    <p style="margin:0 0 10px">${rollbackNote}</p>
+    <p style="margin:0;font-size:0.75rem;color:#999">Method: mature rate = repeaters(T) ÷ total customers(T−${L} wks); longer lags read higher
+      (numerator includes fast repeaters from younger cohorts), so ~${mMin.toFixed(0)}–${(mMax+2).toFixed(0)}% is the honest band. Luminate card-traceable panel, 10% sample — directional, not absolute.</p>`;
 }
 
 function renderTrialSummaryTable() {
