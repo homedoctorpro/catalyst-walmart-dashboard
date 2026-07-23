@@ -132,26 +132,56 @@ def _parse_meta(wb) -> dict:
     return meta
 
 
-def _build_allproducts_ext(verbose: bool = True) -> dict | None:
-    """Parse the lighter 'Weekly_Repeats' chart export (e.g.
-    `1557501_Weekly_Repeats_trialrepeat.xlsx`) into an extended All-Products
-    customer series. This export is All-Products-only, customers-only, but runs
-    several weeks further than the full Trial & Repeat report — so we use it to
-    extend just the All-Products customer views (repeat rate, cumulative
-    customers). Per-SKU and dollar views stay on the full report's timeline.
+def _pack_buckets(buckets: dict, n_weeks: int) -> dict:
+    """{bucket: [vals]} -> {"customers": ..., "total_customers": [...]}"""
+    total = [sum(buckets[b][i] for b in BUCKETS) for i in range(n_weeks)]
+    return {"customers": buckets, "total_customers": total}
+
+
+def _build_ext(verbose: bool = True) -> dict | None:
+    """Parse the lighter 'Weekly Repeats' chart export into an extended
+    customer series (customers only — no $), which runs several weeks further
+    than the full Trial & Repeat report. Two known formats:
+
+    A. Full-report layout (e.g. `1612195_Trial & Repeat_WeeklyRepeats_*.xlsx`):
+       a sheet with the 'Analysis Level' header — per-SKU + All Products.
+       Extends ALL customer views; only $ stays on the full report's timeline.
+    B. Legacy chart export (e.g. `1557501_Weekly_Repeats_trialrepeat.xlsx`,
+       'Data' sheet): All-Products only — extends just the All-Products views.
 
     Returns { "weeks": [iso...], "customers": {bucket: [vals]},
-              "total_customers": [vals], "source_file": str } or None.
+              "total_customers": [vals], "source_file": str,
+              "skus": {sku: {"customers":…, "total_customers":…}}  # format A only
+            } or None.
     """
-    candidates = sorted(
-        (p for p in glob.glob(str(ROOT / "*Weekly_Repeats*.xlsx"))
-         if not Path(p).name.startswith("~$")),          # skip Excel lock files
-        key=lambda p: Path(p).stat().st_mtime, reverse=True,
-    )
+    candidates = {
+        p for pat in ("*Weekly_Repeats*.xlsx", "*WeeklyRepeats*.xlsx")
+        for p in glob.glob(str(ROOT / pat))
+        if not Path(p).name.startswith("~$")             # skip Excel lock files
+        and not Path(p).name.startswith("Catalyst Trial and Repeat Report")
+    }
     if not candidates:
         return None
-    src = Path(candidates[0])
+    src = Path(max(candidates, key=lambda p: Path(p).stat().st_mtime))
     wb = openpyxl.load_workbook(src, data_only=True)  # full (not read_only) — read_only mis-reports width
+
+    # ── Format A: full-report layout ('Analysis Level' header) → per-SKU ──
+    for name in wb.sheetnames:
+        if name == "Order Details":
+            continue
+        ws = wb[name]
+        if any(r and r[0] == "Analysis Level" for r in ws.iter_rows(values_only=True)):
+            weeks_iso, prods = _parse_sheet(ws)
+            if "All Products" not in prods:
+                if verbose: print(f"  [trial_repeat] '{src.name}' sheet '{name}': no All Products row")
+                return None
+            out = {"weeks": weeks_iso, "source_file": src.name,
+                   **_pack_buckets(prods["All Products"], len(weeks_iso)),
+                   "skus": {k: _pack_buckets(v, len(weeks_iso))
+                            for k, v in prods.items() if k != "All Products"}}
+            return out
+
+    # ── Format B: legacy 'Data' sheet — All-Products only ──
     if "Data" not in wb.sheetnames:
         if verbose: print(f"  [trial_repeat] '{src.name}' has no Data sheet - skipping ext")
         return None
@@ -230,11 +260,15 @@ def build_trial_repeat_data(verbose: bool = True) -> dict | None:
         "products": products,
     }
 
-    # Extend the All-Products customer series with the lighter weekly export
-    # (covers more recent weeks). Only attach if it genuinely runs further.
-    ext = _build_allproducts_ext(verbose=verbose)
+    # Extend the customer series with the lighter weekly export (covers more
+    # recent weeks). Only attach if it genuinely runs further.
+    ext = _build_ext(verbose=verbose)
     if ext and len(ext["weeks"]) > len(weeks_c):
+        skus_ext = ext.pop("skus", None)
         payload["allproducts_ext"] = ext
+        if skus_ext:
+            payload["skus_ext"] = skus_ext            # per-SKU extended customers
+            meta["ext_has_sku"] = True
         meta["allproducts_through"] = ext["weeks"][-1]
         meta["allproducts_source"] = ext["source_file"]
 
@@ -248,8 +282,9 @@ def build_trial_repeat_data(verbose: bool = True) -> dict | None:
             e = payload["allproducts_ext"]
             et = e["total_customers"][-1]
             er = sum(e["customers"][b][-1] for b in BUCKETS if b != "1")
+            sku_note = f", per-SKU: {', '.join(payload['skus_ext'])}" if "skus_ext" in payload else ""
             print(f"  [trial_repeat]   + extended All-Products through {ext['weeks'][-1]} "
-                  f"({len(e['weeks'])} weeks): repeat rate {er/et*100:.1f}% ({et:,.0f} customers)")
+                  f"({len(e['weeks'])} weeks): repeat rate {er/et*100:.1f}% ({et:,.0f} customers){sku_note}")
 
     return payload
 

@@ -6439,15 +6439,21 @@ const TRIAL_BUCKET_COLORS = {
 };
 let trialSelectedProduct = "All Products";
 
-// Resolve a product's series + matching week axis. "All Products" uses the
-// extended customers-only series (later weeks) when available.
+// Resolve a product's series + matching week axis. Uses the extended
+// customers-only series (later weeks) when available — All Products via
+// allproducts_ext, SKUs via skus_ext (present when the weekly export has
+// the per-SKU breakdown).
 function trialProd(name) {
   const tr = DATA.trial_repeat;
-  return (name === "All Products" && tr.allproducts_ext) ? tr.allproducts_ext : tr.products[name];
+  if (name === "All Products" && tr.allproducts_ext) return tr.allproducts_ext;
+  if (tr.skus_ext && tr.skus_ext[name]) return tr.skus_ext[name];
+  return tr.products[name];
 }
 function trialProdWeeks(name) {
   const tr = DATA.trial_repeat;
-  return (name === "All Products" && tr.allproducts_ext) ? tr.allproducts_ext.weeks : tr.weeks;
+  if (name === "All Products" && tr.allproducts_ext) return tr.allproducts_ext.weeks;
+  if (tr.skus_ext && tr.skus_ext[name] && tr.allproducts_ext) return tr.allproducts_ext.weeks;
+  return tr.weeks;
 }
 
 function gotoMetricsUnits() {
@@ -6542,8 +6548,13 @@ function initTrialRepeat() {
   if (meta.txn_type) metaParts.push(`<span><strong>Txn type:</strong> ${meta.txn_type}</span>`);
   if (meta.submitted_date) metaParts.push(`<span><strong>Report date:</strong> ${meta.submitted_date}</span>`);
   if (meta.allproducts_through && meta.detail_through) {
-    metaParts.push(`<span style="color:#0057e7"><strong>All-Products customers thru:</strong> ${fmtTrialDate(meta.allproducts_through)}</span>`);
-    metaParts.push(`<span style="color:#888"><strong>Per-SKU &amp; $ detail thru:</strong> ${fmtTrialDate(meta.detail_through)} <em>(awaiting refreshed per-SKU/$ pull)</em></span>`);
+    if (meta.ext_has_sku) {
+      metaParts.push(`<span style="color:#0057e7"><strong>Customers (all SKUs) thru:</strong> ${fmtTrialDate(meta.allproducts_through)}</span>`);
+      metaParts.push(`<span style="color:#888"><strong>$ detail thru:</strong> ${fmtTrialDate(meta.detail_through)} <em>(awaiting refreshed $ pull)</em></span>`);
+    } else {
+      metaParts.push(`<span style="color:#0057e7"><strong>All-Products customers thru:</strong> ${fmtTrialDate(meta.allproducts_through)}</span>`);
+      metaParts.push(`<span style="color:#888"><strong>Per-SKU &amp; $ detail thru:</strong> ${fmtTrialDate(meta.detail_through)} <em>(awaiting refreshed per-SKU/$ pull)</em></span>`);
+    }
   }
   document.getElementById("trial-meta").innerHTML = metaParts.join("");
 
@@ -6611,7 +6622,7 @@ function initTrialRepeat() {
   const rateSeries = [
     allLine({ y: trialRepeatRateSeries(all), hovertemplate: "All Products: %{y:.1f}%<extra></extra>" }),
     ...skuNames.map(name => ({
-      x: xLabels, y: trialRepeatRateSeries(tr.products[name]), name,
+      x: trialProdWeeks(name).map(fmtTrialDate), y: trialRepeatRateSeries(trialProd(name)), name,
       type: "scatter", mode: "lines+markers",
       line: { color: TRIAL_PRODUCT_COLORS[name] || "#999", width: 2 },
       marker:{ color: TRIAL_PRODUCT_COLORS[name] || "#999", size: 5 },
@@ -6625,7 +6636,7 @@ function initTrialRepeat() {
   const cumSeries = [
     allLine({ y: all.total_customers, hovertemplate: "All Products: %{y:,.0f}<extra></extra>" }),
     ...skuNames.map(name => ({
-      x: xLabels, y: tr.products[name].total_customers, name,
+      x: trialProdWeeks(name).map(fmtTrialDate), y: trialProd(name).total_customers, name,
       type: "scatter", mode: "lines+markers",
       line: { color: TRIAL_PRODUCT_COLORS[name] || "#999", width: 2 },
       marker:{ color: TRIAL_PRODUCT_COLORS[name] || "#999", size: 5 },
@@ -6637,8 +6648,8 @@ function initTrialRepeat() {
 
   // Weekly new customers — grouped bars (4 SKUs + All as line overlay)
   const newCustBars = ["15O","34O","15U","34U"].map(name => ({
-    x: xLabels,
-    y: trialWeeklyNew(tr.products[name]),
+    x: trialProdWeeks(name).map(fmtTrialDate),
+    y: trialWeeklyNew(trialProd(name)),
     name: name,
     type: "bar",
     marker: { color: TRIAL_PRODUCT_COLORS[name] },
