@@ -74,7 +74,13 @@ def find_attachment(msg):
 
 
 def week_from(subject, filename):
-    for source in (subject, filename or ""):
+    # Prefer the ATTACHMENT FILENAME over the subject. Hailey's forwards carry
+    # stale subjects ("Fwd: Re: 202621 …" wrapping a 202622 workbook), so keying
+    # on the subject mis-saved week 22 as 202621 — overwriting real week 21 and
+    # losing week 22. The attachment is named "2026XX Weekly Sales Report
+    # Catalyst.xlsx" by the source system and is authoritative; subject is a
+    # last-resort fallback for the rare attachment that lacks a week code.
+    for source in (filename or "", subject):
         m = WEEK_RE.search(source)
         if m:
             return m.group(1)

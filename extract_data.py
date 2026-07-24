@@ -1303,6 +1303,34 @@ def main():
     html = html.replace("/*DATA_PLACEHOLDER*/", f"const DATA = {json_str};")
 
     output_path = os.path.join(os.path.dirname(__file__), OUTPUT_FILE)
+
+    # Regression guard: never overwrite the published dashboard with one that
+    # DROPS weeks. This catches the failure mode where a local rebuild runs
+    # against a folder missing auto-ingested source files (weeks live only in
+    # the private data repo) and would silently clobber the cloud's newer build
+    # on push. Compare the new week set against the weeks embedded in the
+    # currently-committed dashboard.html. Override with ALLOW_WEEK_REGRESSION=1
+    # for a deliberate removal.
+    new_weeks = set(data["weeks"])
+    if os.path.exists(output_path):
+        try:
+            with open(output_path, "r", encoding="utf-8") as f:
+                prev_html = f.read()
+            m = re.search(r'"weeks":\s*\[([^\]]*)\]', prev_html)
+            prev_weeks = set(re.findall(r"20\d{4}", m.group(1))) if m else set()
+        except Exception:
+            prev_weeks = set()
+        dropped = prev_weeks - new_weeks
+        if dropped and os.environ.get("ALLOW_WEEK_REGRESSION") != "1":
+            print(f"\n[ABORT] Refusing to overwrite dashboard.html — this build DROPS "
+                  f"already-published week(s): {sorted(dropped)}")
+            print( "        The local folder is likely missing auto-ingested source "
+                   "files (they live in the private data repo / reports inbox).")
+            print( "        Fix: run  python _download_missing_weeks.py  to pull the "
+                   "missing weekly workbooks, then rebuild.")
+            print( "        To drop weeks on purpose, set ALLOW_WEEK_REGRESSION=1.")
+            sys.exit(1)
+
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(html)
 
