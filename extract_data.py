@@ -5,12 +5,23 @@ Reads 6 weekly Excel files, geocodes stores, computes metrics, writes dashboard.
 
 import json
 import os
+import sys
 import glob
 import re
 import math
 from datetime import date, timedelta
 import pandas as pd
 import pgeocode
+
+# Windows consoles default to cp1252, which can't encode the Unicode glyphs
+# (→ ✓ …) this script prints — that raised UnicodeEncodeError mid-run and
+# aborted before the dashboard was written. Force UTF-8 stdout/stderr so manual
+# runs work regardless of console codepage or PYTHONIOENCODING.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -55,6 +66,14 @@ SHEET_MAP = {
                "ecomm_l52": None,                           "ecomm_lw": "Catalyst LW Ecomm "},
     "202620": {"instore": "Catalyst LW Sales",              "bystore": "Sales by Store",
                "ecomm_l52": None,                           "ecomm_lw": "Catalyst LW Ecomm"},
+    "202621": {"instore": "Catalyst LW Sales ",             "bystore": "Sales by Store",
+               "ecomm_l52": None,                           "ecomm_lw": "Catalyst LW Ecomm "},
+    "202622": {"instore": "Catalyst LW Sales ",             "bystore": "Sales by Store",
+               "ecomm_l52": None,                           "ecomm_lw": "Catalyst LW Ecomm "},
+    "202623": {"instore": "Catalyst LW Sales ",             "bystore": "Sales by Store",
+               "ecomm_l52": None,                           "ecomm_lw": "Catalyst LW Ecomm"},
+    "202624": {"instore": "CATALYST LW Sales ",             "bystore": "Sales by Store",
+               "ecomm_l52": None,                           "ecomm_lw": "CATALYST LW Ecomm"},
 }
 
 SKUS = [
