@@ -6,7 +6,12 @@ name: Weekly report auto-ingest
 
 on:
   schedule:
-    - cron: "*/15 * * * *"   # every 15 minutes (best-effort)
+    # Off-the-hour minutes: GitHub's scheduled-run queue is most congested at
+    # :00, and cron delivery is best-effort — runs get dropped, not just delayed.
+    # On 2026-07-27 this fired at 01:14 / 04:51 / 08:18 / 11:46 / 14:02 UTC
+    # (gaps of 2-3.5h despite */15), which is why the Monday watch mode below
+    # exists rather than relying on poll frequency alone.
+    - cron: "3,18,33,48 * * * *"
   workflow_dispatch:
     inputs:
       force_rebuild:
@@ -30,10 +35,12 @@ concurrency:
 
 permissions:
   contents: write   # push regenerated dashboard.html back to this repo (Pages)
+  actions:  write   # self-chain the Monday watch (workflow_dispatch via GITHUB_TOKEN)
 
 jobs:
   ingest-and-build:
     runs-on: ubuntu-latest
+    timeout-minutes: 350   # must exceed WATCH_MAX_SECONDS below, stay under the 6h ceiling
     steps:
       - name: Checkout dashboard repo (code + templates)
         uses: actions/checkout@v4
@@ -60,9 +67,67 @@ jobs:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
         run: |
-          python cloud_poller.py \
-            --inbox-dir _data \
-            --state-file _data/.processed_message_ids
+          set -uo pipefail
+
+          # --- Monday watch mode -------------------------------------------
+          # Hailey's forward has landed between 14:24 and 19:16 UTC on Mondays
+          # (weeks 21-25). Cron alone can miss it by hours, so inside the window
+          # we hold the job open and re-poll every 60s until the email arrives.
+          # Outside the window this degrades to the old single-shot poll.
+          WATCH_START_H=12
+          WATCH_END_H=21
+          WATCH_MAX_SECONDS=19800   # 5h30m, under the 6h job ceiling
+          POLL_INTERVAL=60
+
+          dow=$(date -u +%u)        # 1 = Monday
+          hour=$(date -u +%-H)
+          deadline=0
+          if [ "$dow" = "1" ] && [ "$hour" -ge "$WATCH_START_H" ] && [ "$hour" -lt "$WATCH_END_H" ]; then
+            window_end=$(date -u -d "today ${WATCH_END_H}:00" +%s)
+            cap=$(( $(date -u +%s) + WATCH_MAX_SECONDS ))
+            deadline=$(( window_end < cap ? window_end : cap ))
+            echo "Monday watch mode: polling every ${POLL_INTERVAL}s until $(date -u -d "@$deadline")"
+          else
+            echo "Outside Monday watch window (UTC dow=$dow hour=$hour) — single poll."
+          fi
+
+          found=false
+          weeks=""
+          polls=0
+          while : ; do
+            # Blank GITHUB_OUTPUT so the poller doesn't append found=/weeks= on
+            # every iteration; this step writes the authoritative values once.
+            ok=true
+            out=$(GITHUB_OUTPUT= python cloud_poller.py \
+                    --inbox-dir _data \
+                    --state-file _data/.processed_message_ids 2>&1) || ok=false
+            polls=$(( polls + 1 ))
+            echo "$out"
+            if [ "$ok" = "false" ]; then
+              # A transient IMAP/network blip must not abort a 5h watch; just
+              # retry next cycle. Outside watch mode, still fail loudly.
+              if [ "$deadline" = "0" ]; then
+                echo "::error::cloud_poller.py failed on a single-shot poll"
+                exit 1
+              fi
+              echo "::warning::poll attempt ${polls} failed — retrying in ${POLL_INTERVAL}s"
+              out=""
+            fi
+            if printf '%s\n' "$out" | grep -q '^\[poller\] found=True'; then
+              found=true
+              weeks=$(printf '%s\n' "$out" | sed -n 's/^\[poller\] found=True weeks=//p')
+              echo "New week(s) after ${polls} poll(s): ${weeks}"
+              break
+            fi
+            [ "$(date -u +%s)" -lt "$deadline" ] || break
+            sleep "$POLL_INTERVAL"
+          done
+
+          {
+            echo "found=$found"
+            echo "weeks=$weeks"
+            echo "watched=$( [ "$deadline" = "0" ] && echo false || echo true )"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Decide whether to build
         id: gate
@@ -118,4 +183,21 @@ jobs:
             git push
           else
             echo "Dashboard output unchanged — nothing to publish."
+          fi
+
+      - name: Extend Monday watch
+        # A watch run caps at 5h30m (6h job ceiling), but the Monday window is
+        # 12:00-21:00 UTC. If we time out empty-handed with the window still
+        # open, hand off to a fresh run. workflow_dispatch is one of the two
+        # events GITHUB_TOKEN is allowed to trigger, so this does not need a PAT.
+        # The window bound guarantees the chain terminates.
+        if: always() && steps.poll.outputs.watched == 'true' && steps.poll.outputs.found != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$(date -u +%u)" = "1" ] && [ "$(date -u +%-H)" -lt 21 ]; then
+            echo "Watch window still open at $(date -u) — chaining a follow-on run."
+            gh workflow run weekly-report.yml --ref "${{ github.ref_name }}"
+          else
+            echo "Monday watch window closed at $(date -u) — standing down until next week."
           fi
