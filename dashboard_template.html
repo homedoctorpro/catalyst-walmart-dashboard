@@ -360,6 +360,16 @@
   .pill-btn.active { background: #0057e7; color: #fff; border-color: #0057e7; }
   .pill-btn.theme-fc:hover { border-color: #9c27b0; color: #9c27b0; }
   .pill-btn.theme-fc.active { background: #9c27b0; color: #fff; border-color: #9c27b0; }
+  /* Grain toggle (Monthly / Quarterly) on the By Date tab — segmented control. */
+  .grain-toggle-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .grain-toggle-label { font-weight: 700; font-size: 0.8rem; color: #555; }
+  .grain-toggle { display: inline-flex; background: #fff; border: 2px solid #e0e0e0;
+                  border-radius: 8px; padding: 3px; gap: 3px; }
+  .grain-btn { padding: 6px 18px; border: none; background: transparent; border-radius: 6px;
+               cursor: pointer; font-size: 0.8rem; font-weight: 700; color: #666;
+               font-family: inherit; transition: background 0.12s, color 0.12s; }
+  .grain-btn:hover:not(.active) { color: #0057e7; background: #f0f5ff; }
+  .grain-btn.active { background: #0057e7; color: #fff; }
   .wide-table-scroll { overflow: auto; max-height: 600px; border: 1px solid #eee; border-radius: 6px; }
   .wide-table { border-collapse: separate; border-spacing: 0; font-size: 0.78rem;
                 width: max-content; min-width: 100%; }
@@ -624,7 +634,7 @@
 
   <div class="tab-bar">
     <button class="tab-btn active" onclick="switchTab('metrics',this)">📈 Metrics</button>
-    <button class="tab-btn"        onclick="switchTab('monthly',this)">📅 Monthly</button>
+    <button class="tab-btn"        onclick="switchTab('monthly',this)">📅 By Date</button>
     <button class="tab-btn"        onclick="switchTab('sales',this)">🗺️ Sales Map</button>
     <button class="tab-btn"        onclick="switchTab('oos',this)">⚠️ OOS Map</button>
     <button class="tab-btn"        onclick="switchTab('statestats',this)">🏛️ State Stats</button>
@@ -720,16 +730,18 @@
     </div>
   </div>
 
-  <!-- ── Tab: Monthly ───────────────────────────────────────────────────── -->
+  <!-- ── Tab: By Date (monthly / quarterly rollup) ──────────────────────── -->
   <div id="tab-monthly" class="tab-panel">
-    <div style="background:#fff;border-radius:12px;padding:14px 18px;margin-bottom:14px;font-size:0.82rem;color:#555;border-left:4px solid #0057e7">
-      <strong style="color:#222">Weekly → Monthly rollup.</strong>
-      Each week is assigned to the calendar month containing its week-ending Friday.
-      <span style="color:#666">Sums:</span> POS $, Units, Wholesale $.
-      <span style="color:#666">Averages across weeks:</span> U/S/W, Adj U/S/W, Instock %.
-      Months with fewer reporting weeks than calendar Fridays are flagged
-      <em style="color:#b26500">(partial)</em>.
+    <!-- Grain toggle: drives every KPI, chart and table on this tab. -->
+    <div class="grain-toggle-row">
+      <span class="grain-toggle-label">Roll up by:</span>
+      <div class="grain-toggle">
+        <button class="grain-btn active" data-grain="month"   onclick="setRollupGrain(this)">Monthly</button>
+        <button class="grain-btn"        data-grain="quarter" onclick="setRollupGrain(this)">Quarterly</button>
+      </div>
     </div>
+
+    <div id="monthly-blurb" style="background:#fff;border-radius:12px;padding:14px 18px;margin-bottom:14px;font-size:0.82rem;color:#555;border-left:4px solid #0057e7"></div>
 
     <!-- KPI Row -->
     <div class="kpi-row" id="monthly-kpi-row"></div>
@@ -739,20 +751,22 @@
 
     <!-- Charts -->
     <div class="chart-grid">
-      <div class="chart-card"><h3>U/S/W (Monthly Avg)</h3><div id="chart-m-usw" class="chart-div"></div></div>
-      <div class="chart-card"><h3>Adj U/S/W (Monthly Avg)</h3><div id="chart-m-adj-usw" class="chart-div"></div></div>
-      <div class="chart-card"><h3>Instock % (Monthly Avg)</h3><div id="chart-m-instock" class="chart-div"></div></div>
-      <div class="chart-card"><h3>Units Sold (Monthly Sum)</h3><div id="chart-m-units" class="chart-div"></div></div>
-      <div class="chart-card"><h3>Retail Sales ($, Monthly Sum)</h3><div id="chart-m-retail" class="chart-div"></div></div>
-      <div class="chart-card"><h3>Wholesale Revenue ($, Monthly Sum)</h3><div id="chart-m-wholesale" class="chart-div"></div></div>
+      <div class="chart-card"><h3 data-grain-title="U/S/W (%G Avg)"></h3><div id="chart-m-usw" class="chart-div"></div></div>
+      <div class="chart-card"><h3 data-grain-title="Adj U/S/W (%G Avg)"></h3><div id="chart-m-adj-usw" class="chart-div"></div></div>
+      <div class="chart-card"><h3 data-grain-title="Instock % (%G Avg)"></h3><div id="chart-m-instock" class="chart-div"></div></div>
+      <div class="chart-card"><h3 data-grain-title="Units Sold (%G Sum)"></h3><div id="chart-m-units" class="chart-div"></div></div>
+      <div class="chart-card"><h3 data-grain-title="Retail Sales ($, %G Sum)"></h3><div id="chart-m-retail" class="chart-div"></div></div>
+      <div class="chart-card"><h3 data-grain-title="Wholesale Revenue ($, %G Sum)"></h3><div id="chart-m-wholesale" class="chart-div"></div></div>
     </div>
 
-    <!-- Monthly Table -->
+    <!-- Rollup Table -->
     <div class="metrics-table-card">
-      <h3>Monthly Rollup Data</h3>
+      <h3 data-grain-title="%G Rollup Data"></h3>
       <div style="font-size:0.75rem;color:#888;margin-bottom:10px">
-        Months go across — pick a metric to view; partial months are tinted.
-        <span style="color:#0057e7;font-weight:700">Copy table</span> grabs the full Series × Month grid as TSV.
+        <span class="grain-word-lc">Months</span> go across — pick a metric to view; partial
+        <span class="grain-word-lc">months</span> are tinted.
+        <span style="color:#0057e7;font-weight:700">Copy table</span> grabs the full Series ×
+        <span class="grain-word-sing">Month</span> grid as TSV.
       </div>
       <div class="wide-table-controls">
         <span style="font-weight:700;font-size:0.78rem;color:#555">Metric:</span>
@@ -2789,10 +2803,13 @@ function fallbackCopy(text, onOk, onFail) {
   document.body.removeChild(ta);
 }
 
-// ══ Tab: Monthly Rollup ═══════════════════════════════════════════════════════
-// Group weekly metrics by calendar month based on week-ending Friday date.
-// Sums: pos_dollars, pos_qty, wholesale_dollars.  Averages: usw, instock_pct, markdown_pct.
-// Adj U/S/W = monthly_usw / (monthly_instock_pct/100).
+// ══ Tab: By Date (monthly / quarterly rollup) ═════════════════════════════════
+// Group weekly metrics by calendar month OR calendar quarter, based on the
+// week-ending Friday date. A week belongs wholly to the period containing its
+// Friday — never split across two periods — so quarters are exactly the sum of
+// their three months and nothing is double-counted.
+// Sums: pos_dollars, pos_qty, wholesale_dollars.  Averages: usw, instock_pct.
+// Adj U/S/W = period_usw / (period_instock_pct/100).
 const MONTH_SHORT_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 function fridaysInCalendarMonth(year, monthIdx /* 0-11 */) {
@@ -2807,26 +2824,43 @@ function fridaysInCalendarMonth(year, monthIdx /* 0-11 */) {
   return count;
 }
 
-function buildMonthlyRollup() {
-  // Returns { months: ["2026-02", ...], byMonth: { "2026-02": { label, isPartial, weekCount, expectedWeeks, series: { sku|"Total": {usw, adj_usw, instock_pct, pos_qty, pos_dollars, wholesale_dollars} } } } }
+// How many reporting weeks a full period should contain = Fridays it holds.
+// Used to flag partial periods (e.g. Q1 shows 8/13 wks because the data starts
+// 1/31, and the current quarter is always partial until it closes).
+function expectedWeeksFor(grain, year, idx /* monthIdx 0-11, or quarterIdx 0-3 */) {
+  if (grain === "quarter") {
+    let n = 0;
+    for (let m = idx * 3; m < idx * 3 + 3; m++) n += fridaysInCalendarMonth(year, m);
+    return n;
+  }
+  return fridaysInCalendarMonth(year, idx);
+}
+
+function buildPeriodRollup(grain /* "month" | "quarter" */) {
+  // Returns { periods: ["2026-02"|"2026-Q1", ...], byPeriod: { key: { label, isPartial, weekCount, expectedWeeks, weeks, series: { sku|"Total": {usw, adj_usw, instock_pct, pos_qty, pos_dollars, wholesale_dollars} } } } }
   const wkDates = DATA.week_dates || {};
-  const groups = {};   // monthKey -> [weeks]
+  const groups = {};   // periodKey -> [weeks]
   DATA.weeks.forEach(w => {
     const iso = wkDates[w]; if (!iso) return;
     const [y, m] = iso.split("-").map(Number);
-    const key = `${y}-${String(m).padStart(2,"0")}`;
+    const key = grain === "quarter"
+      ? `${y}-Q${Math.floor((m - 1) / 3) + 1}`
+      : `${y}-${String(m).padStart(2,"0")}`;
     if (!groups[key]) groups[key] = [];
     groups[key].push(w);
   });
 
-  const months = Object.keys(groups).sort();
-  const byMonth = {};
-  months.forEach(key => {
-    const [yearStr, monthStr] = key.split("-");
-    const year = +yearStr, monthIdx = +monthStr - 1;
+  const periods = Object.keys(groups).sort();
+  const byPeriod = {};
+  periods.forEach(key => {
+    const [yearStr, partStr] = key.split("-");
+    const year = +yearStr;
+    const idx  = grain === "quarter" ? (+partStr.slice(1) - 1) : (+partStr - 1);
     const weeks = groups[key];
-    const expectedWeeks = fridaysInCalendarMonth(year, monthIdx);
-    const labelBase = `${MONTH_SHORT_NAMES[monthIdx]} ${String(year).slice(2)}`;
+    const expectedWeeks = expectedWeeksFor(grain, year, idx);
+    const labelBase = grain === "quarter"
+      ? `Q${idx + 1} ${String(year).slice(2)}`
+      : `${MONTH_SHORT_NAMES[idx]} ${String(year).slice(2)}`;
     const isPartial = weeks.length < expectedWeeks;
     const label = isPartial ? `${labelBase} (${weeks.length}/${expectedWeeks} wks)` : labelBase;
 
@@ -2862,16 +2896,58 @@ function buildMonthlyRollup() {
       };
     });
 
-    byMonth[key] = { label, weekCount: weeks.length, expectedWeeks, isPartial, weeks, series };
+    byPeriod[key] = { label, weekCount: weeks.length, expectedWeeks, isPartial, weeks, series };
   });
 
-  return { months, byMonth };
+  return { periods, byPeriod };
 }
 
 let MONTHLY_ROLLUP = null;
+let ROLLUP_GRAIN   = "month";   // "month" | "quarter" — driven by the By Date toggle
+
+// Wording used across the tab's headings and copy, per grain.
+const GRAIN_WORDS = {
+  month:   { title: "Monthly",   plural: "months",   singular: "Month",   unit: "calendar month" },
+  quarter: { title: "Quarterly", plural: "quarters", singular: "Quarter", unit: "calendar quarter" },
+};
+
+function applyGrainLabels() {
+  const g = GRAIN_WORDS[ROLLUP_GRAIN];
+  document.querySelectorAll("#tab-monthly [data-grain-title]").forEach(el => {
+    el.textContent = el.dataset.grainTitle.replace("%G", g.title);
+  });
+  document.querySelectorAll("#tab-monthly .grain-word-lc").forEach(el => { el.textContent = g.plural; });
+  document.querySelectorAll("#tab-monthly .grain-word-sing").forEach(el => { el.textContent = g.singular; });
+  const blurb = document.getElementById("monthly-blurb");
+  if (blurb) {
+    blurb.innerHTML =
+      `<strong style="color:#222">Weekly → ${g.title} rollup.</strong> ` +
+      `Each week is assigned to the ${g.unit} containing its week-ending Friday, never split ` +
+      `across two ${g.plural} — so quarters are exactly the sum of their three months. ` +
+      `<span style="color:#666">Sums:</span> POS $, Units, Wholesale $. ` +
+      `<span style="color:#666">Averages across weeks:</span> U/S/W, Adj U/S/W, Instock %. ` +
+      `${g.title === "Monthly" ? "Months" : "Quarters"} with fewer reporting weeks than calendar ` +
+      `Fridays are flagged <em style="color:#b26500">(partial)</em>.`;
+  }
+}
+
+// Toggle handler — rebuild every KPI, chart and table on the tab for the new grain.
+function setRollupGrain(btn) {
+  const grain = btn.dataset.grain;
+  if (grain === ROLLUP_GRAIN) return;
+  ROLLUP_GRAIN = grain;
+  document.querySelectorAll("#tab-monthly .grain-btn").forEach(b =>
+    b.classList.toggle("active", b === btn));
+  MONTHLY_ROLLUP = buildPeriodRollup(ROLLUP_GRAIN);
+  applyGrainLabels();
+  buildMonthlyKPIs();
+  buildMonthlyCharts();
+  buildMonthlyTable();
+}
 
 function initMonthly() {
-  MONTHLY_ROLLUP = buildMonthlyRollup();
+  MONTHLY_ROLLUP = buildPeriodRollup(ROLLUP_GRAIN);
+  applyGrainLabels();
   buildMonthlyKPIs();
   buildMonthlyFilter();
   buildMonthlyCharts();
@@ -2881,15 +2957,15 @@ function initMonthly() {
 function buildMonthlyKPIs() {
   const container = document.getElementById("monthly-kpi-row");
   container.innerHTML = "";
-  const { months, byMonth } = MONTHLY_ROLLUP;
-  if (!months.length) {
-    container.innerHTML = '<div style="color:#888;padding:16px">No monthly data yet.</div>';
+  const { periods, byPeriod } = MONTHLY_ROLLUP;
+  if (!periods.length) {
+    container.innerHTML = '<div style="color:#888;padding:16px">No data yet.</div>';
     return;
   }
-  const latestKey = months[months.length - 1];
-  const prevKey   = months.length >= 2 ? months[months.length - 2] : null;
-  const cur  = byMonth[latestKey].series["Total"];
-  const prev = prevKey ? byMonth[prevKey].series["Total"] : {};
+  const latestKey = periods[periods.length - 1];
+  const prevKey   = periods.length >= 2 ? periods[periods.length - 2] : null;
+  const cur  = byPeriod[latestKey].series["Total"];
+  const prev = prevKey ? byPeriod[prevKey].series["Total"] : {};
 
   const chg = (c, p) => {
     if (c == null || p == null || p === 0) return "";
@@ -2913,7 +2989,7 @@ function buildMonthlyKPIs() {
     card.style.borderLeftColor = c.color;
     card.innerHTML = `<div class="kpi-label">${c.label}</div>
       <div class="kpi-value">${c.val != null ? c.fmt(c.val) : "—"}${chg(c.val, c.pval)}</div>
-      <div class="kpi-sub">${byMonth[latestKey].label}</div>`;
+      <div class="kpi-sub">${byPeriod[latestKey].label}</div>`;
     container.appendChild(card);
   });
 }
@@ -2943,13 +3019,13 @@ function buildMonthlyFilter() {
 }
 
 function buildMonthlyCharts() {
-  const { months, byMonth } = MONTHLY_ROLLUP;
-  const xLabels = months.map(k => byMonth[k].label);
+  const { periods, byPeriod } = MONTHLY_ROLLUP;
+  const xLabels = periods.map(k => byPeriod[k].label);
   const cfg = { responsive:true, displayModeBar:false };
 
   const getVals = (key, label) =>
-    months.map(k => {
-      const s = byMonth[k].series[label];
+    periods.map(k => {
+      const s = byPeriod[k].series[label];
       return (s && s[key] != null) ? s[key] : null;
     });
 
@@ -2990,7 +3066,9 @@ const MONTHLY_METRIC_TYPE = {
 };
 
 function setMonthlyMetric(btn) {
-  document.querySelectorAll(".pill-btn:not(.theme-fc)").forEach(b => b.classList.remove("active"));
+  // Scope to this button's own pill group — a document-wide deselect would
+  // clear other tabs' metric pills as soon as any tab adds one.
+  btn.parentElement.querySelectorAll(".pill-btn").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
   MONTHLY_TABLE_METRIC = btn.dataset.mmet;
   buildMonthlyTable();
@@ -3006,15 +3084,15 @@ function fmtMonthlyValue(v, type) {
 }
 
 function buildMonthlyTable() {
-  if (!MONTHLY_ROLLUP) MONTHLY_ROLLUP = buildMonthlyRollup();
-  const { months, byMonth } = MONTHLY_ROLLUP;
+  if (!MONTHLY_ROLLUP) MONTHLY_ROLLUP = buildPeriodRollup(ROLLUP_GRAIN);
+  const { periods, byPeriod } = MONTHLY_ROLLUP;
   const metric = MONTHLY_TABLE_METRIC;
   const type   = MONTHLY_METRIC_TYPE[metric];
 
   // Header row: Series | month1 | month2 | …
   const thead = document.getElementById("monthly-thead-row");
-  thead.innerHTML = '<th>Series</th>' + months.map(k => {
-    const mo = byMonth[k];
+  thead.innerHTML = '<th>Series</th>' + periods.map(k => {
+    const mo = byPeriod[k];
     const cls = mo.isPartial ? "partial-th" : "";
     const tip = mo.isPartial
       ? `${mo.label} — partial (${mo.weekCount}/${mo.expectedWeeks} wks)`
@@ -3032,8 +3110,8 @@ function buildMonthlyTable() {
     const tr = document.createElement("tr");
     if (series === "Total") tr.className = "total-row";
     let html = `<td>${series}</td>`;
-    months.forEach(k => {
-      const s = byMonth[k].series[series] || {};
+    periods.forEach(k => {
+      const s = byPeriod[k].series[series] || {};
       html += `<td>${fmtMonthlyValue(s[metric], type)}</td>`;
     });
     tr.innerHTML = html;
@@ -3043,8 +3121,8 @@ function buildMonthlyTable() {
 
 // Copy current metric as TSV: Series header row + month columns.
 function copyMonthlyMetric(evt) {
-  if (!MONTHLY_ROLLUP) MONTHLY_ROLLUP = buildMonthlyRollup();
-  const { months, byMonth } = MONTHLY_ROLLUP;
+  if (!MONTHLY_ROLLUP) MONTHLY_ROLLUP = buildPeriodRollup(ROLLUP_GRAIN);
+  const { periods, byPeriod } = MONTHLY_ROLLUP;
   const metric = MONTHLY_TABLE_METRIC;
   const type   = MONTHLY_METRIC_TYPE[metric];
 
@@ -3054,12 +3132,12 @@ function copyMonthlyMetric(evt) {
     return String(Math.round(v));
   };
 
-  const header = ["Series", ...months.map(k => {
-    const mo = byMonth[k];
+  const header = ["Series", ...periods.map(k => {
+    const mo = byPeriod[k];
     return mo.label.replace(/ \(.*$/, "") + (mo.isPartial ? " (partial)" : "");
   })].join("\t");
   const rows = ALL_SERIES.map(series =>
-    [series, ...months.map(k => rawFmt((byMonth[k].series[series] || {})[metric]))].join("\t")
+    [series, ...periods.map(k => rawFmt((byPeriod[k].series[series] || {})[metric]))].join("\t")
   );
   const text = [header, ...rows].join("\n");
 

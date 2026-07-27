@@ -91,7 +91,12 @@ jobs:
           job_cap=$(( now + WATCH_MAX_SECONDS ))
 
           deadline=0
-          if [ "$dow" = "1" ] && [ "$now" -lt "$end_ts" ]; then
+          if [ "${{ inputs.force_rebuild }}" = "true" ]; then
+            # A manual force-rebuild must run NOW. Without this, a rebuild
+            # dispatched on a Monday afternoon would sit in the watch loop until
+            # 5pm ET before building anything.
+            echo "force_rebuild requested — skipping watch mode, single poll."
+          elif [ "$dow" = "1" ] && [ "$now" -lt "$end_ts" ]; then
             if [ "$now" -lt "$start_ts" ]; then
               # Pre-window Monday run. Don't just exit — cron delivery is so
               # sparse that the next run might not land until well after 9:30,
