@@ -28,7 +28,7 @@ EMAIL_TO      = [
     "asnider@lignetics.com",
     "SBendezu@lignetics.com",
     "mweaver@lignetics.com",
-    "glenda.vale@quartile.com",
+    "rafaela.nunes@quartile.com",
     "Amanda.Lourenco@quartile.com",
     "bjordan@lignetics.com",
     "jlatham@storandco.com",
