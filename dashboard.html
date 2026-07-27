@@ -2967,28 +2967,45 @@ function buildMonthlyKPIs() {
   const cur  = byPeriod[latestKey].series["Total"];
   const prev = prevKey ? byPeriod[prevKey].series["Total"] : {};
 
-  const chg = (c, p) => {
+  // Comparing a partial period's TOTAL against a complete one is meaningless —
+  // an open 4-week quarter next to a closed 13-week quarter reads as -60% while
+  // the business is growing. For summed metrics, when either side is partial we
+  // compare per-week run rates instead and mark the delta "/wk". Averaged
+  // metrics (U/S/W, Instock %) are already per-week, so they compare directly.
+  const curWeeks  = byPeriod[latestKey].weekCount;
+  const prevWeeks = prevKey ? byPeriod[prevKey].weekCount : 0;
+  const ratesDiffer = byPeriod[latestKey].isPartial || (prevKey && byPeriod[prevKey].isPartial);
+
+  const chg = (c, p, isSum) => {
     if (c == null || p == null || p === 0) return "";
-    const pct = (c - p) / Math.abs(p) * 100;
+    let a = c, b = p, suffix = "";
+    if (isSum && ratesDiffer && curWeeks && prevWeeks) {
+      a = c / curWeeks; b = p / prevWeeks; suffix = "/wk";
+      if (b === 0) return "";
+    }
+    const pct = (a - b) / Math.abs(b) * 100;
     const sign = pct >= 0 ? "+" : "";
     const color = pct < 0 ? "#d32f2f" : "#2e7d32";
-    return `<span class="kpi-chg" style="color:${color}">${sign}${pct.toFixed(1)}%</span>`;
+    const tip = suffix
+      ? ` title="Per-week run rate: ${byPeriod[latestKey].label} has ${curWeeks} reporting wk(s) vs ${prevWeeks}. Comparing totals would be misleading."`
+      : "";
+    return `<span class="kpi-chg" style="color:${color}"${tip}>${sign}${pct.toFixed(1)}%${suffix}</span>`;
   };
 
   const cards = [
     { color: "#0057e7", label: "U/S/W (avg)",      val: cur.usw,         pval: prev.usw,         fmt: v => v.toFixed(2) },
     { color: "#1565c0", label: "Adj U/S/W (avg)",  val: cur.adj_usw,     pval: prev.adj_usw,     fmt: v => v.toFixed(2) },
     { color: "#00a86b", label: "Instock % (avg)",  val: cur.instock_pct, pval: prev.instock_pct, fmt: v => v.toFixed(2) + "%" },
-    { color: "#e67300", label: "Units (sum)",      val: cur.pos_qty,     pval: prev.pos_qty,     fmt: v => v.toLocaleString() },
-    { color: "#9c27b0", label: "Retail $ (sum)",   val: cur.pos_dollars, pval: prev.pos_dollars, fmt: v => "$" + Math.round(v).toLocaleString() },
-    { color: "#333",    label: "Wholesale $ (sum)",val: cur.wholesale_dollars, pval: prev.wholesale_dollars, fmt: v => "$" + Math.round(v).toLocaleString() },
+    { color: "#e67300", label: "Units (sum)",      val: cur.pos_qty,     pval: prev.pos_qty,     fmt: v => v.toLocaleString(), sum: true },
+    { color: "#9c27b0", label: "Retail $ (sum)",   val: cur.pos_dollars, pval: prev.pos_dollars, fmt: v => "$" + Math.round(v).toLocaleString(), sum: true },
+    { color: "#333",    label: "Wholesale $ (sum)",val: cur.wholesale_dollars, pval: prev.wholesale_dollars, fmt: v => "$" + Math.round(v).toLocaleString(), sum: true },
   ];
   cards.forEach(c => {
     const card = document.createElement("div");
     card.className = "kpi-card";
     card.style.borderLeftColor = c.color;
     card.innerHTML = `<div class="kpi-label">${c.label}</div>
-      <div class="kpi-value">${c.val != null ? c.fmt(c.val) : "—"}${chg(c.val, c.pval)}</div>
+      <div class="kpi-value">${c.val != null ? c.fmt(c.val) : "—"}${chg(c.val, c.pval, !!c.sum)}</div>
       <div class="kpi-sub">${byPeriod[latestKey].label}</div>`;
     container.appendChild(card);
   });
