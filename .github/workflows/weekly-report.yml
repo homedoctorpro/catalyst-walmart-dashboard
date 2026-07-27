@@ -70,25 +70,49 @@ jobs:
           set -uo pipefail
 
           # --- Monday watch mode -------------------------------------------
-          # Hailey's forward has landed between 14:24 and 19:16 UTC on Mondays
-          # (weeks 21-25). Cron alone can miss it by hours, so inside the window
-          # we hold the job open and re-poll every 60s until the email arrives.
+          # Hailey's forward has landed 10:24am-3:16pm ET on Mondays (weeks
+          # 21-25). Cron alone can miss it by hours, so inside the window we
+          # hold the job open and re-poll every 60s until the email arrives.
           # Outside the window this degrades to the old single-shot poll.
-          WATCH_START_H=12
-          WATCH_END_H=21
-          WATCH_MAX_SECONDS=19800   # 5h30m, under the 6h job ceiling
+          #
+          # Bounds are wall-clock America/New_York, NOT fixed UTC hours, so the
+          # window stays at 9:30am ET across the DST changeover instead of
+          # sliding an hour every November/March.
+          export TZ=America/New_York
+          WATCH_START="09:30"
+          WATCH_END="17:00"
+          WATCH_MAX_SECONDS=19800   # 5h30m of job time, under the 6h ceiling
           POLL_INTERVAL=60
 
-          dow=$(date -u +%u)        # 1 = Monday
-          hour=$(date -u +%-H)
+          now=$(date +%s)
+          dow=$(date +%u)                          # 1 = Monday, in ET
+          start_ts=$(date -d "today $WATCH_START" +%s)
+          end_ts=$(date -d "today $WATCH_END" +%s)
+          job_cap=$(( now + WATCH_MAX_SECONDS ))
+
           deadline=0
-          if [ "$dow" = "1" ] && [ "$hour" -ge "$WATCH_START_H" ] && [ "$hour" -lt "$WATCH_END_H" ]; then
-            window_end=$(date -u -d "today ${WATCH_END_H}:00" +%s)
-            cap=$(( $(date -u +%s) + WATCH_MAX_SECONDS ))
-            deadline=$(( window_end < cap ? window_end : cap ))
-            echo "Monday watch mode: polling every ${POLL_INTERVAL}s until $(date -u -d "@$deadline")"
+          if [ "$dow" = "1" ] && [ "$now" -lt "$end_ts" ]; then
+            if [ "$now" -lt "$start_ts" ]; then
+              # Pre-window Monday run. Don't just exit — cron delivery is so
+              # sparse that the next run might not land until well after 9:30,
+              # leaving the window unwatched. Instead, hold this job open until
+              # the window opens, provided we can reach it within our job cap.
+              if [ "$start_ts" -ge "$job_cap" ]; then
+                echo "Monday, but 9:30am ET is beyond this job's 5h30m budget — single poll; a later run picks up the watch."
+              else
+                echo "Monday pre-window: sleeping $(( (start_ts - now) / 60 ))m until $WATCH_START ET, then watching."
+                sleep $(( start_ts - now ))
+                deadline=$(( end_ts < job_cap ? end_ts : job_cap ))
+              fi
+            else
+              deadline=$(( end_ts < job_cap ? end_ts : job_cap ))
+            fi
+          fi
+
+          if [ "$deadline" != "0" ]; then
+            echo "Monday watch mode: polling every ${POLL_INTERVAL}s until $(date -d "@$deadline") (window closes $WATCH_END ET)"
           else
-            echo "Outside Monday watch window (UTC dow=$dow hour=$hour) — single poll."
+            echo "Outside Monday watch window (ET dow=$dow $(date '+%H:%M %Z')) — single poll."
           fi
 
           found=false
@@ -187,17 +211,18 @@ jobs:
 
       - name: Extend Monday watch
         # A watch run caps at 5h30m (6h job ceiling), but the Monday window is
-        # 12:00-21:00 UTC. If we time out empty-handed with the window still
+        # 9:30am-5:00pm ET. If we time out empty-handed with the window still
         # open, hand off to a fresh run. workflow_dispatch is one of the two
         # events GITHUB_TOKEN is allowed to trigger, so this does not need a PAT.
-        # The window bound guarantees the chain terminates.
+        # The 5:00pm ET bound guarantees the chain terminates.
         if: always() && steps.poll.outputs.watched == 'true' && steps.poll.outputs.found != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          TZ: America/New_York
         run: |
-          if [ "$(date -u +%u)" = "1" ] && [ "$(date -u +%-H)" -lt 21 ]; then
-            echo "Watch window still open at $(date -u) — chaining a follow-on run."
+          if [ "$(date +%u)" = "1" ] && [ "$(date +%s)" -lt "$(date -d 'today 17:00' +%s)" ]; then
+            echo "Watch window still open at $(date) — chaining a follow-on run."
             gh workflow run weekly-report.yml --ref "${{ github.ref_name }}"
           else
-            echo "Monday watch window closed at $(date -u) — standing down until next week."
+            echo "Monday watch window closed at $(date) — standing down until next week."
           fi
