@@ -1,0 +1,392 @@
+[
+  {
+    "month": "2020-01",
+    "active_subscribers": 62,
+    "new_subscriptions": 41
+  },
+  {
+    "month": "2020-02",
+    "active_subscribers": 87,
+    "new_subscriptions": 33
+  },
+  {
+    "month": "2020-03",
+    "active_subscribers": 138,
+    "new_subscriptions": 71
+  },
+  {
+    "month": "2020-04",
+    "active_subscribers": 220,
+    "new_subscriptions": 111
+  },
+  {
+    "month": "2020-05",
+    "active_subscribers": 309,
+    "new_subscriptions": 123
+  },
+  {
+    "month": "2020-06",
+    "active_subscribers": 387,
+    "new_subscriptions": 128
+  },
+  {
+    "month": "2020-07",
+    "active_subscribers": 1600,
+    "new_subscriptions": 1262
+  },
+  {
+    "month": "2020-08",
+    "active_subscribers": 1523,
+    "new_subscriptions": 259
+  },
+  {
+    "month": "2020-09",
+    "active_subscribers": 1111,
+    "new_subscriptions": 131
+  },
+  {
+    "month": "2020-10",
+    "active_subscribers": 766,
+    "new_subscriptions": 166
+  },
+  {
+    "month": "2020-11",
+    "active_subscribers": 947,
+    "new_subscriptions": 332
+  },
+  {
+    "month": "2020-12",
+    "active_subscribers": 1085,
+    "new_subscriptions": 269
+  },
+  {
+    "month": "2021-01",
+    "active_subscribers": 1239,
+    "new_subscriptions": 295
+  },
+  {
+    "month": "2021-02",
+    "active_subscribers": 1264,
+    "new_subscriptions": 198
+  },
+  {
+    "month": "2021-03",
+    "active_subscribers": 1305,
+    "new_subscriptions": 211
+  },
+  {
+    "month": "2021-04",
+    "active_subscribers": 1323,
+    "new_subscriptions": 213
+  },
+  {
+    "month": "2021-05",
+    "active_subscribers": 1336,
+    "new_subscriptions": 141
+  },
+  {
+    "month": "2021-06",
+    "active_subscribers": 1300,
+    "new_subscriptions": 101
+  },
+  {
+    "month": "2021-07",
+    "active_subscribers": 1234,
+    "new_subscriptions": 55
+  },
+  {
+    "month": "2021-08",
+    "active_subscribers": 1187,
+    "new_subscriptions": 77
+  },
+  {
+    "month": "2021-09",
+    "active_subscribers": 1128,
+    "new_subscriptions": 49
+  },
+  {
+    "month": "2021-10",
+    "active_subscribers": 1121,
+    "new_subscriptions": 60
+  },
+  {
+    "month": "2021-11",
+    "active_subscribers": 1101,
+    "new_subscriptions": 45
+  },
+  {
+    "month": "2021-12",
+    "active_subscribers": 1063,
+    "new_subscriptions": 29
+  },
+  {
+    "month": "2022-01",
+    "active_subscribers": 1019,
+    "new_subscriptions": 28
+  },
+  {
+    "month": "2022-02",
+    "active_subscribers": 968,
+    "new_subscriptions": 21
+  },
+  {
+    "month": "2022-03",
+    "active_subscribers": 940,
+    "new_subscriptions": 18
+  },
+  {
+    "month": "2022-04",
+    "active_subscribers": 919,
+    "new_subscriptions": 20
+  },
+  {
+    "month": "2022-05",
+    "active_subscribers": 889,
+    "new_subscriptions": 17
+  },
+  {
+    "month": "2022-06",
+    "active_subscribers": 873,
+    "new_subscriptions": 21
+  },
+  {
+    "month": "2022-07",
+    "active_subscribers": 846,
+    "new_subscriptions": 14
+  },
+  {
+    "month": "2022-08",
+    "active_subscribers": 824,
+    "new_subscriptions": 15
+  },
+  {
+    "month": "2022-09",
+    "active_subscribers": 846,
+    "new_subscriptions": 61
+  },
+  {
+    "month": "2022-10",
+    "active_subscribers": 899,
+    "new_subscriptions": 88
+  },
+  {
+    "month": "2022-11",
+    "active_subscribers": 1024,
+    "new_subscriptions": 174
+  },
+  {
+    "month": "2022-12",
+    "active_subscribers": 1207,
+    "new_subscriptions": 224
+  },
+  {
+    "month": "2023-01",
+    "active_subscribers": 2019,
+    "new_subscriptions": 896
+  },
+  {
+    "month": "2023-02",
+    "active_subscribers": 2881,
+    "new_subscriptions": 1011
+  },
+  {
+    "month": "2023-03",
+    "active_subscribers": 3546,
+    "new_subscriptions": 908
+  },
+  {
+    "month": "2023-04",
+    "active_subscribers": 4179,
+    "new_subscriptions": 1046
+  },
+  {
+    "month": "2023-05",
+    "active_subscribers": 4821,
+    "new_subscriptions": 1049
+  },
+  {
+    "month": "2023-06",
+    "active_subscribers": 5307,
+    "new_subscriptions": 998
+  },
+  {
+    "month": "2023-07",
+    "active_subscribers": 5930,
+    "new_subscriptions": 1262
+  },
+  {
+    "month": "2023-08",
+    "active_subscribers": 6488,
+    "new_subscriptions": 1248
+  },
+  {
+    "month": "2023-09",
+    "active_subscribers": 7334,
+    "new_subscriptions": 1582
+  },
+  {
+    "month": "2023-10",
+    "active_subscribers": 8098,
+    "new_subscriptions": 1516
+  },
+  {
+    "month": "2023-11",
+    "active_subscribers": 8765,
+    "new_subscriptions": 1539
+  },
+  {
+    "month": "2023-12",
+    "active_subscribers": 9746,
+    "new_subscriptions": 1845
+  },
+  {
+    "month": "2024-01",
+    "active_subscribers": 10729,
+    "new_subscriptions": 1932
+  },
+  {
+    "month": "2024-02",
+    "active_subscribers": 11159,
+    "new_subscriptions": 1557
+  },
+  {
+    "month": "2024-03",
+    "active_subscribers": 11701,
+    "new_subscriptions": 1648
+  },
+  {
+    "month": "2024-04",
+    "active_subscribers": 12150,
+    "new_subscriptions": 1531
+  },
+  {
+    "month": "2024-05",
+    "active_subscribers": 13088,
+    "new_subscriptions": 2089
+  },
+  {
+    "month": "2024-06",
+    "active_subscribers": 13789,
+    "new_subscriptions": 1939
+  },
+  {
+    "month": "2024-07",
+    "active_subscribers": 14552,
+    "new_subscriptions": 2003
+  },
+  {
+    "month": "2024-08",
+    "active_subscribers": 15874,
+    "new_subscriptions": 2731
+  },
+  {
+    "month": "2024-09",
+    "active_subscribers": 17368,
+    "new_subscriptions": 2895
+  },
+  {
+    "month": "2024-10",
+    "active_subscribers": 18517,
+    "new_subscriptions": 2810
+  },
+  {
+    "month": "2024-11",
+    "active_subscribers": 19751,
+    "new_subscriptions": 3080
+  },
+  {
+    "month": "2024-12",
+    "active_subscribers": 20765,
+    "new_subscriptions": 2658
+  },
+  {
+    "month": "2025-01",
+    "active_subscribers": 22279,
+    "new_subscriptions": 3354
+  },
+  {
+    "month": "2025-02",
+    "active_subscribers": 23073,
+    "new_subscriptions": 2733
+  },
+  {
+    "month": "2025-03",
+    "active_subscribers": 24547,
+    "new_subscriptions": 3372
+  },
+  {
+    "month": "2025-04",
+    "active_subscribers": 25827,
+    "new_subscriptions": 3291
+  },
+  {
+    "month": "2025-05",
+    "active_subscribers": 27521,
+    "new_subscriptions": 3718
+  },
+  {
+    "month": "2025-06",
+    "active_subscribers": 28570,
+    "new_subscriptions": 3345
+  },
+  {
+    "month": "2025-07",
+    "active_subscribers": 29924,
+    "new_subscriptions": 3796
+  },
+  {
+    "month": "2025-08",
+    "active_subscribers": 30952,
+    "new_subscriptions": 3681
+  },
+  {
+    "month": "2025-09",
+    "active_subscribers": 31849,
+    "new_subscriptions": 3439
+  },
+  {
+    "month": "2025-10",
+    "active_subscribers": 32336,
+    "new_subscriptions": 3363
+  },
+  {
+    "month": "2025-11",
+    "active_subscribers": 33068,
+    "new_subscriptions": 3441
+  },
+  {
+    "month": "2025-12",
+    "active_subscribers": 31645,
+    "new_subscriptions": 1200
+  },
+  {
+    "month": "2026-01",
+    "active_subscribers": 29897,
+    "new_subscriptions": 958
+  },
+  {
+    "month": "2026-02",
+    "active_subscribers": 29319,
+    "new_subscriptions": 1862
+  },
+  {
+    "month": "2026-03",
+    "active_subscribers": 30680,
+    "new_subscriptions": 3340
+  },
+  {
+    "month": "2026-04",
+    "active_subscribers": 31191,
+    "new_subscriptions": 2913
+  },
+  {
+    "month": "2026-05",
+    "active_subscribers": 31613,
+    "new_subscriptions": 2834
+  },
+  {
+    "month": "2026-06",
+    "active_subscribers": 29644,
+    "new_subscriptions": 383
+  }
+]

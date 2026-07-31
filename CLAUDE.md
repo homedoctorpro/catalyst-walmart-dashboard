@@ -78,6 +78,40 @@ Add the new fiscal year's week-1 Friday to `FISCAL_YEAR_WEEK1_FRIDAY` in `extrac
 
 ---
 
+## Growth Report (`build_growth_report.py`)
+
+Branded 2-slide PPTX + 2-sheet XLSX for stakeholder decks, output to `Growth Report/`:
+1. **Subscriber growth by year** — Shopify DTC year-end active subscriptions (bar chart, YoY %).
+2. **Walmart 15-lb Original (CATALYST15ORIG) linear weekly growth** — in-store units and
+   U/S/W by FY26 Walmart week, each with a least-squares linear trend line.
+
+### To refresh (when the user asks to update the growth report):
+```bash
+python build_growth_report.py
+```
+That's the whole refresh — no per-week config. It globs `2026?? Weekly Sales Report*.xlsx`
+in the repo root and **auto-detects the in-store sheet** in each workbook (scans every sheet
+for a `CATALYST15ORIG` row in column A, rows 1–6, requiring ≥34 columns; units = col H,
+U/S/W = col AH). Watch for `[WARN] no 15O row in <week>` — that means a workbook's layout
+changed and `find_15o_row()` needs adjusting.
+
+Outputs land in `Growth Report/`: `Catalyst_Growth_Report.pptx`, `Catalyst_Growth_Report.xlsx`,
+plus the chart PNGs (`rpt_subs.png`, `rpt_wm_units.png`, `rpt_wm_usw.png`). Commit the PPTX +
+XLSX (the XLSX has a `.gitignore` exception; the PNGs are intermediates, don't commit).
+
+### Notes / gotchas
+- **Subscriber data is a static export**: `Growth Report/sub_growth_series.json` (monthly
+  active-subscription counts from Recharge, exported from the CustomerIntelligence repo,
+  data through Jun 2026). The subscriber slide only uses year-end (Dec) values for
+  2022–2025, so it stays correct until end of 2026. To add 2026, re-export the series in
+  CustomerIntelligence and add the year to the `years` list in `load_sub_growth()`.
+- **When FY27 workbooks land** (`2027xx`, ~Feb 2027): update the glob pattern in
+  `load_walmart_15o()` and the `FY26_W1_FRIDAY` constant / axis labels (or split by FY).
+- History: this tool was built Jun 2026 in the CustomerIntelligence repo and moved here
+  2026-07-31 (workbooks live here, so the refresh has no cross-repo dependency).
+
+---
+
 ## Dashboard Features
 
 - **Password gate**: `pellets123` (stored in `localStorage`)

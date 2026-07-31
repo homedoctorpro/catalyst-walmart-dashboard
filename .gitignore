@@ -10,3 +10,6 @@ chewy_email_preview.html
 .chewy_last_emailed_month
 .chewy_processed_message_ids
 Chewy Brand Snapshots/
+
+# Growth Report outputs (generated, but small + shareable — keep committed)
+!Growth Report/Catalyst_Growth_Report.xlsx
