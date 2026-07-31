@@ -325,7 +325,19 @@ def build_ppt(sub_png, wm_units_png, wm_usw_png, years, subvals, slopes, rows, p
     prs.save(path)
 
 
+def sync_inbox():
+    """Pull any weekly workbooks from the reports inbox that aren't on disk yet,
+    so the report never silently builds against a stale folder."""
+    try:
+        from _download_missing_weeks import download_missing_weeks
+        print("Syncing weekly workbooks from inbox …")
+        download_missing_weeks()
+    except Exception as e:
+        print(f"  [WARN] inbox sync failed ({e}) — building with workbooks on disk")
+
+
 def main():
+    sync_inbox()
     print("Loading subscription growth …")
     years, subvals = load_sub_growth()
     print("  ", dict(zip(years, subvals)))

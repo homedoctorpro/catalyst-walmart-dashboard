@@ -1079,6 +1079,16 @@ def compute_state_inventory(all_store_weeks, stores):
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
+    # 0. Sync any missing weekly workbooks from the reports inbox before
+    # building (auto-ingested weeks otherwise live only in the private data
+    # repo, and the week-regression guard would abort the build). Non-fatal:
+    # cloud runs have no credentials module and already have the files.
+    try:
+        from _download_missing_weeks import download_missing_weeks
+        download_missing_weeks()
+    except Exception as e:
+        print(f"[WARN] inbox sync skipped ({e}) — using workbooks on disk")
+
     # 1. Find Excel files
     files = find_excel_files()
     print(f"Found {len(files)} Excel files: {sorted(files.keys())}")

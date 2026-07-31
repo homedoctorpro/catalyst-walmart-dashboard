@@ -89,7 +89,11 @@ Branded 2-slide PPTX + 2-sheet XLSX for stakeholder decks, output to `Growth Rep
 ```bash
 python build_growth_report.py
 ```
-That's the whole refresh — no per-week config. It globs `2026?? Weekly Sales Report*.xlsx`
+That's the whole refresh — no per-week config. Both `build_growth_report.py` and
+`extract_data.py` first call `download_missing_weeks()` (from `_download_missing_weeks.py`)
+to pull any weekly workbooks from the ligneticsdata inbox that aren't on disk yet, so local
+builds can't run against a stale folder (non-fatal if IMAP is unreachable). It then globs
+`2026?? Weekly Sales Report*.xlsx`
 in the repo root and **auto-detects the in-store sheet** in each workbook (scans every sheet
 for a `CATALYST15ORIG` row in column A, rows 1–6, requiring ≥34 columns; units = col H,
 U/S/W = col AH). Watch for `[WARN] no 15O row in <week>` — that means a workbook's layout
