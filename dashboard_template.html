@@ -1521,6 +1521,19 @@
           graduating to the next one). Growth % = that change as a share of the bucket's prior-week size
           (shown once a bucket reaches 100+ customers; 4-wk avg line smooths sampling noise).
         </div>
+        <details style="margin-top:10px">
+          <summary style="cursor:pointer;font-size:0.8rem;font-weight:600;color:#0057e7">
+            Weekly growth-% table (all 6 buckets)
+          </summary>
+          <div style="overflow-x:auto;max-height:420px;overflow-y:auto;margin-top:8px">
+            <div id="trial-bucketgrowth-table"></div>
+          </div>
+          <div style="font-size:0.72rem;color:#999;margin-top:4px">
+            Raw week-over-week % change of each cumulative bucket (no smoothing), most recent week first.
+            Greyed cells = bucket had &lt;100 customers the prior week (10% sample &rarr; noisy).
+            <strong>All</strong> = total customers.
+          </div>
+        </details>
       </div>
 
       <div class="chart-grid" style="grid-template-columns: 1fr 1fr; margin-top:14px">
@@ -6717,6 +6730,37 @@ function renderTrialBucketGrowthChart(layoutBase, cfg) {
     yaxis,
     hovermode: "x unified",
   }, cfg);
+  renderTrialBucketGrowthTable();
+}
+
+function renderTrialBucketGrowthTable() {
+  const el = document.getElementById("trial-bucketgrowth-table");
+  if (!el) return;
+  const prod = trialProd(trialSelectedProduct);
+  if (!prod) { el.innerHTML = ""; return; }
+  const weeks = trialProdWeeks(trialSelectedProduct);
+  const buckets = ["1","2","3","4","5","6+"];
+  const cell = (cum, i) => {
+    const prev = cum[i-1] || 0;
+    if (i === 0 || prev <= 0) return "<td style='color:#ccc'>&mdash;</td>";
+    const pct = (cum[i] - prev) / prev * 100;
+    const noisy = prev < 100;
+    // green shade scaled to magnitude (caps at 25%/wk); negatives in red
+    let bg = "";
+    if (!noisy && pct > 0) bg = `background:rgba(46,125,50,${Math.min(pct / 25, 1) * 0.22})`;
+    const color = noisy ? "#bbb" : (pct < 0 ? "#c62828" : "#1b5e20");
+    return `<td style="color:${color};${bg}">${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%</td>`;
+  };
+  const rows = [];
+  for (let i = weeks.length - 1; i >= 0; i--) {
+    const tc = prod.total_customers;
+    rows.push(`<tr><td>${fmtTrialDate(weeks[i])}</td>` +
+      buckets.map(b => cell(prod.customers[b], i)).join("") +
+      cell(tc, i) + "</tr>");
+  }
+  el.innerHTML = `<table class="wide-table"><thead><tr><th>Week</th>` +
+    buckets.map(b => `<th>${b} txn</th>`).join("") +
+    `<th>All</th></tr></thead><tbody>${rows.join("")}</tbody></table>`;
 }
 
 let trialNRMode = "abs"; // 'abs' | 'pct'
