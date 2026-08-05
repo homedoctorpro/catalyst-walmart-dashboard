@@ -33,12 +33,15 @@ def load_stores() -> list[dict]:
         for r in csv.DictReader(f):
             if not r["latitude"] or not r["longitude"]:
                 continue
+            skus = [k for k, col in (("15O", "has_15O"), ("34O", "has_34O"),
+                                     ("15U", "has_15U"), ("34U", "has_34U")) if r[col] == "Y"]
             stores.append({
                 "n": int(r["store_number"]),
                 "a": r["street_address"],
                 "c": r["city"].title() if r["city"] else "",
                 "s": r["state"],
                 "z": r["zip"],
+                "k": skus,
                 "lat": round(float(r["latitude"]), 5),
                 "lon": round(float(r["longitude"]), 5),
             })
@@ -99,6 +102,15 @@ TEMPLATE = r"""<!DOCTYPE html>
   .leaflet-popup-content b { color: #1a3c34; }
   .leaflet-popup-content a { color: #0b57d0; font-weight: 700; text-decoration: none; }
 
+  .sku-chip { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.72rem; font-weight: 700; color: #fff; margin: 2px 3px 0 0; white-space: nowrap; }
+  .sku-chip.s-15O { background: #1f6f43; }
+  .sku-chip.s-34O { background: #2e7d5b; }
+  .sku-chip.s-15U { background: #4d8a9e; }
+  .sku-chip.s-34U { background: #6a5c9e; }
+  .sku-none { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.72rem; font-weight: 700; color: #666; background: #eee; margin-top: 2px; }
+  .sku-line { margin-top: 4px; }
+  .sku-label { font-size: 0.75rem; color: #888; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+
   #footer { background: #fff; border-top: 1px solid #e0e0e0; padding: 8px 22px; font-size: 0.75rem; color: #888; }
 
   @media (max-width: 700px) {
@@ -150,11 +162,18 @@ function directionsUrl(st) {
   const dest = encodeURIComponent(`Walmart, ${st.a}, ${st.c}, ${st.s} ${st.z}`);
   return `https://www.google.com/maps/dir/?api=1&destination=${dest}`;
 }
+const SKU_NAMES = { "15O": "15 lb Original", "34O": "34 lb Original", "15U": "15 lb Unscented", "34U": "34 lb Unscented" };
+function skuChips(st) {
+  return st.k.length
+    ? st.k.map(k => `<span class="sku-chip s-${k}">${SKU_NAMES[k]}</span>`).join("")
+    : `<span class="sku-none">None</span>`;
+}
 function popupHtml(st, distMi) {
   const addr = [st.a, st.c, st.s, st.z].filter(Boolean).join(", ");
   return `<b>Walmart #${st.n}</b><br>${addr}` +
     (distMi != null ? `<br><span style="color:#1a3c34;font-weight:700">${distMi.toFixed(1)} miles away</span>` : "") +
-    `<br><a href="${directionsUrl(st)}" target="_blank" rel="noopener">Get directions →</a>`;
+    `<div class="sku-line"><span class="sku-label">Originally stocked:</span><br>${skuChips(st)}</div>` +
+    `<a href="${directionsUrl(st)}" target="_blank" rel="noopener">Get directions →</a>`;
 }
 
 const cluster = L.markerClusterGroup({
@@ -241,6 +260,7 @@ function showNearest(lat, lon, label) {
       <span class="dist">${r.d.toFixed(1)} mi</span>
       <span class="rank">${i + 1}</span><span class="name">Walmart #${r.st.n}</span>
       <div class="addr">${[r.st.a, r.st.c, r.st.s, r.st.z].filter(Boolean).join(", ")}</div>
+      <div class="addr sku-line"><span class="sku-label">Originally stocked:</span> ${skuChips(r.st)}</div>
       <a class="dir" href="${directionsUrl(r.st)}" target="_blank" rel="noopener">Get directions →</a>
     </div>
   `).join("");
