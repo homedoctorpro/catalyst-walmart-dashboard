@@ -45,6 +45,11 @@ def download_missing_weeks(verbose=True):
                 continue
             fn = dec(part.get_filename())
             if fn and fn.lower().endswith(ATTACH_EXTS):
+                # Same-thread replies carry other workbooks (endcap sales etc.)
+                # whose names also contain a week code — only accept the real
+                # weekly report by filename.
+                if "weekly sales report" not in fn.lower():
+                    continue
                 payload = part.get_payload(decode=True)
                 if payload:
                     att = (fn, payload)

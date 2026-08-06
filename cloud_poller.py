@@ -61,12 +61,21 @@ def append_processed(state_file, msg_id):
 
 
 def find_attachment(msg):
-    """Return (filename, bytes) for the first .xlsx/.xlsb attachment, or None."""
+    """Return (filename, bytes) for the first weekly-report .xlsx/.xlsb attachment.
+
+    The filename must contain "weekly sales report" — replies on the same thread
+    carry other workbooks (e.g. "Catalyst Endcap Store Sales 202626.xlsx"), and a
+    week code alone is not enough: one such reply overwrote the real 202626
+    workbook in the data repo and blanked that week on the dashboard.
+    """
     for part in msg.walk():
         if part.get_content_maintype() == "multipart":
             continue
         fname = _decode(part.get_filename())
         if fname and fname.lower().endswith(ATTACH_EXTS):
+            if "weekly sales report" not in fname.lower():
+                print(f"[poller] skip attachment (not a weekly report): {fname!r}")
+                continue
             payload = part.get_payload(decode=True)
             if payload:
                 return fname, payload
