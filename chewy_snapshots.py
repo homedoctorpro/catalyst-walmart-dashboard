@@ -55,49 +55,57 @@ def _value_near(values, y, xmin=200.0, max_dy=25.0):
 def parse_snapshot_pdf(path):
     """Return a dict of parsed fields, or None if it isn't a snapshot PDF."""
     doc = fitz.open(path)
-    page = doc[0]
-    full = re.sub(r"\s+", " ", page.get_text())
+    full = re.sub(r"\s+", " ",
+                  " ".join(page.get_text() for page in doc))
     if "Customer Sales Units" not in full:
         return None
 
     mo = re.search(r"Month\s+(\d{2})/\d{2}/(\d{4})", full)
+    mn = re.search(r"\b(January|February|March|April|May|June|July|August|"
+                   r"September|October|November|December)\s+(\d{4})", full)
     if mo:
         month = f"{mo.group(2)}-{mo.group(1)}"
-    else:                                          # older format: "| March 2026"
-        mn = re.search(r"\b(January|February|March|April|May|June|July|August|"
-                       r"September|October|November|December)\s+(\d{4})", full)
-        if not mn:
-            return None
+    elif mn:                                       # older format: "| March 2026"
         month = f"{mn.group(2)}-{MONTHS[mn.group(1)]}"
+    else:
+        # Jul-2026+ exports truncate the "Shipped Month" text ("07/01/20�");
+        # fall back to the newest axis date on the Monthly Customer Sales
+        # Units chart, which always ends at the snapshot month.
+        dates = re.findall(r"\b(\d{4})-(\d{2})-01\b", full)
+        if not dates:
+            return None
+        month = "-".join(max(dates))
 
-    rm = re.search(r"([\d.]+)\s*Avg Customer Rating", full)
+    rm = re.search(r"([\d.]+)\s*Avg Custom", full)  # "Rating" may be truncated
     rating = float(rm.group(1)) if rm else None
 
-    # Collect positioned tokens, then match each SKU/state to the value that
-    # shares its baseline. Robust to wrapped product names and layout shifts.
-    words = page.get_text("words")
-    # numeric tokens that are unit counts (exclude bare 6-7 digit part numbers)
-    values = [(y0, x0, _num(t)) for x0, y0, x1, y1, t, *_ in words
-              if re.fullmatch(r"[\d,]+", t) and not re.fullmatch(r"\d{6,7}", t)]
-
+    # Collect positioned tokens per page, then match each SKU/state to the
+    # value that shares its baseline. Robust to wrapped product names and
+    # layout shifts; newer exports put the per-SKU chart on page 2.
     sku_units, canada, top_states = {}, {}, []
     seen_state = set()
-    for x0, y0, x1, y1, t, *_ in words:
-        if re.fullmatch(r"\d{6,7}", t):            # US part number
-            v = _value_near(values, y0)
-            if v is not None and v < 100000:       # exclude a stray part-number
-                sku_units[t] = v
-        elif t in STATES and t not in seen_state:  # top-10 state
-            v = _value_on_line(values, y0)
-            if v is not None:
-                top_states.append([t, v])
-                seen_state.add(t)
-        else:                                      # Canada kg SKU
-            km = re.fullmatch(r"([\d.]+)-kg", t)
-            if km and km.group(1) in KG_LABEL:
+    for page in doc:
+        words = page.get_text("words")
+        # numeric unit-count tokens (exclude bare 6-7 digit part numbers)
+        values = [(y0, x0, _num(t)) for x0, y0, x1, y1, t, *_ in words
+                  if re.fullmatch(r"[\d,]+", t)
+                  and not re.fullmatch(r"\d{6,7}", t)]
+        for x0, y0, x1, y1, t, *_ in words:
+            if re.fullmatch(r"\d{6,7}", t):            # US part number
                 v = _value_near(values, y0)
+                if v is not None and v < 100000:   # exclude a stray part-number
+                    sku_units[t] = v
+            elif t in STATES and t not in seen_state:  # top-10 state
+                v = _value_on_line(values, y0)
                 if v is not None:
-                    canada[KG_LABEL[km.group(1)]] = v
+                    top_states.append([t, v])
+                    seen_state.add(t)
+            else:                                      # Canada kg SKU
+                km = re.fullmatch(r"([\d.]+)-kg", t)
+                if km and km.group(1) in KG_LABEL:
+                    v = _value_near(values, y0)
+                    if v is not None:
+                        canada[KG_LABEL[km.group(1)]] = v
 
     top_states = sorted(top_states, key=lambda s: -s[1])[:10]
     # Brand from the SKU part numbers (Feline Fresh parts all start 1932),
