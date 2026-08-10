@@ -42,12 +42,15 @@ REASONS = {  # sheet name -> (key, label, color)
 SET_COLOR, OTHER_COLOR = "#1a9850", "#b8c4cc"
 
 
+ENDCAP_UNITS = 36
+
+
 def load_bystore(week):
-    """per-store 15O qty / on-hand + all-SKU qty + zip/city/state."""
+    """per-store 15O qty / on-hand / pipeline + all-SKU qty + zip/city/state."""
     wb = openpyxl.load_workbook(
         os.path.join(HERE, f"{week} Weekly Sales Report Catalyst.xlsx"),
         read_only=True)
-    q15, oh15, qtot, meta = {}, {}, defaultdict(float), {}
+    q15, oh15, pipe15, qtot, meta = {}, {}, {}, defaultdict(float), {}
     for r in wb["Sales by Store"].iter_rows(min_row=2, values_only=True):
         if r[0] is None or r[1] is None:
             continue
@@ -60,7 +63,8 @@ def load_bystore(week):
         if str(r[0]).strip() == "CATALYST15ORIG":
             q15[store] = float(r[8] or 0)
             oh15[store] = float(r[9] or 0)
-    return q15, oh15, qtot, meta
+            pipe15[store] = (float(r[10] or 0), float(r[11] or 0))  # transit, on order
+    return q15, oh15, pipe15, qtot, meta
 
 
 def main():
@@ -80,8 +84,23 @@ def main():
     for s in endcap:
         seg_of.setdefault(s, "set")
 
-    q15_26, _oh26, qtot_26, meta26 = load_bystore(PRIOR_WEEK)
-    q15_27, oh15_27, qtot_27, meta27 = load_bystore(ENDCAP_WEEK)
+    q15_26, _oh26, _pipe26, qtot_26, meta26 = load_bystore(PRIOR_WEEK)
+    q15_27, oh15_27, pipe27, qtot_27, meta27 = load_bystore(ENDCAP_WEEK)
+
+    # endcap product status: has the 36-unit allocation reached the store?
+    # "received" counts on-hand + this week's and last week's sell-through
+    # (product began arriving in wk202626). No DC-warehouse column in this
+    # feed, so DC stock not yet on order shows as "short".
+    def inv_status(s):
+        if s not in q15_27:
+            return "short"
+        have = oh15_27.get(s, 0) + q15_27.get(s, 0) + q15_26.get(s, 0)
+        transit, onorder = pipe27.get(s, (0, 0))
+        if have >= ENDCAP_UNITS:
+            return "received"
+        if have + transit + onorder >= ENDCAP_UNITS:
+            return "transit" if transit > 0 else "onorder"
+        return "short"
 
     set_ok = {s for s in endcap if seg_of[s] == "set"}
     exc = {s for s in endcap if seg_of[s] != "set"}
@@ -158,6 +177,30 @@ def main():
                 seg_row("No Catalyst at all before", no_cat)]
     n333_in27 = sum(1 for s in no_cat if s in q15_27)
 
+    # --- inventory status cross-tab ----------------------------------------
+    inv_of = {s: inv_status(s) for s in endcap}
+    INV_COLS = ["received", "transit", "onorder", "short"]
+    inv_rows = []
+    seg_order = [("set", "Set (no exception)")] + \
+        [(key, label) for _sh, (key, label, _c) in REASONS.items()]
+    for key, label in seg_order:
+        stores = [s for s in endcap if seg_of[s] == key]
+        row = Counter(inv_of[s] for s in stores)
+        inv_rows.append({"label": label, "n": len(stores),
+                         **{c: row.get(c, 0) for c in INV_COLS}})
+    inv_tot = Counter(inv_of.values())
+    rec_stores = [s for s in endcap if inv_of[s] == "received"]
+    inv_summary = {
+        "counts": {c: inv_tot.get(c, 0) for c in INV_COLS},
+        "rec_sold": sum(1 for s in rec_stores if q15_27.get(s, 0) > 0),
+        "prev_received": 666,  # from the wk202626 receipts workbook
+        "set_noprod": sum(1 for s in set_ok if inv_of[s] != "received"),
+        "nei_received": next(r["received"] for r in inv_rows
+                             if r["label"] == "Not enough inventory"),
+        "nei_coming": next(r["transit"] + r["onorder"] for r in inv_rows
+                           if r["label"] == "Not enough inventory"),
+    }
+
     # --- flag list (zero sales in endcap week) -----------------------------
     flags = []
     for s in sorted(set_ok):
@@ -168,9 +211,9 @@ def main():
             "store": s, "city": r["city"].title(), "state": r["state"],
             "tier": 1 if q15_26.get(s, 0) == 0 else 2,
             "q26": round(q15_26.get(s, 0)), "q27": 0,
-            "oh": round(oh15_27.get(s, 0)),
+            "oh": round(oh15_27.get(s, 0)), "inv": inv_of[s],
         })
-    flags.sort(key=lambda x: (x["tier"], -x["oh"]))
+    flags.sort(key=lambda x: (x["tier"], x["inv"] != "received", -x["oh"]))
 
     # --- map stores --------------------------------------------------------
     geo = json.load(open(os.path.join(HERE, "stores_geo.json"), encoding="utf-8"))
@@ -224,6 +267,7 @@ def main():
                   "set_zero": set_zero27,
                   "set_zero_pct": round(set_zero27 / len(set_ok) * 100)},
         "segments": segments, "n333": len(no_cat), "n333_in27": n333_in27,
+        "inv": {"rows": inv_rows, **inv_summary, "units": ENDCAP_UNITS},
         "flags": flags,
         "map": {"segments": seg_meta, "counts": seg_counts, "stores": map_stores},
     }
@@ -388,6 +432,13 @@ TEMPLATE = r"""<!DOCTYPE html>
 </section>
 
 <section>
+  <h2>Has the endcap product physically arrived? (wk202627 inventory)</h2>
+  <p class="note" id="invnote"></p>
+  <table id="invtable"></table>
+  <div class="callout" id="invcallout"></div>
+</section>
+
+<section>
   <h2>Did stores new to Catalyst reject the endcap more?</h2>
   <p class="note">The roster splits by what each store carried before the program. Rejection = any exception filed.</p>
   <table id="segtable"></table>
@@ -516,6 +567,36 @@ document.getElementById('histcallout').innerHTML =
   ' likely not yet visited (merchandisers confirm ' + fmt(DATA.confirmed_set) +
   ' sets), those zero-sale stores are the place to look. They are the flag list below.';
 
+/* ---- inventory status ---- */
+const INV = DATA.inv;
+const INV_LABELS = {received:'36 at store (or sold through)', transit:'In transit',
+  onorder:'On order only', short:'Pipeline short of 36'};
+document.getElementById('invnote').textContent =
+  'Each program store was allocated ' + INV.units + ' units. “36 at store” counts on-hand plus the last two weeks’ ' +
+  'sell-through, so stores that received and sold bags still count. This feed has no DC-warehouse column, so DC ' +
+  'stock not yet on a store order shows as “short”.';
+let it = '<tr><th>Set status</th><th class="num">Stores</th>' +
+  Object.values(INV_LABELS).map(l => '<th class="num">' + l + '</th>').join('') +
+  '<th class="num">% arrived</th></tr>';
+DATA.inv.rows.forEach((r, i) => {
+  it += '<tr class="' + (i===0?'hl':'') + '"><td>' + r.label + '</td><td class="num">' + fmt(r.n) + '</td>' +
+    ['received','transit','onorder','short'].map(c => '<td class="num">' + fmt(r[c]) + '</td>').join('') +
+    '<td class="num">' + Math.round(100*r.received/r.n) + '%</td></tr>';
+});
+const IC = INV.counts, invTot = IC.received + IC.transit + IC.onorder + IC.short;
+it += '<tr style="font-weight:600"><td>All program stores</td><td class="num">' + fmt(invTot) + '</td>' +
+  ['received','transit','onorder','short'].map(c => '<td class="num">' + fmt(IC[c]) + '</td>').join('') +
+  '<td class="num">' + Math.round(100*IC.received/invTot) + '%</td></tr>';
+document.getElementById('invtable').innerHTML = it;
+document.getElementById('invcallout').innerHTML =
+  '<b>' + fmt(IC.received) + ' stores (' + Math.round(100*IC.received/invTot) + '%) now have their 36 bags</b> (' +
+  fmt(INV.rec_sold) + ' of them sold at least one this week), up from ' + fmt(INV.prev_received) +
+  ' in last week&rsquo;s receipts file; ' + fmt(IC.transit) + ' are in transit and ' + fmt(IC.onorder) +
+  ' still on order. The reason codes check out against the pipeline: &ldquo;not enough inventory&rdquo; stores are the ' +
+  'least stocked — only ' + INV.nei_received + ' of 339 have product even now, with ' + fmt(INV.nei_coming) +
+  ' inbound — so most of those can set once trucks land. And ' + fmt(INV.set_noprod) + ' of the ' + fmt(DATA.n_set) +
+  ' &ldquo;set&rdquo; stores don&rsquo;t have the 36 at the store yet, more evidence they&rsquo;re unvisited rather than set.';
+
 /* ---- segments ---- */
 let st = '<tr><th>Prior distribution</th><th class="num">Stores</th>' +
   '<th class="num">Rejected</th><th class="num">Rejection rate</th>' +
@@ -541,25 +622,31 @@ document.getElementById('segcallout').innerHTML =
 
 /* ---- flag list ---- */
 const T1 = DATA.flags.filter(f => f.tier === 1).length;
+const FNP = DATA.flags.filter(f => f.inv !== 'received').length;
 document.getElementById('flagnote').textContent =
   DATA.flags.length + ' stores filed no exception but sold zero 15-lb units in the endcap week — ' +
   'statistically they look like the not-set population. Tier 1 (' + T1 + ') also sold nothing the week ' +
-  'before; Tier 2 (' + (DATA.flags.length - T1) + ') were selling and stopped. Cross-check against the ' +
-  'merchandiser visit log.';
+  'before; Tier 2 (' + (DATA.flags.length - T1) + ') were selling and stopped. ' + FNP +
+  " of them don't even have the endcap product at the store yet (can't be set); the other " +
+  (DATA.flags.length - FNP) + ' have the bags on site but sold none — those are the ones to cross-check ' +
+  'against the merchandiser visit log.';
 let ft = '<tr><th>Tier</th><th>Store #</th><th>City</th><th>State</th>' +
   '<th class="num">Units ' + wkLabel(DATA.prior_week) + '</th>' +
-  '<th class="num">Units ' + wkLabel(DATA.week) + '</th><th class="num">On hand now</th></tr>';
+  '<th class="num">Units ' + wkLabel(DATA.week) + '</th><th class="num">On hand now</th>' +
+  '<th>Endcap product</th></tr>';
 DATA.flags.forEach(f => {
   ft += '<tr><td><span class="tier' + f.tier + '">Tier ' + f.tier + '</span></td>' +
     '<td>' + f.store + '</td><td>' + f.city + '</td><td>' + f.state + '</td>' +
     '<td class="num">' + f.q26 + '</td><td class="num">' + f.q27 + '</td>' +
-    '<td class="num">' + f.oh + '</td></tr>';
+    '<td class="num">' + f.oh + '</td><td>' +
+    (f.inv === 'received' ? '<b>at store — check set</b>' : INV_LABELS[f.inv].toLowerCase()) +
+    '</td></tr>';
 });
 document.getElementById('flagtable').innerHTML = ft;
 document.getElementById('csvbtn').onclick = () => {
   const rows = [['tier','store_number','city','state',
-    'units_wk' + DATA.prior_week,'units_wk' + DATA.week,'on_hand']];
-  DATA.flags.forEach(f => rows.push([f.tier,f.store,f.city,f.state,f.q26,f.q27,f.oh]));
+    'units_wk' + DATA.prior_week,'units_wk' + DATA.week,'on_hand','endcap_product']];
+  DATA.flags.forEach(f => rows.push([f.tier,f.store,f.city,f.state,f.q26,f.q27,f.oh,f.inv]));
   const blob = new Blob([rows.map(r => r.join(',')).join('\n')], {type:'text/csv'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
