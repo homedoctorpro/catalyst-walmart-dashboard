@@ -93,11 +93,15 @@ WHOLESALE_PRICE = {
 # ── Price rollback ───────────────────────────────────────────────────────────
 # Walmart rolled BOTH 15 lb Catalyst SKUs (Original + Unscented) from $18.24 to
 # $15.97 starting 2026-07-13 — mid fiscal week 202624. The weekly feed has no
-# per-day price, so "units sold at the rollback price" is IMPUTED from each
-# week's blended implied price (pos_dollars / pos_qty) via a two-price back-out:
-#     units@rollback = qty * (P_pre - P_blended) / (P_pre - P_rollback)
-# where P_pre is the SKU's trailing pre-rollback implied price. Fully-post
-# weeks count all units; fully-pre weeks count zero. build_rollback() below.
+# per-day price, so "units sold at the rollback price" is IMPUTED per STORE
+# from each store-week's AUR (POS $ / POS qty) via a two-price back-out:
+#     units@rollback = qty * (P_pre - AUR_store) / (P_pre - P_rollback)
+# clamped to [0,1], where P_pre is the SKU's trailing pre-rollback implied
+# price. Stores whose AUR is at/above the pre-rollback price count ZERO, so
+# only bags actually sold below the old price draw against the co-op — and the
+# count self-corrects if prices revert (e.g. $19.97 after the program ends).
+# Weeks with no per-store POS $ column fall back to the same back-out on the
+# week's blended implied price. build_rollback() below.
 ROLLBACK = {
     "date":      "2026-07-13",                          # first day at rollback price
     "pre_price": 18.24,                                 # headline pre-rollback shelf price
@@ -200,9 +204,12 @@ def build_coop(rollback, metrics, week_dates):
 
     as_of_wk = sorted(rollback["by_week"])[-1]
     as_of    = date.fromisoformat(week_dates[as_of_wk])
-    # Run rate = latest week's full 15 lb volume (both scents) — go-forward every
-    # unit sells at the rollback price.
-    run = sum(((metrics.get(as_of_wk, {}).get(s) or {}).get("pos_qty") or 0) for s in skus)
+    # Run rate = latest week's IMPUTED rollback units (both scents) — go-forward
+    # the same share of units keeps selling at the rollback price. Falls back to
+    # full 15 lb volume if imputation returned nothing for the latest week.
+    run = sum((rollback["by_week"].get(as_of_wk) or {}).values())
+    if not run:
+        run = sum(((metrics.get(as_of_wk, {}).get(s) or {}).get("pos_qty") or 0) for s in skus)
 
     units_to_date = rollback["units_total"]
 
@@ -259,8 +266,13 @@ def build_coop(rollback, metrics, week_dates):
     }
 
 
-def build_rollback(metrics, week_dates):
+def build_rollback(metrics, week_dates, store_rows_by_week=None):
     """Impute cumulative 15 lb units sold at the rollback price. See ROLLBACK.
+
+    Store-level: each store-week's AUR (POS $ / POS qty) is backed out between
+    the SKU's pre-rollback baseline and the rollback price, clamped to [0,1] —
+    stores selling at/above the pre-rollback price contribute zero units.
+    Weeks without per-store POS $ fall back to the week-level blended back-out.
 
     Returns a dict for the dashboard/email, or None if no rollback-era week
     has data yet.
@@ -269,6 +281,7 @@ def build_rollback(metrics, week_dates):
     price   = ROLLBACK["price"]
     skus    = ROLLBACK["skus"]
     weeks   = sorted(w for w in week_dates)
+    store_rows_by_week = store_rows_by_week or {}
 
     def implied(w, sku):
         m = metrics.get(w, {}).get(sku, {})
@@ -284,8 +297,15 @@ def build_rollback(metrics, week_dates):
         pre = [p for p in pre if p]
         baseline[sku] = round(sum(pre[-4:]) / len(pre[-4:]), 4) if pre else ROLLBACK["pre_price"]
 
+    def frac_for(sku, aur):
+        denom = baseline[sku] - price
+        if aur is None or denom <= 0:
+            return 0.0
+        return min(1.0, max(0.0, (baseline[sku] - aur) / denom))
+
     by_week = {}
-    units_by_sku = {sku: 0 for sku in skus}
+    units_by_sku   = {sku: 0 for sku in skus}
+    units_excluded = 0                      # units at/above pre-rollback AUR (not counted)
     start_week = None
     partial = None
     for w in weeks:
@@ -295,21 +315,33 @@ def build_rollback(metrics, week_dates):
             continue                                    # fully pre-rollback
         if start_week is None:
             start_week = w
+        srows = [r for r in (store_rows_by_week.get(w) or [])
+                 if r["item_name"] in skus and r.get("pos_dollars") is not None]
         row = {}
         for sku in skus:
-            q = metrics.get(w, {}).get(sku, {}).get("pos_qty")
-            if not q:
-                continue
-            if start >= rb_date:
-                u = q                                   # entire week at rollback price
+            mine = [r for r in srows if r["item_name"] == sku]
+            if mine:
+                # Store-level: back out each store's AUR against the baseline.
+                tot = 0.0
+                for r in mine:
+                    q = r["pos_qty"]
+                    if q <= 0:
+                        continue
+                    f = frac_for(sku, r["pos_dollars"] / q)
+                    tot += q * f
+                    units_excluded += q * (1.0 - f)
+                u = int(round(tot))
             else:
-                imp   = implied(w, sku)
-                denom = baseline[sku] - price
-                frac  = ((baseline[sku] - imp) / denom) if (imp is not None and denom) else 0.0
-                frac  = min(1.0, max(0.0, frac))
-                u = int(round(q * frac))
-            row[sku] = u
-            units_by_sku[sku] += u
+                # Fallback: week-level blended back-out.
+                q = metrics.get(w, {}).get(sku, {}).get("pos_qty")
+                if not q:
+                    continue
+                f = frac_for(sku, implied(w, sku))
+                u = int(round(q * f))
+                units_excluded += q * (1.0 - f)
+            if u:
+                row[sku] = u
+                units_by_sku[sku] += u
         by_week[w] = row
         if start < rb_date <= end and partial is None:
             partial = {"week": w, "days_pre": (rb_date - start).days,
@@ -329,6 +361,7 @@ def build_rollback(metrics, week_dates):
         "by_week":        by_week,
         "units_by_sku":   units_by_sku,
         "units_total":    units_total,
+        "units_excluded": int(round(units_excluded)),
         "dollars_total":  round(units_total * price, 2),
         "partial":        partial,
     }
@@ -597,6 +630,7 @@ def extract_store_data(week, df):
     """
     # Detect inventory column indices from header row
     header = [str(df.iloc[0, c]).replace("\n", " ") for c in range(df.shape[1])]
+    pos_sales_col  = next((i for i, h in enumerate(header) if "POS Sales" in h), None)
     pos_qty_col    = next((i for i, h in enumerate(header) if "POS Quantity" in h), 7)
     on_hand_col    = next((i for i, h in enumerate(header) if "On Hand Quantity" in h), 8)
     in_transit_col = next((i for i, h in enumerate(header) if "In Transit Quantity" in h), None)
@@ -609,6 +643,13 @@ def extract_store_data(week, df):
             return int(f) if not math.isnan(f) else 0
         except (ValueError, TypeError):
             return 0
+
+    def to_float(v):
+        try:
+            f = float(v)
+            return None if math.isnan(f) else f
+        except (ValueError, TypeError):
+            return None
 
     rows = []
     for i in range(len(df)):
@@ -633,6 +674,7 @@ def extract_store_data(week, df):
                 "city":         city,
                 "zip5":         zip5,
                 "pos_qty":      to_int(row.iloc[pos_qty_col]),
+                "pos_dollars":  to_float(row.iloc[pos_sales_col]) if pos_sales_col is not None else None,
                 "on_hand":      to_int(row.iloc[on_hand_col]),
                 "in_transit":   to_int(row.iloc[in_transit_col]) if in_transit_col is not None else 0,
                 "on_order":     to_int(row.iloc[on_order_col])   if on_order_col   is not None else 0,
@@ -1211,8 +1253,9 @@ def main():
     week_labels = {w: compute_week_label(w) for w in all_week_codes}
     week_dates  = {w: d for w in all_week_codes if (d := compute_week_date(w))}
 
-    # Price rollback: impute cumulative 15 lb units sold at the $15.97 rollback price.
-    rollback = build_rollback(metrics, week_dates)
+    # Price rollback: impute cumulative 15 lb units sold at the $15.97 rollback
+    # price, store-by-store from each store's weekly AUR.
+    rollback = build_rollback(metrics, week_dates, raw_store_rows_by_week)
     if rollback:
         p = rollback.get("partial")
         pnote = (f", partial start week {p['week']}: {p['days_roll']}/7 days"
@@ -1220,7 +1263,8 @@ def main():
         print(f"\nRollback: 15 lb ${ROLLBACK['pre_price']:.2f}→${ROLLBACK['price']:.2f} "
               f"from {ROLLBACK['date']} (start {rollback['start_week']}{pnote}); "
               f"imputed {rollback['units_total']:,} units @ rollback "
-              f"(≈${rollback['dollars_total']:,.0f})")
+              f"(≈${rollback['dollars_total']:,.0f}); "
+              f"{rollback['units_excluded']:,} units excluded (store AUR at/above pre price)")
 
     # Co-op tracker: project the $150k fund's exhaustion + total profit (flat & +3%/mo).
     coop = build_coop(rollback, metrics, week_dates)

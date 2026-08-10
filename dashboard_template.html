@@ -2537,8 +2537,8 @@ function renderCoopTracker() {
        <div style="margin-top:14px;font-size:11px;color:#888;line-height:1.5;border-top:1px solid #f2e0e0;padding-top:10px;">
          Profit is <strong>$${co.profit_coop.toFixed(2)}/unit</strong> while our $${(co.fee/1000).toFixed(0)}k co-op funds the $${co.discount.toFixed(2)} rollback (first ${co.units_covered.toLocaleString()} units),
          then <strong>$${co.profit_post.toFixed(2)}/unit</strong> once it's used up — Walmart funds the discount beyond that. Our $${(co.fee/1000).toFixed(0)}k is fixed, so the "split" is our share of the
-         <em>total</em> rollback discount (${usd(co.flat.total_discount)} flat · ${usd(co.growth.total_discount)} at +3%/wk). Projections run at the ${co.run_rate.toLocaleString()}/wk latest-week rate through ${endLbl};
-         "+3%/wk" compounds weekly. Straddle-week rollback units are imputed from the blended price.
+         <em>total</em> rollback discount (${usd(co.flat.total_discount)} flat · ${usd(co.growth.total_discount)} at +3%/wk). Projections run at the ${co.run_rate.toLocaleString()}/wk latest-week rollback-unit rate through ${endLbl};
+         "+3%/wk" compounds weekly. Rollback units are counted store-by-store from each store's weekly AUR (POS $ ÷ units) — stores selling at/above the pre-rollback price count zero.
        </div>
      </div>`;
   el.style.display = "block";

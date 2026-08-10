@@ -397,8 +397,8 @@ def build_coop_section(data):
           Profit is <strong>${co["profit_coop"]:.2f}/unit</strong> while our ${co["fee"]/1000:.0f}k co-op funds the ${co["discount"]:.2f} rollback
           (first {co["units_covered"]:,} units), then <strong>${co["profit_post"]:.2f}/unit</strong> once used up &mdash; Walmart funds the discount beyond that.
           Our ${co["fee"]/1000:.0f}k is fixed, so the split is our share of the <em>total</em> rollback discount.
-          Projections run at {co["run_rate"]:,}/wk through {end_lbl}; "+3%/wk" compounds weekly.
-          Straddle-week rollback units are imputed from the blended price.
+          Projections run at {co["run_rate"]:,}/wk (latest-week rollback units) through {end_lbl}; "+3%/wk" compounds weekly.
+          Rollback units are counted store-by-store from each store's weekly AUR (POS $ &divide; units) &mdash; stores selling at/above the pre-rollback price count zero.
         </div>
       </td></tr>
     </table>"""
