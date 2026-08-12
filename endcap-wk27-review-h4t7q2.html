@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Catalyst Endcap WK27 — Why Endcaps Aren't Set</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+    --grid:#e1e0d9; --border:rgba(11,11,11,.10);
+    --s1:#2a78d6; --s2:#eb6834; --gray:#d9d8d2; --good:#0ca30c; --crit:#d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
+      --grid:#2c2c2a; --border:rgba(255,255,255,.10);
+      --s1:#3987e5; --s2:#d95926; --gray:#3a3a37;
+    }
+  }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--page); color:var(--ink); font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+         line-height:1.55; padding:28px 16px 64px; }
+  .wrap { max-width:880px; margin:0 auto; }
+  h1 { font-size:26px; letter-spacing:-.01em; }
+  .sub { color:var(--ink2); margin:4px 0 26px; font-size:14.5px; }
+  h2 { font-size:18px; margin:34px 0 6px; }
+  h2 .n { color:var(--muted); font-weight:600; margin-right:6px; }
+  p { color:var(--ink2); font-size:14.5px; margin:8px 0; }
+  p strong, li strong { color:var(--ink); }
+  ul { margin:8px 0 8px 20px; color:var(--ink2); font-size:14.5px; }
+  li { margin:4px 0; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 20px; margin:14px 0; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin:18px 0; }
+  .kpi { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+  .kpi .l { font-size:12.5px; color:var(--ink2); }
+  .kpi .v { font-size:27px; font-weight:600; margin-top:2px; }
+  .kpi .d { font-size:12.5px; color:var(--muted); }
+  .kpi.hero .v { font-size:48px; color:var(--crit); }
+  .brow { display:grid; grid-template-columns:230px 1fr 110px; gap:10px; align-items:center; margin:9px 0; }
+  .blabel { font-size:13.5px; color:var(--ink2); text-align:right; }
+  .blabel .note { display:block; font-size:11.5px; color:var(--muted); }
+  .btrack { background:none; height:22px; position:relative; }
+  .bfill { height:22px; border-radius:0 4px 4px 0; display:inline-block; vertical-align:top; }
+  .stack .bfill { border-radius:0; }
+  .stack .bfill:first-child { border-right:2px solid var(--surface); }
+  .stack .bfill:last-child { border-radius:0 4px 4px 0; }
+  .bfill.gray { background:var(--gray); }
+  .bval { font-size:13.5px; font-variant-numeric:tabular-nums; }
+  .bpct { color:var(--muted); font-size:12px; }
+  .legend { display:flex; gap:18px; font-size:12.5px; color:var(--ink2); margin:4px 0 2px 240px; }
+  .legend span::before { content:""; display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; }
+  .legend .k1::before { background:var(--s1); }
+  .legend .k2::before { background:var(--gray); }
+  table { border-collapse:collapse; width:100%; font-size:13.5px; }
+  th { text-align:left; color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase;
+        letter-spacing:.04em; padding:6px 10px; border-bottom:1px solid var(--grid); }
+  td { padding:6px 10px; border-bottom:1px solid var(--grid); color:var(--ink2); }
+  td:first-child { color:var(--ink); }
+  .num { text-align:right; font-variant-numeric:tabular-nums; }
+  th.num { text-align:right; }
+  .mtrack { background:var(--grid); border-radius:4px; height:10px; min-width:90px; }
+  .mfill { background:var(--s1); height:10px; border-radius:4px 0 0 4px; }
+  .restrow td { color:var(--muted); }
+  .foot { color:var(--muted); font-size:12px; margin-top:36px; border-top:1px solid var(--grid); padding-top:12px; }
+  .callout { border-left:3px solid var(--s2); padding:2px 0 2px 14px; margin:14px 0; }
+  .callout p { margin:4px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Catalyst Cat Litter Endcap — WK27 Field Visit Review</h1>
+  <div class="sub">Walmart · week ending 08/08/26 · 1,859 of 1,882 scheduled stores visited (98.8% visit compliance) · unlisted share copy</div>
+
+  <div class="kpis">
+    <div class="kpi hero"><div class="l">Endcaps set</div><div class="v">25%</div><div class="d">465 of 1,859 visited stores</div></div>
+    <div class="kpi"><div class="l">Not set</div><div class="v">1,394</div><div class="d">stores with a blocker reported</div></div>
+    <div class="kpi"><div class="l">Display freight arrived</div><div class="v">42%</div><div class="d">791 of 1,884 stores at visit time</div></div>
+    <div class="kpi"><div class="l">Set rate where freight arrived</div><div class="v">41%</div><div class="d">vs 16% where still in transit</div></div>
+  </div>
+
+  <h2>What the field teams reported</h2>
+  <p>Merchandisers answered "Why is the Catalyst feature product not set?" in 1,394 stores. Share of all 1,859 visited stores:</p>
+  <div class="card">
+    
+    <div class="brow" title="No Available space: 713 stores (38.4%)">
+      <div class="blabel">No Available space</div>
+      <div class="btrack"><div class="bfill" style="width:38.35%;background:var(--s1)"></div></div>
+      <div class="bval">713 <span class="bpct">(38%)</span></div>
+    </div>
+
+    <div class="brow" title="Not enough inventory to build feature: 346 stores (18.6%)">
+      <div class="blabel">Not enough inventory to build feature</div>
+      <div class="btrack"><div class="bfill" style="width:18.61%;background:var(--s1)"></div></div>
+      <div class="bval">346 <span class="bpct">(19%)</span></div>
+    </div>
+
+    <div class="brow" title="Product not located: 261 stores (14.0%)">
+      <div class="blabel">Product not located</div>
+      <div class="btrack"><div class="bfill" style="width:14.04%;background:var(--s1)"></div></div>
+      <div class="bval">261 <span class="bpct">(14%)</span></div>
+    </div>
+
+    <div class="brow" title="Store Refusal: 74 stores (4.0%)">
+      <div class="blabel">Store Refusal</div>
+      <div class="btrack"><div class="bfill" style="width:3.98%;background:var(--s1)"></div></div>
+      <div class="bval">74 <span class="bpct">(4%)</span></div>
+    </div>
+    
+    <div class="brow" title="Set successfully: 465 stores (25.0%)">
+      <div class="blabel">Set successfully</div>
+      <div class="btrack"><div class="bfill" style="width:25.01%;background:var(--good)"></div></div>
+      <div class="bval">465 <span class="bpct">(25%)</span></div>
+    </div>
+  </div>
+
+  <h2>Why they weren't set — the four real drivers</h2>
+
+  <h2 style="font-size:16px"><span class="n">1.</span>The displays hadn't arrived yet — visits ran ahead of freight</h2>
+  <p>Visits happened Aug 2–8, but at that point only <strong>791 of 1,884 stores (42%)</strong> had
+     received the endcap display. 545 were still in transit, 258 on order, and 290 were short-shipped.
+     Freight timing is the single strongest predictor of whether an endcap got set:</p>
+  <div class="card">
+    <p style="margin:0 0 6px;font-size:13px;color:var(--muted)">Set rate by display shipment status at visit time</p>
+    
+    <div class="brow" title="Received: 319 of 783 stores set (40.7%)">
+      <div class="blabel">Received</div>
+      <div class="btrack"><div class="bfill" style="width:40.74%;background:var(--s1)"></div></div>
+      <div class="bval">41% <span class="bpct">(319/783)</span></div>
+    </div>
+
+    <div class="brow" title="In transit: 87 of 539 stores set (16.1%)">
+      <div class="blabel">In transit</div>
+      <div class="btrack"><div class="bfill" style="width:16.14%;background:var(--s1)"></div></div>
+      <div class="bval">16% <span class="bpct">(87/539)</span></div>
+    </div>
+
+    <div class="brow" title="Short-shipped: 39 of 284 stores set (13.7%)">
+      <div class="blabel">Short-shipped</div>
+      <div class="btrack"><div class="bfill" style="width:13.73%;background:var(--s1)"></div></div>
+      <div class="bval">14% <span class="bpct">(39/284)</span></div>
+    </div>
+
+    <div class="brow" title="On order: 20 of 253 stores set (7.9%)">
+      <div class="blabel">On order</div>
+      <div class="btrack"><div class="bfill" style="width:7.91%;background:var(--s1)"></div></div>
+      <div class="bval">8% <span class="bpct">(20/253)</span></div>
+    </div>
+  </div>
+  <p>Stores with the display in hand set at <strong>41%</strong> — 2.5–5× the rate of stores still waiting on freight.
+     The two "inventory" reasons are mostly this in disguise: <strong>82%</strong> of "not enough inventory" stores and
+     <strong>71%</strong> of "product not located" stores had not received their display shipment.
+     The field crews weren't wrong — the product genuinely wasn't there to build with.</p>
+
+  <h2 style="font-size:16px"><span class="n">2.</span>"No available space" is the structural ceiling — and it doesn't go away when freight lands</h2>
+  <p><strong>713 stores (38% of all visits)</strong> said there was no feature space available —
+     the single largest bucket. Critically, this holds even where the display had arrived:
+     <strong>300 of 783 received stores (38%)</strong> still cited no space.
+     Endcap/feature space in these stores is already committed to other programs, and store management controls it.
+     Even with perfect freight execution, the current approach tops out around a ~40% set rate unless space is unlocked at the Walmart level.</p>
+
+  <h2 style="font-size:16px"><span class="n">3.</span>In-store execution: product in the building that can't be found or trusted</h2>
+  <p>Of the 261 "product not located" stores, 75 had actually received the display per shipment tracking —
+     product is in the building but buried. The sub-reasons point at on-hand data integrity:</p>
+  <div class="card"><table>
+    <tr><th>Sub-reason</th><th class="num">Stores</th></tr>
+    <tr><td>Product showing zero on hands</td><td class="num">115</td></tr>
+<tr><td>Unable to locate inventory, on hand adjustments suggested</td><td class="num">105</td></tr>
+<tr><td>Product up in the steel/inaccessible</td><td class="num">23</td></tr>
+<tr><td>Other (explain)</td><td class="num">18</td></tr>
+  </table></div>
+  <p>115 stores show <strong>zero on-hands</strong> and 105 more couldn't reconcile
+     on-hands with what was findable — these need on-hand corrections before any revisit can succeed. 23 had product visible but up in the steel.</p>
+
+  <h2 style="font-size:16px"><span class="n">4.</span>Store refusals are real but small</h2>
+  <p>Only <strong>74 stores (4.0%)</strong> refused the service —
+     and most refusals are soft: 42 asked to complete at a later date, 24 were mid-remodel/inventory.
+     These largely convert on a revisit.</p>
+  <div class="card"><table>
+    <tr><th>Refusal reason</th><th class="num">Stores</th></tr>
+    <tr><td>Store wants completed at a later date</td><td class="num">42</td></tr>
+<tr><td>Store in remodel/inventory</td><td class="num">24</td></tr>
+<tr><td>Other (explain)</td><td class="num">8</td></tr>
+  </table></div>
+
+  <h2>Freight arrival by reported reason</h2>
+  <p>Share of each not-set group whose display had arrived by visit time — "no space" and refusals are people problems; the inventory reasons are freight problems:</p>
+  <div class="card">
+    <div class="legend"><span class="k1">Display received</span><span class="k2">In transit / on order / short</span></div>
+    
+    <div class="brow" title="No Available space: 300 of 713 stores had received the display">
+      <div class="blabel">No Available space</div>
+      <div class="btrack stack">
+        <div class="bfill" style="width:42.08%;background:var(--s1)"></div>
+        <div class="bfill gray" style="width:57.92%"></div>
+      </div>
+      <div class="bval">42% <span class="bpct">arrived</span></div>
+    </div>
+
+    <div class="brow" title="Not enough inventory to build feature: 61 of 346 stores had received the display">
+      <div class="blabel">Not enough inventory to build feature</div>
+      <div class="btrack stack">
+        <div class="bfill" style="width:17.63%;background:var(--s1)"></div>
+        <div class="bfill gray" style="width:82.37%"></div>
+      </div>
+      <div class="bval">18% <span class="bpct">arrived</span></div>
+    </div>
+
+    <div class="brow" title="Product not located: 75 of 261 stores had received the display">
+      <div class="blabel">Product not located</div>
+      <div class="btrack stack">
+        <div class="bfill" style="width:28.74%;background:var(--s1)"></div>
+        <div class="bfill gray" style="width:71.26%"></div>
+      </div>
+      <div class="bval">29% <span class="bpct">arrived</span></div>
+    </div>
+
+    <div class="brow" title="Store Refusal: 28 of 74 stores had received the display">
+      <div class="blabel">Store Refusal</div>
+      <div class="btrack stack">
+        <div class="bfill" style="width:37.84%;background:var(--s1)"></div>
+        <div class="bfill gray" style="width:62.16%"></div>
+      </div>
+      <div class="bval">38% <span class="bpct">arrived</span></div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <p><strong>What this means for recovery:</strong></p>
+    <p>• <strong>335 inventory-blocked stores have freight inbound</strong> (in transit or on order). At the received-store set rate
+       (41%), a scheduled revisit after arrival converts roughly <strong>136+ additional endcaps</strong>; if inventory was truly the only blocker, the upside is higher.</p>
+    <p>• <strong>290 stores were short-shipped</strong> (245 of them not set) — these need a re-ship, not a revisit.</p>
+    <p>• The <strong>713 no-space stores need a different lever</strong>: a directed feature from Walmart merchandising, or field teams
+       returning when seasonal space frees up. Revisits alone won't move them.</p>
+    <p>• On-hand corrections should be filed for the ~220 stores with zero/incorrect on-hands so replenishment and future sets aren't suppressed.</p>
+  </div>
+
+  <h2>Set rate by state</h2>
+  <p>Top 15 states by scheduled visits. Existing Catalyst stores set at 26%; stores new to the brand (no Catalyst on shelf yet) at 20%.</p>
+  <div class="card"><table>
+    <tr><th>State</th><th class="num">Visited</th><th class="num">Set</th><th>Set rate</th><th class="num">%</th></tr>
+    <tr><td>TX</td><td class="num">226</td><td class="num">42</td>
+      <td><div class="mtrack"><div class="mfill" style="width:18.6%"></div></div></td>
+      <td class="num">19%</td></tr>
+<tr><td>NC</td><td class="num">92</td><td class="num">21</td>
+      <td><div class="mtrack"><div class="mfill" style="width:22.8%"></div></div></td>
+      <td class="num">23%</td></tr>
+<tr><td>GA</td><td class="num">89</td><td class="num">6</td>
+      <td><div class="mtrack"><div class="mfill" style="width:6.7%"></div></div></td>
+      <td class="num">7%</td></tr>
+<tr><td>CA</td><td class="num">83</td><td class="num">25</td>
+      <td><div class="mtrack"><div class="mfill" style="width:30.1%"></div></div></td>
+      <td class="num">30%</td></tr>
+<tr><td>AL</td><td class="num">80</td><td class="num">31</td>
+      <td><div class="mtrack"><div class="mfill" style="width:38.8%"></div></div></td>
+      <td class="num">39%</td></tr>
+<tr><td>LA</td><td class="num">72</td><td class="num">29</td>
+      <td><div class="mtrack"><div class="mfill" style="width:40.3%"></div></div></td>
+      <td class="num">40%</td></tr>
+<tr><td>FL</td><td class="num">69</td><td class="num">18</td>
+      <td><div class="mtrack"><div class="mfill" style="width:26.1%"></div></div></td>
+      <td class="num">26%</td></tr>
+<tr><td>TN</td><td class="num">67</td><td class="num">14</td>
+      <td><div class="mtrack"><div class="mfill" style="width:20.9%"></div></div></td>
+      <td class="num">21%</td></tr>
+<tr><td>PA</td><td class="num">66</td><td class="num">20</td>
+      <td><div class="mtrack"><div class="mfill" style="width:30.3%"></div></div></td>
+      <td class="num">30%</td></tr>
+<tr><td>OH</td><td class="num">64</td><td class="num">29</td>
+      <td><div class="mtrack"><div class="mfill" style="width:45.3%"></div></div></td>
+      <td class="num">45%</td></tr>
+<tr><td>IL</td><td class="num">60</td><td class="num">6</td>
+      <td><div class="mtrack"><div class="mfill" style="width:10.0%"></div></div></td>
+      <td class="num">10%</td></tr>
+<tr><td>OK</td><td class="num">57</td><td class="num">13</td>
+      <td><div class="mtrack"><div class="mfill" style="width:22.8%"></div></div></td>
+      <td class="num">23%</td></tr>
+<tr><td>MO</td><td class="num">55</td><td class="num">18</td>
+      <td><div class="mtrack"><div class="mfill" style="width:32.7%"></div></div></td>
+      <td class="num">33%</td></tr>
+<tr><td>VA</td><td class="num">54</td><td class="num">10</td>
+      <td><div class="mtrack"><div class="mfill" style="width:18.5%"></div></div></td>
+      <td class="num">19%</td></tr>
+<tr><td>IN</td><td class="num">50</td><td class="num">14</td>
+      <td><div class="mtrack"><div class="mfill" style="width:28.0%"></div></div></td>
+      <td class="num">28%</td></tr>
+<tr class="restrow"><td>All other states (34)</td><td class="num">675</td><td class="num">169</td>
+  <td><div class="mtrack"><div class="mfill" style="width:25.0%"></div></div></td>
+  <td class="num">25%</td></tr>
+  </table></div>
+
+  <div class="foot">
+    Sources: field visit survey "(Walmart) Lignetics Inc. Cat Litter Endcap Set W/E 08/08/26" (1,859 store visits, Aug 2–8 2026);
+    endcap display shipment tracking as of wk202627; Catalyst store list.
+    Set counts here use the survey's per-store responses (465 "Yes"); earlier extracts that counted all non-exception stores as set showed a higher figure
+    because not-yet-reported stores were included. Freight status reflects the latest receipts feed and may lag actual deliveries by a few days.
+    Unlisted link — not indexed, no password. Generated by build_endcap_wk27_review.py.
+  </div>
+</div>
+</body>
+</html>
