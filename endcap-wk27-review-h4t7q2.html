@@ -77,8 +77,8 @@
   <div class="kpis">
     <div class="kpi hero"><div class="l">Endcaps set</div><div class="v">25%</div><div class="d">465 of 1,859 visited stores</div></div>
     <div class="kpi"><div class="l">Not set</div><div class="v">1,394</div><div class="d">stores with a blocker reported</div></div>
-    <div class="kpi"><div class="l">Display freight arrived</div><div class="v">42%</div><div class="d">791 of 1,884 stores at visit time</div></div>
-    <div class="kpi"><div class="l">Set rate where freight arrived</div><div class="v">41%</div><div class="d">vs 16% where still in transit</div></div>
+    <div class="kpi"><div class="l">Endcap allocation arrived</div><div class="v">42%</div><div class="d">791 of 1,884 stores, week ending 8/8</div></div>
+    <div class="kpi"><div class="l">Set rate where product arrived</div><div class="v">41%</div><div class="d">vs 16% where still in transit</div></div>
   </div>
 
   <h2>What the field teams reported</h2>
@@ -118,12 +118,12 @@
 
   <h2>Why they weren't set — the four real drivers</h2>
 
-  <h2 style="font-size:16px"><span class="n">1.</span>The displays hadn't arrived yet — visits ran ahead of freight</h2>
-  <p>Visits happened Aug 2–8, but at that point only <strong>791 of 1,884 stores (42%)</strong> had
-     received the endcap display. 545 were still in transit, 258 on order, and 290 were short-shipped.
-     Freight timing is the single strongest predictor of whether an endcap got set:</p>
+  <h2 style="font-size:16px"><span class="n">1.</span>The product hadn't arrived yet — visits ran ahead of freight</h2>
+  <p>Visits happened Aug 2–8, and by the end of that week only <strong>791 of 1,884 stores (42%)</strong> had
+     received their full 36-bag endcap allocation (measured from Walmart on-hand + sell-through data, week ending 8/8). 545 had the balance in transit, 258 on order only,
+     and 290 had a pipeline short of 36 bags. Freight timing is the single strongest predictor of whether an endcap got set:</p>
   <div class="card">
-    <p style="margin:0 0 6px;font-size:13px;color:var(--muted)">Set rate by display shipment status at visit time</p>
+    <p style="margin:0 0 6px;font-size:13px;color:var(--muted)">Set rate by endcap-allocation status (week ending 8/8)</p>
     
     <div class="brow" title="Received: 319 of 783 stores set (40.7%)">
       <div class="blabel">Received</div>
@@ -137,8 +137,8 @@
       <div class="bval">16% <span class="bpct">(87/539)</span></div>
     </div>
 
-    <div class="brow" title="Short-shipped: 39 of 284 stores set (13.7%)">
-      <div class="blabel">Short-shipped</div>
+    <div class="brow" title="Pipeline short: 39 of 284 stores set (13.7%)">
+      <div class="blabel">Pipeline short</div>
       <div class="btrack"><div class="bfill" style="width:13.73%;background:var(--s1)"></div></div>
       <div class="bval">14% <span class="bpct">(39/284)</span></div>
     </div>
@@ -149,10 +149,13 @@
       <div class="bval">8% <span class="bpct">(20/253)</span></div>
     </div>
   </div>
-  <p>Stores with the display in hand set at <strong>41%</strong> — 2.5–5× the rate of stores still waiting on freight.
+  <p>Stores with product in hand set at <strong>41%</strong> — 2.5–5× the rate of stores still waiting on freight.
      The two "inventory" reasons are mostly this in disguise: <strong>82%</strong> of "not enough inventory" stores and
-     <strong>71%</strong> of "product not located" stores had not received their display shipment.
+     <strong>71%</strong> of "product not located" stores had not received their full allocation.
      The field crews weren't wrong — the product genuinely wasn't there to build with.</p>
+  <p>The status snapshot is end-of-week, which if anything <em>understates</em> this gap: a store visited Tuesday that received Friday still counts "received" here,
+     diluting that group's rate. The visit-date pattern backs this up — set rates in the "in transit" group climb from ~14% early in the week to 20–33% by Fri/Sat
+     as freight landed, while the "received" group holds flat at 38–45% all week.</p>
 
   <h2 style="font-size:16px"><span class="n">2.</span>"No available space" is the structural ceiling — and it doesn't go away when freight lands</h2>
   <p><strong>713 stores (38% of all visits)</strong> said there was no feature space available —
@@ -162,7 +165,7 @@
      Even with perfect freight execution, the current approach tops out around a ~40% set rate unless space is unlocked at the Walmart level.</p>
 
   <h2 style="font-size:16px"><span class="n">3.</span>In-store execution: product in the building that can't be found or trusted</h2>
-  <p>Of the 261 "product not located" stores, 75 had actually received the display per shipment tracking —
+  <p>Of the 261 "product not located" stores, 75 had actually received their full allocation per the pipeline data —
      product is in the building but buried. The sub-reasons point at on-hand data integrity:</p>
   <div class="card"><table>
     <tr><th>Sub-reason</th><th class="num">Stores</th></tr>
@@ -186,9 +189,9 @@
   </table></div>
 
   <h2>Freight arrival by reported reason</h2>
-  <p>Share of each not-set group whose display had arrived by visit time — "no space" and refusals are people problems; the inventory reasons are freight problems:</p>
+  <p>Share of each not-set group whose full allocation had arrived by week's end — "no space" and refusals are people problems; the inventory reasons are freight problems:</p>
   <div class="card">
-    <div class="legend"><span class="k1">Display received</span><span class="k2">In transit / on order / short</span></div>
+    <div class="legend"><span class="k1">Allocation received</span><span class="k2">In transit / on order / pipeline short</span></div>
     
     <div class="brow" title="No Available space: 300 of 713 stores had received the display">
       <div class="blabel">No Available space</div>
@@ -231,7 +234,8 @@
     <p><strong>What this means for recovery:</strong></p>
     <p>• <strong>335 inventory-blocked stores have freight inbound</strong> (in transit or on order). At the received-store set rate
        (41%), a scheduled revisit after arrival converts roughly <strong>136+ additional endcaps</strong>; if inventory was truly the only blocker, the upside is higher.</p>
-    <p>• <strong>290 stores were short-shipped</strong> (245 of them not set) — these need a re-ship, not a revisit.</p>
+    <p>• <strong>290 stores have a pipeline short of the 36-bag allocation</strong> (245 of them not set) — no store order yet covers the full
+       quantity (this feed has no DC-warehouse column, so DC stock not yet on a store order also shows here). These need replenishment/allocation follow-up, not a revisit.</p>
     <p>• The <strong>713 no-space stores need a different lever</strong>: a directed feature from Walmart merchandising, or field teams
        returning when seasonal space frees up. Revisits alone won't move them.</p>
     <p>• On-hand corrections should be filed for the ~220 stores with zero/incorrect on-hands so replenishment and future sets aren't suppressed.</p>
@@ -293,7 +297,8 @@
 
   <div class="foot">
     Sources: field visit survey "(Walmart) Lignetics Inc. Cat Litter Endcap Set W/E 08/08/26" (1,859 store visits, Aug 2–8 2026);
-    endcap display shipment tracking as of wk202627; Catalyst store list.
+    endcap allocation status inferred from Walmart on-hand + sell-through + in-transit/on-order pipeline for the 36-bag CATALYST15ORIG allocation (weekly by-store feed, week ending 8/8/26); Catalyst store list.
+    "Received" means the full allocation is accounted for at the store, not a carrier delivery scan; "pipeline short" can include DC stock not yet on a store order.
     Set counts here use the survey's per-store responses (465 "Yes"); earlier extracts that counted all non-exception stores as set showed a higher figure
     because not-yet-reported stores were included. Freight status reflects the latest receipts feed and may lag actual deliveries by a few days.
     Unlisted link — not indexed, no password. Generated by build_endcap_wk27_review.py.

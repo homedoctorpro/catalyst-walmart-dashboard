@@ -136,7 +136,7 @@ reason_bars = "\n".join(bar_row(g, reasons[g], visited) for g in reason_order)
 status_labels = [
     ("received", "Received"),
     ("in transit", "In transit"),
-    ("short", "Short-shipped"),
+    ("short", "Pipeline short"),
     ("on order", "On order"),
 ]
 status_bars = "\n".join(rate_bar(lab, *by_status[k]) for k, lab in status_labels)
@@ -244,8 +244,8 @@ html = f"""<!DOCTYPE html>
   <div class="kpis">
     <div class="kpi hero"><div class="l">Endcaps set</div><div class="v">{pct(len(set_yes), visited):.0f}%</div><div class="d">{len(set_yes):,} of {visited:,} visited stores</div></div>
     <div class="kpi"><div class="l">Not set</div><div class="v">{len(not_set):,}</div><div class="d">stores with a blocker reported</div></div>
-    <div class="kpi"><div class="l">Display freight arrived</div><div class="v">{pct(inv_c['received'], total_tracked):.0f}%</div><div class="d">{inv_c['received']:,} of {total_tracked:,} stores at visit time</div></div>
-    <div class="kpi"><div class="l">Set rate where freight arrived</div><div class="v">{recv_rate*100:.0f}%</div><div class="d">vs {pct(by_status['in transit'][0], by_status['in transit'][1]):.0f}% where still in transit</div></div>
+    <div class="kpi"><div class="l">Endcap allocation arrived</div><div class="v">{pct(inv_c['received'], total_tracked):.0f}%</div><div class="d">{inv_c['received']:,} of {total_tracked:,} stores, week ending 8/8</div></div>
+    <div class="kpi"><div class="l">Set rate where product arrived</div><div class="v">{recv_rate*100:.0f}%</div><div class="d">vs {pct(by_status['in transit'][0], by_status['in transit'][1]):.0f}% where still in transit</div></div>
   </div>
 
   <h2>What the field teams reported</h2>
@@ -257,18 +257,21 @@ html = f"""<!DOCTYPE html>
 
   <h2>Why they weren't set — the four real drivers</h2>
 
-  <h2 style="font-size:16px"><span class="n">1.</span>The displays hadn't arrived yet — visits ran ahead of freight</h2>
-  <p>Visits happened Aug 2–8, but at that point only <strong>{inv_c['received']:,} of {total_tracked:,} stores ({pct(inv_c['received'], total_tracked):.0f}%)</strong> had
-     received the endcap display. {inv_c['in transit']:,} were still in transit, {inv_c['on order']:,} on order, and {inv_c['short']:,} were short-shipped.
-     Freight timing is the single strongest predictor of whether an endcap got set:</p>
+  <h2 style="font-size:16px"><span class="n">1.</span>The product hadn't arrived yet — visits ran ahead of freight</h2>
+  <p>Visits happened Aug 2–8, and by the end of that week only <strong>{inv_c['received']:,} of {total_tracked:,} stores ({pct(inv_c['received'], total_tracked):.0f}%)</strong> had
+     received their full 36-bag endcap allocation (measured from Walmart on-hand + sell-through data, week ending 8/8). {inv_c['in transit']:,} had the balance in transit, {inv_c['on order']:,} on order only,
+     and {inv_c['short']:,} had a pipeline short of 36 bags. Freight timing is the single strongest predictor of whether an endcap got set:</p>
   <div class="card">
-    <p style="margin:0 0 6px;font-size:13px;color:var(--muted)">Set rate by display shipment status at visit time</p>
+    <p style="margin:0 0 6px;font-size:13px;color:var(--muted)">Set rate by endcap-allocation status (week ending 8/8)</p>
     {status_bars}
   </div>
-  <p>Stores with the display in hand set at <strong>{recv_rate*100:.0f}%</strong> — 2.5–5× the rate of stores still waiting on freight.
+  <p>Stores with product in hand set at <strong>{recv_rate*100:.0f}%</strong> — 2.5–5× the rate of stores still waiting on freight.
      The two "inventory" reasons are mostly this in disguise: <strong>{pct(346-61, 346):.0f}%</strong> of "not enough inventory" stores and
-     <strong>{pct(261-75, 261):.0f}%</strong> of "product not located" stores had not received their display shipment.
+     <strong>{pct(261-75, 261):.0f}%</strong> of "product not located" stores had not received their full allocation.
      The field crews weren't wrong — the product genuinely wasn't there to build with.</p>
+  <p>The status snapshot is end-of-week, which if anything <em>understates</em> this gap: a store visited Tuesday that received Friday still counts "received" here,
+     diluting that group's rate. The visit-date pattern backs this up — set rates in the "in transit" group climb from ~14% early in the week to 20–33% by Fri/Sat
+     as freight landed, while the "received" group holds flat at 38–45% all week.</p>
 
   <h2 style="font-size:16px"><span class="n">2.</span>"No available space" is the structural ceiling — and it doesn't go away when freight lands</h2>
   <p><strong>{reasons['No Available space']:,} stores ({pct(reasons['No Available space'], visited):.0f}% of all visits)</strong> said there was no feature space available —
@@ -278,7 +281,7 @@ html = f"""<!DOCTYPE html>
      Even with perfect freight execution, the current approach tops out around a ~40% set rate unless space is unlocked at the Walmart level.</p>
 
   <h2 style="font-size:16px"><span class="n">3.</span>In-store execution: product in the building that can't be found or trusted</h2>
-  <p>Of the {reasons['Product not located']:,} "product not located" stores, {nl_received} had actually received the display per shipment tracking —
+  <p>Of the {reasons['Product not located']:,} "product not located" stores, {nl_received} had actually received their full allocation per the pipeline data —
      product is in the building but buried. The sub-reasons point at on-hand data integrity:</p>
   <div class="card"><table>
     <tr><th>Sub-reason</th><th class="num">Stores</th></tr>
@@ -297,9 +300,9 @@ html = f"""<!DOCTYPE html>
   </table></div>
 
   <h2>Freight arrival by reported reason</h2>
-  <p>Share of each not-set group whose display had arrived by visit time — "no space" and refusals are people problems; the inventory reasons are freight problems:</p>
+  <p>Share of each not-set group whose full allocation had arrived by week's end — "no space" and refusals are people problems; the inventory reasons are freight problems:</p>
   <div class="card">
-    <div class="legend"><span class="k1">Display received</span><span class="k2">In transit / on order / short</span></div>
+    <div class="legend"><span class="k1">Allocation received</span><span class="k2">In transit / on order / pipeline short</span></div>
     {stack_bars}
   </div>
 
@@ -307,7 +310,8 @@ html = f"""<!DOCTYPE html>
     <p><strong>What this means for recovery:</strong></p>
     <p>• <strong>{inv_blocked_inbound} inventory-blocked stores have freight inbound</strong> (in transit or on order). At the received-store set rate
        ({recv_rate*100:.0f}%), a scheduled revisit after arrival converts roughly <strong>{est_lo}+ additional endcaps</strong>; if inventory was truly the only blocker, the upside is higher.</p>
-    <p>• <strong>{inv_c['short']:,} stores were short-shipped</strong> ({short_not_set} of them not set) — these need a re-ship, not a revisit.</p>
+    <p>• <strong>{inv_c['short']:,} stores have a pipeline short of the 36-bag allocation</strong> ({short_not_set} of them not set) — no store order yet covers the full
+       quantity (this feed has no DC-warehouse column, so DC stock not yet on a store order also shows here). These need replenishment/allocation follow-up, not a revisit.</p>
     <p>• The <strong>{reasons['No Available space']:,} no-space stores need a different lever</strong>: a directed feature from Walmart merchandising, or field teams
        returning when seasonal space frees up. Revisits alone won't move them.</p>
     <p>• On-hand corrections should be filed for the ~{nl_sub['Product showing zero on hands'] + nl_sub['Unable to locate inventory, on hand adjustments suggested']} stores with zero/incorrect on-hands so replenishment and future sets aren't suppressed.</p>
@@ -322,7 +326,8 @@ html = f"""<!DOCTYPE html>
 
   <div class="foot">
     Sources: field visit survey "(Walmart) Lignetics Inc. Cat Litter Endcap Set W/E 08/08/26" ({visited:,} store visits, Aug 2–8 2026);
-    endcap display shipment tracking as of wk202627; Catalyst store list.
+    endcap allocation status inferred from Walmart on-hand + sell-through + in-transit/on-order pipeline for the 36-bag CATALYST15ORIG allocation (weekly by-store feed, week ending 8/8/26); Catalyst store list.
+    "Received" means the full allocation is accounted for at the store, not a carrier delivery scan; "pipeline short" can include DC stock not yet on a store order.
     Set counts here use the survey's per-store responses ({len(set_yes):,} "Yes"); earlier extracts that counted all non-exception stores as set showed a higher figure
     because not-yet-reported stores were included. Freight status reflects the latest receipts feed and may lag actual deliveries by a few days.
     Unlisted link — not indexed, no password. Generated by build_endcap_wk27_review.py.
