@@ -3,21 +3,28 @@
 Endcap Rollout Report
 =====================
 Single self-contained HTML report for the wk202627 endcap set (W/E 08/08/26):
-KPIs, set-vs-exceptions map, exception reasons, week-over-week lift, per-store
-growth histogram, prior-distribution segment deep dive, and the zero-sale
-"likely not actually set" flag list.
+KPIs, status map, week-over-week lift, per-store growth histogram,
+prior-distribution segment deep dive, the "still not set" by-reason workbench
+(multi-reason filter + Excel export with evidence), and the zero-sale
+"set but not selling" flag list.
 
 Inputs:
   - endcap_stores.csv                          (roster, 1,884 stores + flags)
-  - Exceptions_Catalyst Endcap Stores.xlsx     (4 reason sheets)
+  - (Walmart) Lignetics Inc. Cat Litter Endcap Set WK27.xlsx
+        field-visit survey, "Store Details" — the authoritative set/not-set
+        status per store, with reason + sub-reason + refusing associate
   - 202626 / 202627 Weekly Sales Report Catalyst.xlsx  (Sales by Store)
   - stores_geo.json                            (zip -> lat/lon cache)
 
-Output: endcap_report.html  (password-gated like dashboard.html)
+Output: endcap_report.html            (password-gated like dashboard.html)
+        endcap-report-x3f8a1.html     (ungated unlisted share copy)
 
 Definitions baked into the page:
-  "set" = endcap store with no exception filed (upper bound — includes
-  not-yet-visited stores; merchandiser count on 8/10 was 476 actually set).
+  "set" = merchandiser visited and answered Yes to "is the feature product
+  set on a feature space" (465 stores). Everything else is either a filed
+  reason for not setting (1,394) or a store not yet visited (25). The older
+  Exceptions_*.xlsx export is a stale subset of the same survey (1,324 rows)
+  and is no longer read.
 """
 import csv
 import json
@@ -32,14 +39,16 @@ OUTPUT = os.path.join(HERE, "endcap_report.html")
 # <meta name="robots" noindex> + an unguessable filename (unlisted URL).
 STANDALONE_OUTPUT = os.path.join(HERE, "endcap-report-x3f8a1.html")
 PRIOR_WEEK, ENDCAP_WEEK = "202626", "202627"
+SURVEY = "(Walmart) Lignetics Inc. Cat Litter Endcap Set WK27.xlsx"
 
-REASONS = {  # sheet name -> (key, label, color)
-    "No Available Space":  ("space",     "No available space",   "#d73027"),
-    "Not Enough Inventory": ("inventory", "Not enough inventory", "#f4a340"),
-    "Product not Located": ("located",   "Product not located",  "#8e44ad"),
-    "Store Refusal":       ("refusal",   "Store refusal",        "#252525"),
+REASONS = {  # survey answer -> (key, label, color)
+    "No Available space":                    ("space",     "No available space",   "#d73027"),
+    "Not enough inventory to build feature": ("inventory", "Not enough inventory", "#f4a340"),
+    "Product not located":                   ("located",   "Product not located",  "#8e44ad"),
+    "Store Refusal":                         ("refusal",   "Store refusal",        "#252525"),
 }
 SET_COLOR, OTHER_COLOR = "#1a9850", "#b8c4cc"
+UNVISITED_COLOR = "#7f8c8d"
 
 
 ENDCAP_UNITS = 36
@@ -67,22 +76,72 @@ def load_bystore(week):
     return q15, oh15, pipe15, qtot, meta
 
 
+def clean(v):
+    """Survey free text arrives partly double-encoded (UTF-8 read as cp1252),
+    so 'can’t' lands as 'canâ€™t'. Repair it, leave clean text alone."""
+    s = str(v or "").strip()
+    if "â€" in s or "Ã" in s:
+        try:
+            return s.encode("cp1252").decode("utf-8")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            return s
+    return s
+
+
+def load_survey():
+    """store -> field-visit record from the WK27 merchandiser survey.
+
+    Columns: 0 store, 1 date, 5 set?, 6 where set, 7 alt-location explain,
+    8 priced?, 9 reason not set, 10 not-located sub-reason, 11 not-located
+    other, 12 refusal sub-reason, 13 refusal other, 14 refusing associate.
+    """
+    wb = openpyxl.load_workbook(os.path.join(HERE, SURVEY), read_only=True)
+    out = {}
+    for r in wb["Store Details"].iter_rows(min_row=2, values_only=True):
+        if r[0] is None:
+            continue
+        try:
+            store = int(r[0])
+        except (TypeError, ValueError):
+            continue
+        answer = (r[9] or "").strip()
+        key = REASONS.get(answer, (None,))[0]
+        # sub-reason: the "other (explain)" free text wins when present
+        if key == "located":
+            sub, other = clean(r[10]), clean(r[11])
+        elif key == "refusal":
+            sub, other = clean(r[12]), clean(r[13])
+        else:
+            sub, other = "", ""
+        detail = f"{sub} — {other}".strip(" —") if other else sub
+        out[store] = {
+            "date": r[1].strftime("%Y-%m-%d") if hasattr(r[1], "strftime") else str(r[1] or ""),
+            "set": r[5] == "Yes",
+            "where": clean(r[6]),
+            "where_other": clean(r[7]),
+            "priced": clean(r[8]),
+            "seg": "set" if r[5] == "Yes" else (key or "space"),
+            "reason": answer,
+            "sub": sub,          # dropdown answer only — used for the summary chips
+            "detail": detail,    # dropdown answer + free text — used per store
+            "title": clean(r[14]),
+        }
+    return out
+
+
 def main():
     endcap = {}
     with open(os.path.join(HERE, "endcap_stores.csv"), encoding="utf-8-sig") as f:
         for r in csv.DictReader(f):
             endcap[int(r["store_number"])] = r
 
-    seg_of, reason_label = {}, {}
-    wb = openpyxl.load_workbook(
-        os.path.join(HERE, "Exceptions_Catalyst Endcap Stores.xlsx"), read_only=True)
-    for sheet, (key, label, _c) in REASONS.items():
-        for row in wb[sheet].iter_rows(min_row=2, values_only=True):
-            if row[4] is not None:
-                seg_of[int(row[4])] = key
-                reason_label[int(row[4])] = label
+    # --- status: merchandiser survey is authoritative -----------------------
+    survey = load_survey()
+    seg_of = {}
     for s in endcap:
-        seg_of.setdefault(s, "set")
+        v = survey.get(s)
+        seg_of[s] = v["seg"] if v else "unvisited"
+    reason_label = {key: label for _a, (key, label, _c) in REASONS.items()}
 
     q15_26, _oh26, _pipe26, qtot_26, meta26 = load_bystore(PRIOR_WEEK)
     q15_27, oh15_27, pipe27, qtot_27, meta27 = load_bystore(ENDCAP_WEEK)
@@ -103,7 +162,9 @@ def main():
         return "short"
 
     set_ok = {s for s in endcap if seg_of[s] == "set"}
-    exc = {s for s in endcap if seg_of[s] != "set"}
+    unvisited = {s for s in endcap if seg_of[s] == "unvisited"}
+    exc = {s for s in endcap if seg_of[s] not in ("set", "unvisited")}
+    visited = set_ok | exc
 
     # --- lift table --------------------------------------------------------
     def lift_row(label, stores, kind="15O"):
@@ -118,10 +179,11 @@ def main():
                 "pct": round((u27 - u26) / u26 * 100, 1) if u26 else None}
 
     control = [s for s in q15_26 if s not in endcap]
-    lift = [lift_row("Endcap set (no exception)", set_ok),
-            lift_row("Not set — all exceptions", exc)]
-    for sheet, (key, label, _c) in REASONS.items():
+    lift = [lift_row("Endcap confirmed set", set_ok),
+            lift_row("Not set — all reasons", exc)]
+    for _answer, (key, label, _c) in REASONS.items():
         lift.append(lift_row("· " + label, {s for s in exc if seg_of[s] == key}))
+    lift.append(lift_row("Not visited yet", unvisited))
     lift.append(lift_row("Control: all non-endcap stores", control))
     lift_all = [lift_row("Endcap set — all SKUs", set_ok, "all"),
                 lift_row("Not set — all SKUs", exc, "all"),
@@ -160,9 +222,10 @@ def main():
     had15 = {s for s, r in endcap.items() if r["has_15O"] == "Y"}
 
     def seg_row(label, stores):
+        stores = {s for s in stores if s in visited}  # rejection rate over visited only
         n = len(stores)
         rej = [s for s in stores if s in exc]
-        ok = [s for s in stores if s not in exc]
+        ok = [s for s in stores if s in set_ok]
         reasons = Counter(seg_of[s] for s in rej)
         return {"label": label, "n": n, "rej": len(rej),
                 "rej_pct": round(len(rej) / n * 100, 1) if n else 0,
@@ -181,8 +244,9 @@ def main():
     inv_of = {s: inv_status(s) for s in endcap}
     INV_COLS = ["received", "transit", "onorder", "short"]
     inv_rows = []
-    seg_order = [("set", "Set (no exception)")] + \
-        [(key, label) for _sh, (key, label, _c) in REASONS.items()]
+    seg_order = [("set", "Confirmed set")] + \
+        [(key, label) for _a, (key, label, _c) in REASONS.items()] + \
+        [("unvisited", "Not visited yet")]
     for key, label in seg_order:
         stores = [s for s in endcap if seg_of[s] == key]
         row = Counter(inv_of[s] for s in stores)
@@ -197,6 +261,8 @@ def main():
         "set_noprod": sum(1 for s in set_ok if inv_of[s] != "received"),
         "nei_received": next(r["received"] for r in inv_rows
                              if r["label"] == "Not enough inventory"),
+        "nei_n": next(r["n"] for r in inv_rows
+                      if r["label"] == "Not enough inventory"),
         "nei_coming": next(r["transit"] + r["onorder"] for r in inv_rows
                            if r["label"] == "Not enough inventory"),
     }
@@ -214,6 +280,56 @@ def main():
             "oh": round(oh15_27.get(s, 0)), "inv": inv_of[s],
         })
     flags.sort(key=lambda x: (x["tier"], x["inv"] != "received", -x["oh"]))
+
+    # --- "still not set" workbench: one evidence row per store -------------
+    INV_LABEL = {"received": "36 at store (or sold through)", "transit": "In transit",
+                 "onorder": "On order only", "short": "Pipeline short of 36"}
+    NS_COLS = [
+        "Reason", "Reason detail", "Refusing associate", "Visit date",
+        "Store #", "Store name", "City", "State", "ZIP", "Address", "Store type",
+        "Endcap product status", "On hand 15O", "In transit", "On order",
+        f"Units wk{PRIOR_WEEK}", f"Units wk{ENDCAP_WEEK}", "WoW units",
+        "Catalyst SKUs before", "Carried 15-lb before", "New to Catalyst",
+        "Recommended qty", "Latitude", "Longitude",
+    ]
+    ns_rows = []
+    for s in sorted(exc | unvisited):
+        r, v = endcap[s], survey.get(s)
+        key = seg_of[s]
+        transit, onorder = pipe27.get(s, (0, 0))
+        ns_rows.append([
+            reason_label.get(key, "Not visited yet"),
+            (v or {}).get("detail", ""),
+            (v or {}).get("title", ""),
+            (v or {}).get("date", ""),
+            s, r["store_name"], r["city"].title(), r["state"], str(r["zip"])[:5],
+            r["street_address"], r["store_type"],
+            INV_LABEL[inv_of[s]], round(oh15_27.get(s, 0)), round(transit), round(onorder),
+            round(q15_26.get(s, 0)), round(q15_27.get(s, 0)),
+            round(q15_27.get(s, 0) - q15_26.get(s, 0)),
+            int(r["current_sku_count"] or 0),
+            "Y" if r["has_15O"] == "Y" else "N",
+            "Y" if r["on_endcap_no_catalyst"] == "Y" else "N",
+            int(r["endcap_recommended_qty"] or 0),
+            float(r["latitude"]) if r["latitude"] else "",
+            float(r["longitude"]) if r["longitude"] else "",
+        ])
+
+    ns_reasons = []
+    for key in [k for _a, (k, _l, _c) in REASONS.items()] + ["unvisited"]:
+        stores = [s for s in endcap if seg_of[s] == key]
+        subs = Counter(survey[s]["sub"] for s in stores
+                       if survey.get(s) and survey[s]["sub"])
+        ns_reasons.append({
+            "key": key,
+            "label": reason_label.get(key, "Not visited yet"),
+            "color": next((c for _a, (k, _l, c) in REASONS.items() if k == key),
+                          UNVISITED_COLOR),
+            "n": len(stores),
+            "received": sum(1 for s in stores if inv_of[s] == "received"),
+            "inbound": sum(1 for s in stores if inv_of[s] in ("transit", "onorder")),
+            "subs": subs.most_common(),
+        })
 
     # --- map stores --------------------------------------------------------
     geo = json.load(open(os.path.join(HERE, "stores_geo.json"), encoding="utf-8"))
@@ -246,9 +362,10 @@ def main():
                            "prior": None,
                            "q26": q15_26.get(s, 0), "q27": q15_27.get(s, 0)})
 
-    seg_meta = {"set": {"label": "Endcap set successfully", "color": SET_COLOR}}
-    for sheet, (key, label, color) in REASONS.items():
+    seg_meta = {"set": {"label": "Endcap confirmed set", "color": SET_COLOR}}
+    for _answer, (key, label, color) in REASONS.items():
         seg_meta[key] = {"label": label, "color": color}
+    seg_meta["unvisited"] = {"label": "Not visited yet", "color": UNVISITED_COLOR}
     seg_meta["other"] = {"label": "All other Catalyst stores", "color": OTHER_COLOR}
     seg_counts = {k: sum(1 for x in map_stores if x["seg"] == k) for k in seg_meta}
 
@@ -256,9 +373,13 @@ def main():
     payload = {
         "prior_week": PRIOR_WEEK, "week": ENDCAP_WEEK,
         "n_endcap": len(endcap), "n_set": len(set_ok), "n_exc": len(exc),
-        "confirmed_set": 476,
-        "kpi": {"lift_pct": lift[0]["pct"], "exc_pct": round(len(exc) / len(endcap) * 100),
+        "n_unvisited": len(unvisited), "n_visited": len(visited),
+        "confirmed_set": len(set_ok),
+        "set_where": dict(Counter(survey[s]["where"] for s in set_ok if survey.get(s))),
+        "set_priced": sum(1 for s in set_ok if survey.get(s, {}).get("priced") == "Yes"),
+        "kpi": {"lift_pct": lift[0]["pct"], "exc_pct": round(len(exc) / len(visited) * 100),
                 "inc_units": inc_units, "inc_retail": round(inc_units * 15.97)},
+        "notset": {"cols": NS_COLS, "rows": ns_rows, "reasons": ns_reasons},
         "lift": lift, "lift_all": lift_all,
         "hist": {"labels": [l for l, _ in HBINS], "colors": [c for _, c in HBINS],
                  "counts": hist},
@@ -275,8 +396,8 @@ def main():
     html = TEMPLATE.replace("/*DATA*/", json.dumps(payload, separators=(",", ":")))
     with open(OUTPUT, "w", encoding="utf-8") as f:
         f.write(html)
-    print(f"[ok] set={len(set_ok)} exc={len(exc)} flags={len(flags)} "
-          f"map_stores={len(map_stores)}")
+    print(f"[ok] set={len(set_ok)} notset={len(exc)} unvisited={len(unvisited)} "
+          f"flags={len(flags)} notset_rows={len(ns_rows)} map_stores={len(map_stores)}")
     print(f"[ok] wrote {OUTPUT}")
 
     # ungated share copy: strip the password gate, keep search engines out
@@ -324,6 +445,7 @@ TEMPLATE = r"""<!DOCTYPE html>
 <title>Catalyst Endcap Rollout Report</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root {
     --surface:#fcfcfb; --page:#f4f4f1; --ink:#0b0b0b; --ink2:#52514e;
@@ -382,6 +504,37 @@ TEMPLATE = r"""<!DOCTYPE html>
     border-radius:6px; padding:7px 14px; font-size:13px; cursor:pointer; }
   .tier1 { background:#fdecea; border-radius:4px; padding:1px 7px; font-size:12px; }
   .tier2 { background:#fef3e2; border-radius:4px; padding:1px 7px; font-size:12px; }
+  /* not-set workbench */
+  .picker { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+    gap:10px; margin:14px 0 4px; }
+  .pick { display:flex; align-items:center; gap:10px; border:1px solid var(--grid);
+    border-radius:8px; padding:10px 12px; cursor:pointer; user-select:none;
+    background:var(--surface); }
+  .pick:hover { border-color:var(--line); }
+  .pick.on { border-color:var(--ink); background:#f6f7f4; }
+  .pick input { width:16px; height:16px; accent-color:var(--ink); cursor:pointer; }
+  .pick .swatch { width:10px; height:10px; border-radius:50%; flex:none; }
+  .pick .txt { flex:1; }
+  .pick .txt b { display:block; font-size:13.5px; }
+  .pick .txt span { color:var(--muted); font-size:11.5px; }
+  .pick .cnt { font-size:17px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:14px; }
+  .toolbar .sel { font-size:13.5px; color:var(--ink2); flex:1; min-width:220px; }
+  .toolbar .sel b { color:var(--ink); }
+  .btn.ghost { background:transparent; color:var(--ink); border:1px solid var(--line); }
+  .btn:disabled { opacity:.4; cursor:not-allowed; }
+  .subs { margin-top:12px; font-size:12.5px; color:var(--ink2); }
+  .subs .grp { margin-top:6px; }
+  .subs .chip { display:inline-block; background:#f1f0ea; border-radius:20px;
+    padding:2px 10px; margin:3px 4px 0 0; font-size:12px; }
+  .nswrap { max-height:460px; overflow:auto; border:1px solid var(--grid);
+    border-radius:8px; margin-top:12px; }
+  .nswrap th { position:sticky; top:0; background:var(--surface); z-index:2; }
+  .nswrap td { white-space:nowrap; }
+  .rdot { display:inline-block; width:8px; height:8px; border-radius:50%;
+    margin-right:6px; vertical-align:middle; }
+  #nssearch { font-size:13px; padding:6px 10px; border:1px solid var(--line);
+    border-radius:6px; width:210px; }
   footer { color:var(--muted); font-size:12px; margin-top:26px; line-height:1.5; }
   /* password gate */
   #gate { position:fixed; inset:0; background:var(--page); z-index:5000;
@@ -425,8 +578,8 @@ TEMPLATE = r"""<!DOCTYPE html>
 </section>
 
 <section>
-  <h2>Growth distribution across the 560 &ldquo;set&rdquo; stores</h2>
-  <p class="note">Week-over-week % change in 15-lb units, one bar segment per store outcome. Red = declined, grey = no signal, blue = grew.</p>
+  <h2>Growth distribution across the confirmed-set stores</h2>
+  <p class="note" id="histnote">Week-over-week % change in 15-lb units, one bar segment per store outcome. Red = declined, grey = no signal, blue = grew.</p>
   <div class="bars" id="hist"></div>
   <div class="callout" id="histcallout"></div>
 </section>
@@ -446,7 +599,24 @@ TEMPLATE = r"""<!DOCTYPE html>
 </section>
 
 <section>
-  <h2>Flag list — &ldquo;set&rdquo; stores with zero endcap-week sales</h2>
+  <h2>Stores still not set — pick reasons, pull the list</h2>
+  <p class="note" id="nsnote"></p>
+  <div class="picker" id="nspicker"></div>
+  <div class="toolbar">
+    <div class="sel" id="nssel"></div>
+    <input id="nssearch" type="search" placeholder="Filter: store #, city, state&hellip;">
+    <button class="btn ghost" id="nsall">Select all</button>
+    <button class="btn ghost" id="nsnone">Clear</button>
+    <button class="btn" id="nsxlsx">Download Excel</button>
+    <button class="btn ghost" id="nscsv">CSV</button>
+  </div>
+  <div class="subs" id="nssubs"></div>
+  <div class="nswrap"><table id="nstable"></table></div>
+  <p class="note" id="nsmore"></p>
+</section>
+
+<section>
+  <h2>Flag list — confirmed-set stores with zero endcap-week sales</h2>
   <p class="note" id="flagnote"></p>
   <button class="btn" id="csvbtn">Download CSV</button>
   <div class="flagwrap"><table id="flagtable"></table></div>
@@ -477,12 +647,18 @@ document.getElementById('subtitle').textContent =
 
 /* ---- KPIs ---- */
 const K = DATA.kpi;
+/* NB: never name anything `L` here — Leaflet owns that global. */
+const LIFT = DATA.lift, byLabel = l => LIFT.find(r => r.label === l);
+const notSetPct = p => (p === null ? '—' : (p>0?'+':'') + p.toFixed(1) + '%');
 const kpis = [
-  [fmt(DATA.n_endcap), 'endcap program stores', ''],
-  [fmt(DATA.n_set) + ' (' + Math.round(100*DATA.n_set/DATA.n_endcap) + '%)',
-   'no exception filed', 'merchandiser-confirmed sets: ' + fmt(DATA.confirmed_set)],
-  [fmt(DATA.n_exc) + ' (' + K.exc_pct + '%)', 'exception filed — not set', ''],
-  ['+' + K.lift_pct + '%', 'U/S/W lift in set stores', 'vs +1.0% not set, −0.7% chain control'],
+  [fmt(DATA.n_endcap), 'endcap program stores',
+   fmt(DATA.n_visited) + ' visited · ' + fmt(DATA.n_unvisited) + ' not yet'],
+  [fmt(DATA.n_set) + ' (' + Math.round(100*DATA.n_set/DATA.n_visited) + '%)',
+   'confirmed set by a merchandiser', DATA.set_priced + ' of them priced correctly'],
+  [fmt(DATA.n_exc) + ' (' + K.exc_pct + '%)', 'visited but not set', 'reason filed for every one'],
+  ['+' + K.lift_pct + '%', 'U/S/W lift in set stores',
+   'vs ' + notSetPct(LIFT[1].pct) + ' not set, ' +
+   notSetPct(byLabel('Control: all non-endcap stores').pct) + ' chain control'],
   ['+' + fmt(K.inc_units) + ' units', 'incremental 15-lb units, week one',
    '≈ $' + fmt(K.inc_retail) + ' retail']
 ];
@@ -558,14 +734,16 @@ document.getElementById('hist').innerHTML = H.counts.map((n, i) =>
   Math.max(2, n/maxH*170) + 'px;background:' + H.colors[i] + '"></div>' +
   '<div class="lab">' + H.labels[i] + '</div></div>').join('');
 const NZ = DATA.noise;
+document.getElementById('histnote').textContent =
+  'Week-over-week % change in 15-lb units across the ' + fmt(DATA.n_set) +
+  ' stores a merchandiser confirmed set. Red = declined, grey = no signal, blue = grew.';
 document.getElementById('histcallout').innerHTML =
   '<b>How to read this:</b> store-level weeks are noisy (typical store sells 1–3 units), ' +
   'so even among confirmed not-set stores ' + NZ.exc_up_pct + '% ticked up. The cleaner tell is ' +
-  '<b>zero sales in the endcap week</b>: ' + NZ.set_zero + ' &ldquo;set&rdquo; stores (' + NZ.set_zero_pct +
-  '%) sold nothing vs ' + NZ.exc_zero_pct + '% of not-set stores — with ' +
-  (DATA.n_set - DATA.confirmed_set) + ' of the ' + DATA.n_set +
-  ' likely not yet visited (merchandisers confirm ' + fmt(DATA.confirmed_set) +
-  ' sets), those zero-sale stores are the place to look. They are the flag list below.';
+  '<b>zero sales in the endcap week</b>: ' + NZ.set_zero + ' confirmed-set stores (' + NZ.set_zero_pct +
+  '%) sold nothing vs ' + NZ.exc_zero_pct + '% of not-set stores. Since these ' + fmt(DATA.n_set) +
+  ' were visited and photographed as set, a zero week means the endcap is up but not moving — ' +
+  'they are the flag list at the bottom of the page.';
 
 /* ---- inventory status ---- */
 const INV = DATA.inv;
@@ -593,9 +771,10 @@ document.getElementById('invcallout').innerHTML =
   fmt(INV.rec_sold) + ' of them sold at least one this week), up from ' + fmt(INV.prev_received) +
   ' in last week&rsquo;s receipts file; ' + fmt(IC.transit) + ' are in transit and ' + fmt(IC.onorder) +
   ' still on order. The reason codes check out against the pipeline: &ldquo;not enough inventory&rdquo; stores are the ' +
-  'least stocked — only ' + INV.nei_received + ' of 339 have product even now, with ' + fmt(INV.nei_coming) +
-  ' inbound — so most of those can set once trucks land. And ' + fmt(INV.set_noprod) + ' of the ' + fmt(DATA.n_set) +
-  ' &ldquo;set&rdquo; stores don&rsquo;t have the 36 at the store yet, more evidence they&rsquo;re unvisited rather than set.';
+  'least stocked — only ' + INV.nei_received + ' of ' + fmt(INV.nei_n) + ' have product even now, with ' +
+  fmt(INV.nei_coming) + ' inbound — so most of those can set once trucks land. Read the top row with care: ' +
+  fmt(INV.set_noprod) + ' stores a merchandiser photographed as set still show fewer than ' + INV.units +
+  ' units received, which is receipt-posting lag or on-hand inaccuracy rather than a missing display.';
 
 /* ---- segments ---- */
 let st = '<tr><th>Prior distribution</th><th class="num">Stores</th>' +
@@ -613,23 +792,173 @@ document.getElementById('segtable').innerHTML = st;
 document.getElementById('segcallout').innerHTML =
   '<b>Yes — and it scales with unfamiliarity.</b> Stores that never carried Catalyst rejected at ' +
   DATA.segments[2].rej_pct + '% vs ' + DATA.segments[0].rej_pct + '% for stores already selling the 15-lb; ' +
-  'their outright-refusal rate is nearly double and &ldquo;product not located&rdquo; runs 1.6× higher. ' +
+  'their outright-refusal rate runs ' + (DATA.segments[2].refusal_pct/DATA.segments[0].refusal_pct).toFixed(1) +
+  '× higher and &ldquo;product not located&rdquo; ' +
+  (DATA.segments[2].located_pct/DATA.segments[0].located_pct).toFixed(1) + '× higher. ' +
   'All ' + DATA.n333 + ' never-stocked stores DO appear in Hailey&rsquo;s weekly file (' + DATA.n333_in27 +
   ' of ' + DATA.n333 + ' have a 15-lb row in ' + wkLabel(DATA.week) + ' — they were traited when the ' +
   'endcap product shipped), so data coverage is not the issue. Their week-one U/S/W of ' +
   DATA.segments[2].set_usw27.toFixed(2) + ' in set stores is promising for zero-history doors, but well under the ' +
   DATA.segments[0].set_usw27.toFixed(2) + ' of established ones.';
 
+/* ---- not-set workbench ---- */
+const NS = DATA.notset, NSC = NS.cols;
+const C_REASON = 0, C_DETAIL = 1, C_TITLE = 2, C_DATE = 3, C_STORE = 4,
+      C_CITY = 6, C_STATE = 7, C_INV = 11, C_OH = 12, C_U26 = 15, C_U27 = 16;
+const nsColor = {}; NS.reasons.forEach(r => nsColor[r.label] = r.color);
+const nsSel = new Set(NS.reasons.filter(r => r.key !== 'unvisited').map(r => r.key));
+const MAXROWS = 400;
+
+document.getElementById('nsnote').textContent =
+  'Every program store that is not confirmed set, with the reason the merchandiser filed on the ' +
+  'W/E 08/08/26 visit. Tick one or more reasons to combine them — the table and both downloads ' +
+  'follow the selection. The Excel file carries all ' + NSC.length + ' evidence columns per store: ' +
+  'reason and sub-reason, refusing associate, visit date, full address, endcap-product status, ' +
+  'on-hand and inbound units, and the before/after weekly sales.';
+
+document.getElementById('nspicker').innerHTML = NS.reasons.map(r =>
+  '<label class="pick' + (nsSel.has(r.key) ? ' on' : '') + '" data-key="' + r.key + '">' +
+  '<input type="checkbox"' + (nsSel.has(r.key) ? ' checked' : '') + '>' +
+  '<span class="swatch" style="background:' + r.color + '"></span>' +
+  '<span class="txt"><b>' + r.label + '</b><span>' + fmt(r.received) + ' have the product · ' +
+  fmt(r.inbound) + ' inbound</span></span>' +
+  '<span class="cnt">' + fmt(r.n) + '</span></label>').join('');
+
+function nsRows(){
+  const labels = new Set(NS.reasons.filter(r => nsSel.has(r.key)).map(r => r.label));
+  const q = document.getElementById('nssearch').value.trim().toLowerCase();
+  return NS.rows.filter(r => labels.has(r[C_REASON]) &&
+    (!q || (r[C_STORE] + ' ' + r[C_CITY] + ' ' + r[C_STATE] + ' ' + r[C_DETAIL]).toLowerCase().includes(q)));
+}
+function selLabel(){
+  const on = NS.reasons.filter(r => nsSel.has(r.key));
+  return on.length === 0 ? 'nothing selected'
+       : on.length === NS.reasons.length ? 'every not-set store'
+       : on.map(r => r.label.toLowerCase()).join(' + ');
+}
+function renderNS(){
+  const rows = nsRows();
+  document.getElementById('nssel').innerHTML =
+    '<b>' + fmt(rows.length) + '</b> stores — ' + selLabel();
+  document.getElementById('nsxlsx').disabled = !rows.length;
+  document.getElementById('nscsv').disabled = !rows.length;
+
+  const subs = NS.reasons.filter(r => nsSel.has(r.key) && r.subs.length);
+  document.getElementById('nssubs').innerHTML = subs.map(r =>
+    '<div class="grp"><b>' + r.label + '</b> — reasons given: ' +
+    r.subs.map(s => '<span class="chip">' + s[0] + ' · ' + fmt(s[1]) + '</span>').join('') +
+    '</div>').join('');
+
+  const show = rows.slice(0, MAXROWS);
+  let h = '<tr><th>Reason</th><th>Store #</th><th>City</th><th>State</th><th>Detail</th>' +
+    '<th>Endcap product</th><th class="num">On hand</th>' +
+    '<th class="num">Units ' + wkLabel(DATA.prior_week) + '</th>' +
+    '<th class="num">Units ' + wkLabel(DATA.week) + '</th><th>Visited</th></tr>';
+  show.forEach(r => {
+    h += '<tr><td><span class="rdot" style="background:' + (nsColor[r[C_REASON]] || '#999') +
+      '"></span>' + r[C_REASON] + '</td><td>' + r[C_STORE] + '</td><td>' + r[C_CITY] +
+      '</td><td>' + r[C_STATE] + '</td><td>' + (r[C_DETAIL] || '—') + '</td><td>' + r[C_INV] +
+      '</td><td class="num">' + r[C_OH] + '</td><td class="num">' + r[C_U26] +
+      '</td><td class="num">' + r[C_U27] + '</td><td>' + (r[C_DATE] || '—') + '</td></tr>';
+  });
+  document.getElementById('nstable').innerHTML = h;
+  document.getElementById('nsmore').textContent = rows.length > MAXROWS
+    ? 'Showing the first ' + MAXROWS + ' of ' + fmt(rows.length) +
+      ' — the download contains all ' + fmt(rows.length) + '.' : '';
+}
+document.getElementById('nspicker').addEventListener('change', e => {
+  const lab = e.target.closest('.pick'), key = lab.dataset.key;
+  e.target.checked ? nsSel.add(key) : nsSel.delete(key);
+  lab.classList.toggle('on', e.target.checked);
+  renderNS();
+});
+document.getElementById('nssearch').addEventListener('input', renderNS);
+function setAll(on){
+  NS.reasons.forEach(r => on ? nsSel.add(r.key) : nsSel.delete(r.key));
+  document.querySelectorAll('#nspicker .pick').forEach(l => {
+    l.querySelector('input').checked = on; l.classList.toggle('on', on); });
+  renderNS();
+}
+document.getElementById('nsall').onclick = () => setAll(true);
+document.getElementById('nsnone').onclick = () => setAll(false);
+
+function nsFilename(ext){
+  const on = NS.reasons.filter(r => nsSel.has(r.key));
+  const tag = on.length === NS.reasons.length ? 'all'
+    : on.map(r => r.key).join('-') || 'none';
+  return 'catalyst_endcap_not_set_' + tag + '_wk' + DATA.week + '.' + ext;
+}
+function download(blob, name){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+document.getElementById('nscsv').onclick = () => {
+  const esc = v => { v = String(v == null ? '' : v);
+    return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const csv = [NSC, ...nsRows()].map(r => r.map(esc).join(',')).join('\n');
+  download(new Blob([csv], {type:'text/csv;charset=utf-8'}), nsFilename('csv'));
+};
+document.getElementById('nsxlsx').onclick = () => {
+  if (typeof XLSX === 'undefined') {
+    alert('The Excel library did not load (offline?). Use the CSV button instead.');
+    return;
+  }
+  const rows = nsRows();
+  const wb = XLSX.utils.book_new();
+
+  const ws = XLSX.utils.aoa_to_sheet([NSC, ...rows]);
+  ws['!cols'] = NSC.map((c, i) => ({ wch: Math.min(38, Math.max(c.length + 2,
+    ...rows.slice(0, 250).map(r => String(r[i] == null ? '' : r[i]).length + 2))) }));
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range(
+    { s:{r:0,c:0}, e:{r:rows.length, c:NSC.length-1} }) };
+  ws['!freeze'] = { xSplit:0, ySplit:1 };
+  XLSX.utils.book_append_sheet(wb, ws, 'Not set');
+
+  const counts = {};
+  rows.forEach(r => counts[r[C_REASON]] = (counts[r[C_REASON]] || 0) + 1);
+  const sum = [
+    ['Catalyst 15-lb endcap — stores not set'],
+    ['Selection', selLabel()],
+    ['Stores in this file', rows.length],
+    [],
+    ['Reason', 'Stores in file', 'Stores in program', 'Have the 36 bags', 'Inbound'],
+    ...NS.reasons.filter(r => nsSel.has(r.key))
+      .map(r => [r.label, counts[r.label] || 0, r.n, r.received, r.inbound]),
+    [],
+    ['Sub-reasons given'],
+    ...NS.reasons.filter(r => nsSel.has(r.key) && r.subs.length)
+      .flatMap(r => [[r.label], ...r.subs.map(s => ['', s[0], s[1]])]),
+    [],
+    ['Program stores', DATA.n_endcap],
+    ['Confirmed set', DATA.n_set],
+    ['Not set (reason filed)', DATA.n_exc],
+    ['Not visited yet', DATA.n_unvisited],
+    [],
+    ['Status source', 'Merchandiser field visits, W/E 08/08/26 (WK27 survey)'],
+    ['Sales / inventory source', 'Walmart weekly reports wk' + DATA.prior_week +
+      ' and wk' + DATA.week + ', Sales by Store, CATALYST15ORIG'],
+    ['Endcap allocation', DATA.inv.units + ' units per store'],
+    ['"36 at store"', 'on hand plus the last two weeks of sell-through'],
+  ];
+  const ws2 = XLSX.utils.aoa_to_sheet(sum);
+  ws2['!cols'] = [{wch:32},{wch:44},{wch:18},{wch:18},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Summary');
+
+  XLSX.writeFile(wb, nsFilename('xlsx'));
+};
+renderNS();
+
 /* ---- flag list ---- */
 const T1 = DATA.flags.filter(f => f.tier === 1).length;
 const FNP = DATA.flags.filter(f => f.inv !== 'received').length;
 document.getElementById('flagnote').textContent =
-  DATA.flags.length + ' stores filed no exception but sold zero 15-lb units in the endcap week — ' +
-  'statistically they look like the not-set population. Tier 1 (' + T1 + ') also sold nothing the week ' +
-  'before; Tier 2 (' + (DATA.flags.length - T1) + ') were selling and stopped. ' + FNP +
-  " of them don't even have the endcap product at the store yet (can't be set); the other " +
-  (DATA.flags.length - FNP) + ' have the bags on site but sold none — those are the ones to cross-check ' +
-  'against the merchandiser visit log.';
+  DATA.flags.length + ' stores were confirmed set by a merchandiser yet sold zero 15-lb units in the ' +
+  'endcap week. Tier 1 (' + T1 + ') also sold nothing the week before; Tier 2 (' +
+  (DATA.flags.length - T1) + ') were selling and stopped. ' + FNP +
+  ' of them show no endcap product at the store, so the display is likely built from backstock or ' +
+  'the receipt has not posted; the other ' + (DATA.flags.length - FNP) +
+  ' have the bags on site and an endcap up but no sales — those are the ones worth a photo check.';
 let ft = '<tr><th>Tier</th><th>Store #</th><th>City</th><th>State</th>' +
   '<th class="num">Units ' + wkLabel(DATA.prior_week) + '</th>' +
   '<th class="num">Units ' + wkLabel(DATA.week) + '</th><th class="num">On hand now</th>' +
@@ -656,10 +985,12 @@ document.getElementById('csvbtn').onclick = () => {
 
 /* ---- footer ---- */
 document.getElementById('foot').innerHTML =
-  'Definitions: U/S/W = units per store per week. &ldquo;Set&rdquo; = no exception filed in ' +
-  'Exceptions_Catalyst Endcap Stores.xlsx (survey W/E 08/08/26) — an upper bound, since ' +
-  'unvisited stores file nothing; merchandiser-confirmed sets as of 8/10: ' + fmt(DATA.confirmed_set) +
-  '. Sales from Walmart weekly reports ' + wkLabel(DATA.prior_week) + ' and ' + wkLabel(DATA.week) +
+  'Definitions: U/S/W = units per store per week. &ldquo;Set&rdquo; = the merchandiser answered Yes to ' +
+  '&ldquo;is the Catalyst feature product set on a feature space&rdquo; on the W/E 08/08/26 field visit ' +
+  '(' + fmt(DATA.n_set) + ' stores, of which ' + (DATA.set_where['Endcap'] || 0) + ' on a true endcap). ' +
+  'Every other visited store carries the reason its merchandiser filed; ' + fmt(DATA.n_unvisited) +
+  ' program stores had no visit logged and are counted separately, never as set. ' +
+  'Sales from Walmart weekly reports ' + wkLabel(DATA.prior_week) + ' and ' + wkLabel(DATA.week) +
   ' (Sales by Store, CATALYST15ORIG). Retail estimate at the $15.97 rollback price.';
 
 if (localStorage.getItem(AUTH_KEY) === 'ok') showApp();
