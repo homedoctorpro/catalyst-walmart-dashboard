@@ -2817,50 +2817,59 @@ function fallbackCopy(text, onOk, onFail) {
 }
 
 // ══ Tab: By Date (monthly / quarterly rollup) ═════════════════════════════════
-// Group weekly metrics by calendar month OR calendar quarter, based on the
-// week-ending Friday date. A week belongs wholly to the period containing its
-// Friday — never split across two periods — so quarters are exactly the sum of
-// their three months and nothing is double-counted.
-// Sums: pos_dollars, pos_qty, wholesale_dollars.  Averages: usw, instock_pct.
+// Group weekly metrics by calendar month OR calendar quarter, PRO-RATA BY DAY.
+// Each reporting week spans Saturday..Friday (7 days, week-ending Friday). A week
+// that straddles a period boundary is split across both periods in proportion to
+// the days that fall in each (e.g. a week with 2 days in March and 5 in April
+// contributes 2/7 of its totals to March and 5/7 to April). Because a day's
+// quarter is its month's quarter, quarters are exactly the sum of their three
+// months, and the grand total across periods equals the sum of all weeks.
+// Sums (pro-rated): pos_dollars, pos_qty, wholesale_dollars.
+// Averages (day-weighted): usw, instock_pct.
 // Adj U/S/W = period_usw / (period_instock_pct/100).
 const MONTH_SHORT_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-function fridaysInCalendarMonth(year, monthIdx /* 0-11 */) {
-  // Count Fridays (day === 5) in this calendar month.
-  let count = 0;
-  const d = new Date(Date.UTC(year, monthIdx, 1));
-  const lastDay = new Date(Date.UTC(year, monthIdx + 1, 0)).getUTCDate();
-  for (let day = 1; day <= lastDay; day++) {
-    d.setUTCDate(day);
-    if (d.getUTCDay() === 5) count++;
+// How many reporting weeks a full period should contain = its calendar days / 7.
+// Used to flag partial periods (data starts 1/31, and the current period is
+// always partial until it closes).
+function expectedWeeksFor(grain, year, idx /* monthIdx 0-11, or quarterIdx 0-3 */) {
+  const daysInMonth = (y, m0) => new Date(Date.UTC(y, m0 + 1, 0)).getUTCDate();
+  if (grain === "quarter") {
+    let d = 0;
+    for (let m = idx * 3; m < idx * 3 + 3; m++) d += daysInMonth(year, m);
+    return d / 7;
   }
-  return count;
+  return daysInMonth(year, idx) / 7;
 }
 
-// How many reporting weeks a full period should contain = Fridays it holds.
-// Used to flag partial periods (e.g. Q1 shows 8/13 wks because the data starts
-// 1/31, and the current quarter is always partial until it closes).
-function expectedWeeksFor(grain, year, idx /* monthIdx 0-11, or quarterIdx 0-3 */) {
-  if (grain === "quarter") {
-    let n = 0;
-    for (let m = idx * 3; m < idx * 3 + 3; m++) n += fridaysInCalendarMonth(year, m);
-    return n;
-  }
-  return fridaysInCalendarMonth(year, idx);
+// Format a (possibly fractional) week count: "4" or "4.4".
+function fmtWks(x) {
+  return Math.abs(x - Math.round(x)) < 0.05 ? String(Math.round(x)) : x.toFixed(1);
 }
 
 function buildPeriodRollup(grain /* "month" | "quarter" */) {
   // Returns { periods: ["2026-02"|"2026-Q1", ...], byPeriod: { key: { label, isPartial, weekCount, expectedWeeks, weeks, series: { sku|"Total": {usw, adj_usw, instock_pct, pos_qty, pos_dollars, wholesale_dollars} } } } }
   const wkDates = DATA.week_dates || {};
-  const groups = {};   // periodKey -> [weeks]
+  const groups = {};   // periodKey -> [{w, frac}]
   DATA.weeks.forEach(w => {
     const iso = wkDates[w]; if (!iso) return;
-    const [y, m] = iso.split("-").map(Number);
-    const key = grain === "quarter"
-      ? `${y}-Q${Math.floor((m - 1) / 3) + 1}`
-      : `${y}-${String(m).padStart(2,"0")}`;
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(w);
+    const [y, m, d] = iso.split("-").map(Number);
+    const friday = new Date(Date.UTC(y, m - 1, d));
+    // Walk the week's 7 days (Sat..Fri) and count how many land in each period.
+    const dayCount = {};
+    for (let i = 6; i >= 0; i--) {
+      const dt = new Date(friday);
+      dt.setUTCDate(friday.getUTCDate() - i);
+      const yy = dt.getUTCFullYear(), mm = dt.getUTCMonth() + 1;
+      const key = grain === "quarter"
+        ? `${yy}-Q${Math.floor((mm - 1) / 3) + 1}`
+        : `${yy}-${String(mm).padStart(2,"0")}`;
+      dayCount[key] = (dayCount[key] || 0) + 1;
+    }
+    Object.keys(dayCount).forEach(key => {
+      if (!groups[key]) groups[key] = [];
+      groups[key].push({ w, frac: dayCount[key] / 7 });
+    });
   });
 
   const periods = Object.keys(groups).sort();
@@ -2869,33 +2878,34 @@ function buildPeriodRollup(grain /* "month" | "quarter" */) {
     const [yearStr, partStr] = key.split("-");
     const year = +yearStr;
     const idx  = grain === "quarter" ? (+partStr.slice(1) - 1) : (+partStr - 1);
-    const weeks = groups[key];
+    const wfracs = groups[key];
+    const weekCount = wfracs.reduce((a, x) => a + x.frac, 0);
     const expectedWeeks = expectedWeeksFor(grain, year, idx);
     const labelBase = grain === "quarter"
       ? `Q${idx + 1} ${String(year).slice(2)}`
       : `${MONTH_SHORT_NAMES[idx]} ${String(year).slice(2)}`;
-    const isPartial = weeks.length < expectedWeeks;
-    const label = isPartial ? `${labelBase} (${weeks.length}/${expectedWeeks} wks)` : labelBase;
+    const isPartial = weekCount < expectedWeeks - 0.01;
+    const label = isPartial ? `${labelBase} (${fmtWks(weekCount)}/${fmtWks(expectedWeeks)} wks)` : labelBase;
 
     const series = {};
     ALL_SERIES.forEach(s => {
-      // Accumulators
+      // Accumulators — sums pro-rated by frac; averages weighted by frac.
       let sumDollars = 0, hasDollars = false;
       let sumQty = 0, hasQty = false;
       let sumWholesale = 0, hasWholesale = false;
-      let uswSum = 0, uswN = 0;
-      let instockSum = 0, instockN = 0;
-      weeks.forEach(w => {
+      let uswSum = 0, uswW = 0;
+      let instockSum = 0, instockW = 0;
+      wfracs.forEach(({ w, frac }) => {
         const m = (DATA.metrics[w] || {})[s];
         if (!m) return;
-        if (m.pos_dollars != null)       { sumDollars   += m.pos_dollars;   hasDollars = true; }
-        if (m.pos_qty != null)           { sumQty       += m.pos_qty;       hasQty = true; }
-        if (m.wholesale_dollars != null) { sumWholesale += m.wholesale_dollars; hasWholesale = true; }
-        if (m.usw != null)               { uswSum       += m.usw;           uswN++; }
-        if (m.instock_pct != null)       { instockSum   += m.instock_pct;   instockN++; }
+        if (m.pos_dollars != null)       { sumDollars   += m.pos_dollars * frac;   hasDollars = true; }
+        if (m.pos_qty != null)           { sumQty       += m.pos_qty * frac;       hasQty = true; }
+        if (m.wholesale_dollars != null) { sumWholesale += m.wholesale_dollars * frac; hasWholesale = true; }
+        if (m.usw != null)               { uswSum       += m.usw * frac;           uswW += frac; }
+        if (m.instock_pct != null)       { instockSum   += m.instock_pct * frac;   instockW += frac; }
       });
-      const usw         = uswN     ? uswSum     / uswN     : null;
-      const instock_pct = instockN ? instockSum / instockN : null;
+      const usw         = uswW     ? uswSum     / uswW     : null;
+      const instock_pct = instockW ? instockSum / instockW : null;
       let adj_usw = null;
       if (usw != null && instock_pct) adj_usw = usw / (instock_pct / 100);
 
@@ -2909,10 +2919,22 @@ function buildPeriodRollup(grain /* "month" | "quarter" */) {
       };
     });
 
-    byPeriod[key] = { label, weekCount: weeks.length, expectedWeeks, isPartial, weeks, series };
+    byPeriod[key] = { label, weekCount, expectedWeeks, isPartial, weeks: wfracs.map(x => x.w), series };
   });
 
   return { periods, byPeriod };
+}
+
+// Month-grain rollup for the forecast sections, independent of the By Date
+// toggle (which can be on "quarter"). Exposes the {months, byMonth} shape the
+// forecast code consumes.
+let FC_MONTHLY_ROLLUP = null;
+function buildMonthlyRollup() {
+  if (!FC_MONTHLY_ROLLUP) {
+    const r = buildPeriodRollup("month");
+    FC_MONTHLY_ROLLUP = { months: r.periods, byMonth: r.byPeriod };
+  }
+  return FC_MONTHLY_ROLLUP;
 }
 
 let MONTHLY_ROLLUP = null;
@@ -2934,13 +2956,14 @@ function applyGrainLabels() {
   const blurb = document.getElementById("monthly-blurb");
   if (blurb) {
     blurb.innerHTML =
-      `<strong style="color:#222">Weekly → ${g.title} rollup.</strong> ` +
-      `Each week is assigned to the ${g.unit} containing its week-ending Friday, never split ` +
-      `across two ${g.plural} — so quarters are exactly the sum of their three months. ` +
-      `<span style="color:#666">Sums:</span> POS $, Units, Wholesale $. ` +
-      `<span style="color:#666">Averages across weeks:</span> U/S/W, Adj U/S/W, Instock %. ` +
-      `${g.title === "Monthly" ? "Months" : "Quarters"} with fewer reporting weeks than calendar ` +
-      `Fridays are flagged <em style="color:#b26500">(partial)</em>.`;
+      `<strong style="color:#222">Weekly → ${g.title} rollup, pro-rata by day.</strong> ` +
+      `Each reporting week (Sat–Fri) is split across the ${g.plural} it touches in proportion ` +
+      `to its days — a week with 2 days in one ${g.unit} and 5 in the next contributes 2/7 and 5/7 ` +
+      `of its totals — so quarters are exactly the sum of their three months. ` +
+      `<span style="color:#666">Sums (pro-rated):</span> POS $, Units, Wholesale $. ` +
+      `<span style="color:#666">Day-weighted averages:</span> U/S/W, Adj U/S/W, Instock %. ` +
+      `${g.title === "Monthly" ? "Months" : "Quarters"} not fully covered by reporting weeks ` +
+      `are flagged <em style="color:#b26500">(partial)</em>.`;
   }
 }
 
@@ -3000,7 +3023,7 @@ function buildMonthlyKPIs() {
     const sign = pct >= 0 ? "+" : "";
     const color = pct < 0 ? "#d32f2f" : "#2e7d32";
     const tip = suffix
-      ? ` title="Per-week run rate: ${byPeriod[latestKey].label} has ${curWeeks} reporting wk(s) vs ${prevWeeks}. Comparing totals would be misleading."`
+      ? ` title="Per-week run rate: ${byPeriod[latestKey].label} has ${fmtWks(curWeeks)} reporting wk(s) vs ${fmtWks(prevWeeks)}. Comparing totals would be misleading."`
       : "";
     return `<span class="kpi-chg" style="color:${color}"${tip}>${sign}${pct.toFixed(1)}%${suffix}</span>`;
   };
@@ -3009,7 +3032,7 @@ function buildMonthlyKPIs() {
     { color: "#0057e7", label: "U/S/W (avg)",      val: cur.usw,         pval: prev.usw,         fmt: v => v.toFixed(2) },
     { color: "#1565c0", label: "Adj U/S/W (avg)",  val: cur.adj_usw,     pval: prev.adj_usw,     fmt: v => v.toFixed(2) },
     { color: "#00a86b", label: "Instock % (avg)",  val: cur.instock_pct, pval: prev.instock_pct, fmt: v => v.toFixed(2) + "%" },
-    { color: "#e67300", label: "Units (sum)",      val: cur.pos_qty,     pval: prev.pos_qty,     fmt: v => v.toLocaleString(), sum: true },
+    { color: "#e67300", label: "Units (sum)",      val: cur.pos_qty,     pval: prev.pos_qty,     fmt: v => Math.round(v).toLocaleString(), sum: true },
     { color: "#9c27b0", label: "Retail $ (sum)",   val: cur.pos_dollars, pval: prev.pos_dollars, fmt: v => "$" + Math.round(v).toLocaleString(), sum: true },
     { color: "#333",    label: "Wholesale $ (sum)",val: cur.wholesale_dollars, pval: prev.wholesale_dollars, fmt: v => "$" + Math.round(v).toLocaleString(), sum: true },
   ];
@@ -3125,11 +3148,11 @@ function buildMonthlyTable() {
     const mo = byPeriod[k];
     const cls = mo.isPartial ? "partial-th" : "";
     const tip = mo.isPartial
-      ? `${mo.label} — partial (${mo.weekCount}/${mo.expectedWeeks} wks)`
-      : `${mo.label} — ${mo.weekCount} wks`;
+      ? `${mo.label} — partial (${fmtWks(mo.weekCount)}/${fmtWks(mo.expectedWeeks)} wks)`
+      : `${mo.label} — ${fmtWks(mo.weekCount)} wks`;
     const sublabel = mo.label.replace(/ \(.*$/, "");
     return `<th class="${cls}" title="${tip}">${sublabel}` +
-           (mo.isPartial ? `<div style="font-size:0.68rem;font-weight:500">${mo.weekCount}/${mo.expectedWeeks} wks</div>` : "") +
+           (mo.isPartial ? `<div style="font-size:0.68rem;font-weight:500">${fmtWks(mo.weekCount)}/${fmtWks(mo.expectedWeeks)} wks</div>` : "") +
            `</th>`;
   }).join("");
 
@@ -3316,9 +3339,9 @@ function fcRepeatIntensity() {
 }
 
 function fcBuildHistorical() {
-  // Use the Monthly tab's rollup for POS units; pair with Luminate shares.
-  if (!MONTHLY_ROLLUP) MONTHLY_ROLLUP = buildMonthlyRollup();
-  const monthly = MONTHLY_ROLLUP;
+  // Use a month-grain rollup for POS units (independent of the By Date toggle);
+  // pair with Luminate shares.
+  const monthly = buildMonthlyRollup();
   const shares  = fcBuildLuminateMonthlyShares();
 
   // Latest available share per SKU (carry-forward fallback for months missing Luminate)
@@ -3527,16 +3550,16 @@ function renderForecastPlanVsActual() {
   const card = document.getElementById("fc-pva-card");
   if (!fb || !fb.scenarios) { if (card) card.style.display = "none"; return; }
   card.style.display = "";
-  if (!MONTHLY_ROLLUP) MONTHLY_ROLLUP = buildMonthlyRollup();
+  const fcMonthly = buildMonthlyRollup();   // month grain, independent of the By Date toggle
   const metric = PVA_METRIC;
   const PL = fb.meta.placements.total, WPM = fb.meta.weeks_per_month;
 
   // Actual monthly Total series, keyed by month. U/S/W uses the SAME denominator as
   // the frozen plan (units ÷ frozen placements ÷ weeks) so it's a like-for-like compare.
   const actual = {};
-  MONTHLY_ROLLUP.months.forEach(k => {
-    const t = MONTHLY_ROLLUP.byMonth[k].series.Total || {};
-    const partial = MONTHLY_ROLLUP.byMonth[k].isPartial;
+  fcMonthly.months.forEach(k => {
+    const t = fcMonthly.byMonth[k].series.Total || {};
+    const partial = fcMonthly.byMonth[k].isPartial;
     let v = null;
     if (metric === "units") v = t.pos_qty;
     else if (metric === "wholesale") v = t.wholesale_dollars;
@@ -3551,7 +3574,7 @@ function renderForecastPlanVsActual() {
   const xLabels   = xKeys.map(k => {
     const m = baseMonths.find(x => x.key === k);
     if (m) return m.label;
-    const mr = MONTHLY_ROLLUP.byMonth[k];
+    const mr = fcMonthly.byMonth[k];
     return mr ? mr.label.replace(/ \(.*\)/, "") : k;
   });
   const anchorVal = (actual[anchorKey] || {}).v;
