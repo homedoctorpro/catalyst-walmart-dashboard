@@ -1040,12 +1040,21 @@ def _safe_num(val):
         return None
 
 
+# Brands carried through to the dashboard's Ecomm tab. Feline Fresh is still
+# PARSED (so its rows don't trip the unmapped-row warning and FELINE_FRESH_MAP
+# keeps documenting the taxonomy) but is dropped here — this dashboard is the
+# Catalyst report, and the Ecomm tab is the only consumer of the ecomm payload.
+# Add a brand back to this set to surface it again.
+ECOMM_BRANDS = {"Catalyst"}
+
+
 def extract_ecomm_data(df):
     """
     Parse a Lignetics L52WK Ecomm (or LW Ecomm) sheet.
     Row 0: headers; Rows 1+: products (skip 'Total' rows and unknowns).
     Cols: 0=Product Name, 1=Net Retail Sales, 3=Net Unit Sales.
-    Returns {short_name: {"brand": str, "r": float|None, "u": int|None}}.
+    Returns {short_name: {"brand": str, "r": float|None, "u": int|None}},
+    restricted to ECOMM_BRANDS.
     Logs a [WARN] for any row containing "catalyst" that fails to parse —
     surfaces silent format drift instead of dropping our SKUs.
     """
@@ -1063,6 +1072,8 @@ def extract_ecomm_data(df):
                     unmapped_catalyst.append(name_raw)
                 continue
             short, brand = mapping
+            if brand not in ECOMM_BRANDS:
+                continue
             retail = _safe_num(row.iloc[1])
             units  = _safe_num(row.iloc[3])
             result[short] = {
