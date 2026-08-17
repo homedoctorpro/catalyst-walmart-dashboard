@@ -198,8 +198,27 @@ jobs:
           FORCE_FULL_DISTRO: ${{ inputs.skip_email == true && '0' || '1' }}
           SKIP_EMAIL: ${{ inputs.skip_email == true && '1' || '0' }}
           DEV_ONLY_EMAIL: ${{ inputs.dev_email == true && '1' || '0' }}
+          # Duplicate-send guard state. This checkout is thrown away after the
+          # run, so the log has to live in the persisted data repo or the guard
+          # forgets every send and can't block a repeat. Committed below.
+          EMAIL_SEND_LOG: _data/.email_send_log.json
           PYTHONHASHSEED: "0"   # deterministic dict ordering → minimal output churn
         run: python extract_data.py
+
+      - name: Persist email send log to data repo
+        if: steps.gate.outputs.build == 'true'
+        working-directory: _data
+        run: |
+          git config user.name  "catalyst-bot"
+          git config user.email "ligneticsdata@gmail.com"
+          git add .email_send_log.json 2>/dev/null || true
+          if ! git diff --cached --quiet; then
+            git pull --rebase --autostash || true
+            git commit -m "Record weekly report send: ${{ steps.poll.outputs.weeks || 'manual' }}"
+            git push
+          else
+            echo "No send-log change to persist."
+          fi
 
       - name: Publish regenerated dashboard to Pages
         if: steps.gate.outputs.build == 'true'

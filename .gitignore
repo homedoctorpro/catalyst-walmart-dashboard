@@ -5,6 +5,11 @@ __pycache__/
 .env
 .gstack/
 
+# Local email state. The duplicate-send guard's log is per-machine; the cloud
+# keeps its own copy in the private data repo (EMAIL_SEND_LOG=_data/...).
+.email_sent_date
+.email_send_log.json
+
 # Chewy pipeline (generated / raw data / state)
 chewy_email_preview.html
 .chewy_last_emailed_month

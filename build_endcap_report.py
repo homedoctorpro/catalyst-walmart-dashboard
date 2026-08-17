@@ -38,7 +38,13 @@ OUTPUT = os.path.join(HERE, "endcap_report.html")
 # Ungated share copy: no password, blocked from search engines via
 # <meta name="robots" noindex> + an unguessable filename (unlisted URL).
 STANDALONE_OUTPUT = os.path.join(HERE, "endcap-report-x3f8a1.html")
-PRIOR_WEEK, ENDCAP_WEEK = "202626", "202627"
+# PRIOR_WEEK is the last report before the endcap went live (2026-08-01) and stays
+# fixed as the baseline; ENDCAP_WEEK rolls forward to the newest week each refresh.
+# ARRIVAL_WEEKS is every week since the 36-bag allocation started shipping — the
+# "has it landed?" test sums sell-through across all of them, so a store that has
+# already sold its 36 isn't misread as never having received them.
+PRIOR_WEEK, ENDCAP_WEEK = "202626", "202628"
+ARRIVAL_WEEKS = ["202626", "202627", "202628"]
 SURVEY = "(Walmart) Lignetics Inc. Cat Litter Endcap Set WK27.xlsx"
 
 REASONS = {  # survey answer -> (key, label, color)
@@ -143,23 +149,33 @@ def main():
         seg_of[s] = v["seg"] if v else "unvisited"
     reason_label = {key: label for _a, (key, label, _c) in REASONS.items()}
 
-    q15_26, _oh26, _pipe26, qtot_26, meta26 = load_bystore(PRIOR_WEEK)
-    q15_27, oh15_27, pipe27, qtot_27, meta27 = load_bystore(ENDCAP_WEEK)
+    # Load every week the allocation could have landed in, so arrival can be
+    # evaluated as-of any of them under one rule (see inv_status_asof).
+    by_week = {w: load_bystore(w) for w in sorted(set(ARRIVAL_WEEKS) | {PRIOR_WEEK, ENDCAP_WEEK})}
+    q15_26, _oh26, _pipe26, qtot_26, meta26 = by_week[PRIOR_WEEK]
+    q15_27, oh15_27, pipe27, qtot_27, meta27 = by_week[ENDCAP_WEEK]
 
     # endcap product status: has the 36-unit allocation reached the store?
-    # "received" counts on-hand + this week's and last week's sell-through
-    # (product began arriving in wk202626). No DC-warehouse column in this
-    # feed, so DC stock not yet on order shows as "short".
-    def inv_status(s):
-        if s not in q15_27:
+    # "received" counts on-hand plus everything the store has sold since the
+    # allocation started shipping, so a store that already sold its 36 still
+    # counts. No DC-warehouse column in this feed, so DC stock not yet on order
+    # shows as "short".
+    def inv_status_asof(s, week):
+        """Arrival status as it stood at the end of `week`."""
+        q15, oh15, pipe, _qt, _m = by_week[week]
+        if s not in q15:
             return "short"
-        have = oh15_27.get(s, 0) + q15_27.get(s, 0) + q15_26.get(s, 0)
-        transit, onorder = pipe27.get(s, (0, 0))
+        have = oh15.get(s, 0) + sum(by_week[w][0].get(s, 0)
+                                    for w in ARRIVAL_WEEKS if w <= week)
+        transit, onorder = pipe.get(s, (0, 0))
         if have >= ENDCAP_UNITS:
             return "received"
         if have + transit + onorder >= ENDCAP_UNITS:
             return "transit" if transit > 0 else "onorder"
         return "short"
+
+    def inv_status(s):
+        return inv_status_asof(s, ENDCAP_WEEK)
 
     set_ok = {s for s in endcap if seg_of[s] == "set"}
     unvisited = {s for s in endcap if seg_of[s] == "unvisited"}
@@ -254,10 +270,18 @@ def main():
                          **{c: row.get(c, 0) for c in INV_COLS}})
     inv_tot = Counter(inv_of.values())
     rec_stores = [s for s in endcap if inv_of[s] == "received"]
+    # Prior week's received count under the SAME rule, so "up from" is a real
+    # week-over-week move and not an artifact of a changed definition.
+    prev_arrival_week = max((w for w in ARRIVAL_WEEKS if w < ENDCAP_WEEK),
+                            default=None)
+    prev_received = (sum(1 for s in endcap
+                         if inv_status_asof(s, prev_arrival_week) == "received")
+                     if prev_arrival_week else None)
     inv_summary = {
         "counts": {c: inv_tot.get(c, 0) for c in INV_COLS},
         "rec_sold": sum(1 for s in rec_stores if q15_27.get(s, 0) > 0),
-        "prev_received": 666,  # from the wk202626 receipts workbook
+        "prev_received": prev_received,
+        "prev_week": prev_arrival_week,
         "set_noprod": sum(1 for s in set_ok if inv_of[s] != "received"),
         "nei_received": next(r["received"] for r in inv_rows
                              if r["label"] == "Not enough inventory"),
@@ -571,8 +595,8 @@ TEMPLATE = r"""<!DOCTYPE html>
 </section>
 
 <section>
-  <h2>Week-over-week lift — 15-lb Original units per store (U/S/W)</h2>
-  <p class="note">Week 202626 (before the set) vs. week 202627 (endcap week). &ldquo;Set&rdquo; = no exception filed.</p>
+  <h2>Lift since the endcap went live — 15-lb Original units per store (U/S/W)</h2>
+  <p class="note" id="liftnote"></p>
   <table id="lifttable"></table>
   <div class="callout" id="liftcallout"></div>
 </section>
@@ -585,7 +609,7 @@ TEMPLATE = r"""<!DOCTYPE html>
 </section>
 
 <section>
-  <h2>Has the endcap product physically arrived? (wk202627 inventory)</h2>
+  <h2>Has the endcap product physically arrived? <span id="invweek"></span></h2>
   <p class="note" id="invnote"></p>
   <table id="invtable"></table>
   <div class="callout" id="invcallout"></div>
@@ -644,6 +668,11 @@ const wkLabel = w => 'wk ' + w;
 document.getElementById('subtitle').textContent =
   DATA.n_endcap.toLocaleString() + ' program stores · set W/E 08/08/26 · sales ' +
   wkLabel(DATA.prior_week) + ' → ' + wkLabel(DATA.week) + ' · generated from Walmart weekly data';
+
+document.getElementById('liftnote').innerHTML =
+  'Week ' + DATA.prior_week + ' (the last report before the endcap went live) vs. week ' +
+  DATA.week + ' (latest). &ldquo;Set&rdquo; = the merchandiser answered Yes on the field visit.';
+document.getElementById('invweek').textContent = '(wk' + DATA.week + ' inventory)';
 
 /* ---- KPIs ---- */
 const K = DATA.kpi;
@@ -768,8 +797,9 @@ it += '<tr style="font-weight:600"><td>All program stores</td><td class="num">' 
 document.getElementById('invtable').innerHTML = it;
 document.getElementById('invcallout').innerHTML =
   '<b>' + fmt(IC.received) + ' stores (' + Math.round(100*IC.received/invTot) + '%) now have their 36 bags</b> (' +
-  fmt(INV.rec_sold) + ' of them sold at least one this week), up from ' + fmt(INV.prev_received) +
-  ' in last week&rsquo;s receipts file; ' + fmt(IC.transit) + ' are in transit and ' + fmt(IC.onorder) +
+  fmt(INV.rec_sold) + ' of them sold at least one this week)' +
+  (INV.prev_received == null ? '' : ', up from ' + fmt(INV.prev_received) +
+    ' a week earlier on the same measure') + '; ' + fmt(IC.transit) + ' are in transit and ' + fmt(IC.onorder) +
   ' still on order. The reason codes check out against the pipeline: &ldquo;not enough inventory&rdquo; stores are the ' +
   'least stocked — only ' + INV.nei_received + ' of ' + fmt(INV.nei_n) + ' have product even now, with ' +
   fmt(INV.nei_coming) + ' inbound — so most of those can set once trucks land. Read the top row with care: ' +

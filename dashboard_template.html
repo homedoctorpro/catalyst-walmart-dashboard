@@ -1373,12 +1373,21 @@
     </div>
 
     <div class="endcap-sub-tabs">
-      <button class="endcap-sub-btn active" onclick="switchEndcapView('map',this)">🗺️ Map</button>
+      <button class="endcap-sub-btn active" onclick="switchEndcapView('rollout',this)">📊 Rollout Status</button>
+      <button class="endcap-sub-btn"        onclick="switchEndcapView('map',this)">🗺️ Map</button>
       <button class="endcap-sub-btn"        onclick="switchEndcapView('table',this)">📋 Table</button>
       <button class="endcap-sub-btn"        onclick="switchEndcapView('cohort',this)">📈 U/S/W Lift</button>
     </div>
 
-    <div id="endcap-view-map" class="endcap-view active">
+    <div id="endcap-view-rollout" class="endcap-view active">
+      <div id="endcap-rollout-empty" style="display:none;padding:40px;text-align:center;color:#888">
+        Rollout status needs the merchandiser field survey
+        (<code>(Walmart) Lignetics Inc. Cat Litter Endcap Set WK27.xlsx</code>) in the project folder.
+      </div>
+      <div id="endcap-rollout-body"></div>
+    </div>
+
+    <div id="endcap-view-map" class="endcap-view">
       <div class="endcap-map-controls">
         <label><input type="checkbox" id="endcap-show-has" checked> <span class="endcap-dot has"></span> Stocks Catalyst</label>
         <label><input type="checkbox" id="endcap-show-no" checked> <span class="endcap-dot no"></span> On endcap, no Catalyst yet</label>
@@ -2525,23 +2534,89 @@ function renderCoopTracker() {
        </div>
 
        <div style="display:flex;flex-wrap:wrap;gap:16px;">
-         ${stat("Units @ rollback (to date)", co.units_to_date.toLocaleString(), "≈ " + usd(rb.dollars_total) + " retail")}
+         ${stat("Units sold below $" + rb.pre_price.toFixed(2), rb.units_discounted.toLocaleString(),
+                rb.pct_discounted.toFixed(0) + "% of " + rb.units_all.toLocaleString() + " 15 lb units")}
+         ${stat("Markdown $ (co-op draw)", usd(rb.markdown_dollars), co.units_to_date.toLocaleString() + " units at full $" + co.discount.toFixed(2))}
          ${stat("Co-op remaining", usdK(co.remaining), co.units_remaining.toLocaleString() + " units")}
          ${stat("Run rate", co.run_rate.toLocaleString() + "/wk", "latest week (" + weekLabel(co.as_of_week) + ")")}
          ${stat("Co-op used up (est.)", twoWay(exFlat, exGrow), "flat · +3%/wk")}
          ${stat("Profit to date", usd(co.profit_to_date), "@ $" + co.profit_coop.toFixed(2) + "/unit")}
          ${stat("Exp. total profit by " + endLbl, twoWay(usdK(co.flat.profit_total), usdK(co.growth.profit_total)), "flat · +3%/wk")}
-         ${stat("Rollback $ split — us / WMT", twoWay(co.flat.our_pct + "/" + co.flat.wm_pct + "%", co.growth.our_pct + "/" + co.growth.wm_pct + "%"), "flat · +3%/wk")}
+         ${stat("Rollback $ split — us / WMT", twoWay(Math.round(co.flat.our_pct) + "/" + Math.round(co.flat.wm_pct) + "%", Math.round(co.growth.our_pct) + "/" + Math.round(co.growth.wm_pct) + "%"), "flat · +3%/wk")}
        </div>
+
+       ${priceMixHTML(rb)}
 
        <div style="margin-top:14px;font-size:11px;color:#888;line-height:1.5;border-top:1px solid #f2e0e0;padding-top:10px;">
          Profit is <strong>$${co.profit_coop.toFixed(2)}/unit</strong> while our $${(co.fee/1000).toFixed(0)}k co-op funds the $${co.discount.toFixed(2)} rollback (first ${co.units_covered.toLocaleString()} units),
          then <strong>$${co.profit_post.toFixed(2)}/unit</strong> once it's used up — Walmart funds the discount beyond that. Our $${(co.fee/1000).toFixed(0)}k is fixed, so the "split" is our share of the
-         <em>total</em> rollback discount (${usd(co.flat.total_discount)} flat · ${usd(co.growth.total_discount)} at +3%/wk). Projections run at the ${co.run_rate.toLocaleString()}/wk latest-week rollback-unit rate through ${endLbl};
-         "+3%/wk" compounds weekly. Rollback units are counted store-by-store from each store's weekly AUR (POS $ ÷ units) — stores selling at/above the pre-rollback price count zero.
+         <em>total</em> rollback discount (${usd(co.flat.total_discount)} flat · ${usd(co.growth.total_discount)} at +3%/wk).
+         <br><strong>Two different counts, on purpose.</strong> <em>Units sold below $${rb.pre_price.toFixed(2)}</em> (${rb.units_discounted.toLocaleString()}) counts every bag that rang up under the old shelf price, using each store's own realized price (POS $ ÷ units).
+         The <em>co-op draw</em> instead sums each store's actual discount — a store at $16.97 gives back $1.27, not $${co.discount.toFixed(2)} — so ${usd(rb.markdown_dollars)} of markdown equals ${co.units_to_date.toLocaleString()} full-discount-equivalent units.
+         The fund pays $${co.discount.toFixed(2)} a bag, so that second number is the one the ${usdK(co.fee)} burn and the projections run on (${co.run_rate.toLocaleString()}/wk through ${endLbl}; "+3%/wk" compounds weekly).
+         Stores at or above $${rb.pre_price.toFixed(2)} contribute to neither.
        </div>
      </div>`;
   el.style.display = "block";
+}
+
+// Per-week price mix: how the week's 15 lb units split across the actual shelf
+// prices stores rang them at. Store AURs are discrete and stable week to week,
+// so these are real price points, not averages — which is why $19.97 (above the
+// pre-rollback price) can be called out separately from the discounted tiers.
+function priceMixHTML(rb) {
+  const pbAll = rb.price_bands || {};
+  const weeks = Object.keys(pbAll).sort();
+  if (!weeks.length) return "";
+  const wk = weeks[weeks.length - 1], pb = pbAll[wk];
+  const colorOf = b => b.vs_pre === "above" ? "#c62828"
+                     : b.vs_pre === "at"    ? "#8d6e63"
+                     : b.price != null && Math.abs(b.price - rb.price) < 0.005 ? "#2e7d32"
+                     : b.vs_pre === "mixed" ? "#b0bec5" : "#66bb6a";
+  const seg = b =>
+    `<div title="${b.price != null ? "$" + b.price.toFixed(2) : b.n_points + " other price points"} — ${b.units.toLocaleString()} units (${b.pct.toFixed(1)}%)"
+          style="width:${b.pct}%;background:${colorOf(b)};"></div>`;
+  const chip = b =>
+    `<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#555;">
+       <span style="width:9px;height:9px;border-radius:2px;background:${colorOf(b)};display:inline-block;"></span>
+       <strong style="color:#1a1a2e;">${b.price != null ? "$" + b.price.toFixed(2) : "other (" + b.n_points + ")"}</strong>
+       ${b.pct.toFixed(1)}% · ${b.units.toLocaleString()}u
+     </span>`;
+
+  const rows = weeks.map(w => {
+    const p = pbAll[w];
+    return `<tr>
+      <td style="padding:3px 8px 3px 0;color:#555;white-space:nowrap;">${weekLabel(w)}${p.blended ? ' <span style="color:#aaa;font-size:10px;" title="Transition week — the rollback started mid-week, so store prices are genuine pre/post blends">blend</span>' : ""}</td>
+      <td style="padding:3px 8px;text-align:right;color:#333;">${p.units.toLocaleString()}</td>
+      <td style="padding:3px 8px;text-align:right;color:#2e7d32;font-weight:600;">${p.roll_pct.toFixed(1)}%</td>
+      <td style="padding:3px 8px;text-align:right;color:#333;">${p.below_pct.toFixed(1)}%</td>
+      <td style="padding:3px 8px;text-align:right;color:#8d6e63;">${p.at_pct.toFixed(1)}%</td>
+      <td style="padding:3px 8px;text-align:right;color:#c62828;font-weight:${p.above_pct >= 5 ? 700 : 400};">${p.above_pct.toFixed(1)}%</td>
+      <td style="padding:3px 0 3px 8px;text-align:right;color:#333;">$${Math.round(p.markdown).toLocaleString()}</td>
+    </tr>`;
+  }).join("");
+
+  return `
+    <div style="margin-top:16px;border-top:1px solid #f2e0e0;padding-top:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;margin-bottom:7px;">
+        <div style="font-size:12px;font-weight:700;color:#1a1a2e;">Price mix — ${weekLabel(wk)} <span style="font-weight:400;color:#888;">(${pb.units.toLocaleString()} 15 lb units at the price each store actually rang)</span></div>
+        <div style="font-size:11px;color:#888;">${pb.above_pct.toFixed(1)}% sold <strong style="color:#c62828;">above</strong> the old $${rb.pre_price.toFixed(2)}</div>
+      </div>
+      <div style="display:flex;height:16px;border-radius:4px;overflow:hidden;background:#eee;margin-bottom:7px;">${pb.bands.map(seg).join("")}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px 16px;margin-bottom:12px;">${pb.bands.map(chip).join("")}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <tr style="color:#999;text-transform:uppercase;font-size:10px;letter-spacing:.03em;text-align:right;">
+          <th style="text-align:left;padding:0 8px 4px 0;font-weight:600;">Week</th>
+          <th style="padding:0 8px 4px;font-weight:600;">15 lb units</th>
+          <th style="padding:0 8px 4px;font-weight:600;">@ $${rb.price.toFixed(2)}</th>
+          <th style="padding:0 8px 4px;font-weight:600;">Below $${rb.pre_price.toFixed(2)}</th>
+          <th style="padding:0 8px 4px;font-weight:600;">At $${rb.pre_price.toFixed(2)}</th>
+          <th style="padding:0 8px 4px;font-weight:600;">Above</th>
+          <th style="padding:0 0 4px 8px;font-weight:600;">Markdown $</th>
+        </tr>
+        ${rows}
+      </table>
+    </div>`;
 }
 
 // ══ KPI Cards ═════════════════════════════════════════════════════════════════
@@ -6333,6 +6408,197 @@ function switchEndcapView(view, btn) {
   document.getElementById("endcap-view-" + view).classList.add("active");
   if (view === "map" && window._endcapMap) setTimeout(() => window._endcapMap.invalidateSize(), 50);
   if (view === "cohort") renderEndcapCohorts();
+  if (view === "rollout") renderEndcapRollout();
+}
+
+// ══ Endcap Rollout Status ═════════════════════════════════════════════════════
+// The weekly refresh of the standalone endcap report's headline questions: how
+// many stores actually set the feature, how many have the 36-bag allocation, and
+// what the set stores are selling this week vs last week and vs the last week
+// before the program went live. Set/not-set comes from the merchandiser field
+// visit (a point-in-time survey); sales and inventory come from the live feed, so
+// the lift rolls forward every week while the set counts stay pinned to the visit.
+let _endcapRolloutDone = false;
+function renderEndcapRollout(force) {
+  const es = DATA.endcap_status;
+  const body = document.getElementById("endcap-rollout-body");
+  if (!body) return;
+  if (!es) {
+    document.getElementById("endcap-rollout-empty").style.display = "block";
+    return;
+  }
+  if (_endcapRolloutDone && !force) return;
+  _endcapRolloutDone = true;
+
+  const n  = v => (v == null ? "—" : Math.round(v).toLocaleString());
+  const p1 = v => (v == null ? "—" : (v > 0 ? "+" : "") + v.toFixed(1) + "%");
+  const iv = es.inv, INV_META = [
+    { k: "received", label: "At store (or sold through)", color: "#1a9850" },
+    { k: "transit",  label: "In transit",                 color: "#66bb6a" },
+    { k: "onorder",  label: "On order only",              color: "#f4a340" },
+    { k: "short",    label: "Pipeline short of " + es.units_target, color: "#d73027" },
+  ];
+  const setRow = es.lift.find(r => r.key === "set") || {};
+  const ctlRow = es.lift.find(r => r.key === "control") || {};
+  const nsRow  = es.lift.find(r => r.key === "notset") || {};
+  // Two readings, because every endcap store got the 36-bag allocation whether or
+  // not the display went up. `net` (vs the non-endcap control) is the whole
+  // program — allocation plus display. `netDisplay` (vs endcap stores that got the
+  // bags but never set) is the part the display itself earned.
+  const net       = es.net_vs_control;
+  const netDisplay = es.net_vs_notset;
+
+  const kpi = (label, val, sub, color) =>
+    `<div class="endcap-kpi"${color ? ` style="border-left-color:${color}"` : ""}>
+       <div class="endcap-kpi-lbl">${label}</div>
+       <div class="endcap-kpi-val"${color ? ` style="color:${color}"` : ""}>${val}</div>
+       <div style="font-size:11px;color:#888;margin-top:2px;">${sub || "&nbsp;"}</div>
+     </div>`;
+
+  const bar = (label, count, denom, color, note) => {
+    const w = denom ? count / denom * 100 : 0;
+    return `<div style="display:grid;grid-template-columns:225px 1fr 110px;gap:10px;align-items:center;margin-bottom:5px;font-size:12px;"
+                 title="${label}: ${n(count)} of ${n(denom)} stores (${w.toFixed(1)}%)">
+        <div style="color:#444;">${label}${note ? ` <span style="color:#aaa;font-size:10px;">${note}</span>` : ""}</div>
+        <div style="height:11px;background:#eef0f2;border-radius:6px;overflow:hidden;">
+          <div style="height:100%;width:${w.toFixed(2)}%;background:${color};"></div></div>
+        <div style="color:#222;font-weight:600;">${n(count)} <span style="color:#999;font-weight:400;">(${w.toFixed(0)}%)</span></div>
+      </div>`;
+  };
+
+  const reasonBars = es.reasons.map(r =>
+    bar(r.label, r.n, es.n_visited, "#d73027",
+        r.received ? `· ${n(r.received)} had the ${es.units_target}` : "")).join("");
+  const invBars = INV_META.map(m =>
+    bar(m.label, iv.counts[m.k], es.n_endcap, m.color)).join("");
+
+  // Lift table: this week vs last week and vs the pre-live baseline week.
+  const liftRows = es.lift.map(r => {
+    const lead = r.key === "set" || r.key === "control";
+    return `<tr style="${lead ? "font-weight:600;" : "color:#555;"}">
+      <td style="padding:5px 10px 5px 0;">${r.label}</td>
+      <td style="padding:5px 10px;text-align:right;">${n(r.n)}</td>
+      <td style="padding:5px 10px;text-align:right;">${n(r.vs_base_units)}</td>
+      <td style="padding:5px 10px;text-align:right;">${n(r.wow_units)}</td>
+      <td style="padding:5px 10px;text-align:right;">${n(r.units)}</td>
+      <td style="padding:5px 10px;text-align:right;">${r.usw == null ? "—" : r.usw.toFixed(2)}</td>
+      <td style="padding:5px 10px;text-align:right;color:${r.wow_pct > 0 ? "#1a9850" : r.wow_pct < 0 ? "#c62828" : "#666"};">${p1(r.wow_pct)}</td>
+      <td style="padding:5px 0 5px 10px;text-align:right;color:${r.vs_base_pct > 0 ? "#1a9850" : r.vs_base_pct < 0 ? "#c62828" : "#666"};">${p1(r.vs_base_pct)}</td>
+    </tr>`;
+  }).join("");
+
+  const invRows = iv.rows.map(r => `<tr>
+      <td style="padding:5px 10px 5px 0;color:#444;">${r.label}</td>
+      <td style="padding:5px 10px;text-align:right;font-weight:600;">${n(r.n)}</td>
+      ${INV_META.map(m => `<td style="padding:5px 10px;text-align:right;color:${m.color};">${n(r[m.k])}</td>`).join("")}
+      <td style="padding:5px 0 5px 10px;text-align:right;color:#666;">${r.n ? (r.received / r.n * 100).toFixed(0) + "%" : "—"}</td>
+    </tr>`).join("");
+
+  body.innerHTML = `
+    <div style="background:#fff;border-radius:10px;padding:14px 18px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:14px;font-size:13px;color:#444;line-height:1.6;">
+      <div style="font-weight:700;color:#222;margin-bottom:4px;">Endcap rollout — set rate, ${es.units_target}-bag arrival, and lift</div>
+      <strong>Set / not set</strong> is the merchandiser field visit (survey week <strong>${weekLabel(es.survey_week)}</strong>) — a point-in-time answer to
+      "is the feature product set on a feature space", so it doesn't move until the next visit.
+      <strong>Sales and inventory</strong> are the live feed through <strong>${weekLabel(es.week)}</strong>, so lift refreshes weekly.
+      "Vs pre-endcap" compares against <strong>${weekLabel(es.base_week)}</strong>, the last report before the program went live ${new Date(es.live_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}.
+      A store counts as having its ${es.units_target} bags if on-hand plus everything it has sold since the allocation shipped reaches ${es.units_target}.
+    </div>
+
+    <div class="endcap-kpi-row" style="grid-template-columns:repeat(6,1fr);">
+      ${kpi("Confirmed set", n(es.n_set), es.set_pct.toFixed(0) + "% of " + n(es.n_visited) + " visited", "#1a9850")}
+      ${kpi("Not set (reason filed)", n(es.n_notset), n(es.n_unvisited) + " not visited yet", "#d73027")}
+      ${kpi("Have the " + es.units_target + " bags", n(iv.counts.received), iv.pct.received.toFixed(0) + "% of " + n(es.n_endcap) + " endcap stores", "#1a9850")}
+      ${kpi("Set but no product", n(iv.set_short), "of " + n(es.n_set) + " set stores", "#e67300")}
+      ${kpi("Set-store units, " + weekLabel(es.week), n(setRow.units), setRow.usw == null ? "" : setRow.usw.toFixed(2) + " U/S/W · " + p1(setRow.wow_pct) + " WoW", "#0057e7")}
+      ${kpi("Display effect", p1(netDisplay), "set vs not-set — both got the bags", "#0057e7")}
+    </div>
+
+    <div style="background:#fff;border-radius:10px;padding:13px 18px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:14px;font-size:12.5px;color:#444;line-height:1.7;">
+      <strong style="color:#222;">Reading the lift.</strong> Set stores are ${p1(setRow.vs_base_pct)} vs the pre-endcap week and the non-endcap control is ${p1(ctlRow.vs_base_pct)} — a ${net == null ? "—" : "<strong>" + p1(net) + "</strong>"} gap.
+      But that gap is the whole program, not the display: every store on the endcap list got a ${es.units_target}-bag allocation whether or not the feature went up, and the endcap stores that <em>never set</em> are still ${p1(nsRow.vs_base_pct)}.
+      Both groups got the inventory, so the display's own contribution is the set-vs-not-set gap: <strong style="color:#0057e7;">${p1(netDisplay)}</strong>.
+      The rest is the allocation itself — restocking stores that were thin or out${(DATA.endcap_cohorts && DATA.endcap_cohorts.sizes && DATA.endcap_cohorts.sizes.C) ? ", plus " + n(DATA.endcap_cohorts.sizes.C) + " endcap stores that weren't stocking the SKU at all before and are ramping from zero" : ""}.
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+      <div style="background:#fff;border-radius:10px;padding:14px 18px;box-shadow:0 1px 4px rgba(0,0,0,.06);">
+        <h3 style="margin:0 0 10px;font-size:14px;">Why the other ${n(es.n_visited - es.n_set)} aren't set</h3>
+        ${bar("Confirmed set", es.n_set, es.n_visited, "#1a9850")}
+        ${reasonBars}
+        <div style="font-size:11px;color:#888;margin-top:8px;line-height:1.5;">
+          Share of the ${n(es.n_visited)} stores a merchandiser actually visited. "had the ${es.units_target}"
+          counts stores that filed a reason even though the allocation had reached them — those are recoverable with a revisit, not freight.
+        </div>
+      </div>
+      <div style="background:#fff;border-radius:10px;padding:14px 18px;box-shadow:0 1px 4px rgba(0,0,0,.06);">
+        <h3 style="margin:0 0 10px;font-size:14px;">Did the ${es.units_target} bags land?</h3>
+        ${invBars}
+        <div style="font-size:11px;color:#888;margin-top:8px;line-height:1.5;">
+          Across all ${n(es.n_endcap)} endcap stores. ${n(iv.received_selling)} of the ${n(iv.counts.received)} with product sold at least one bag in ${weekLabel(es.week)}.
+          There is no DC-warehouse column in this feed, so stock that exists but isn't yet on a store order reads as "pipeline short".
+        </div>
+      </div>
+    </div>
+
+    <div class="metrics-table-card" style="margin-bottom:14px;">
+      <h3>15 lb Original units by segment — ${weekLabel(es.week)} vs last week vs pre-endcap</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr style="color:#888;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid #eee;">
+          <th style="text-align:left;padding:0 10px 6px 0;font-weight:600;">Segment</th>
+          <th style="text-align:right;padding:0 10px 6px;font-weight:600;">Stores</th>
+          <th style="text-align:right;padding:0 10px 6px;font-weight:600;">${weekLabel(es.base_week)}<br><span style="font-weight:400;text-transform:none;">pre-endcap</span></th>
+          <th style="text-align:right;padding:0 10px 6px;font-weight:600;">${weekLabel(es.last_week)}</th>
+          <th style="text-align:right;padding:0 10px 6px;font-weight:600;">${weekLabel(es.week)}</th>
+          <th style="text-align:right;padding:0 10px 6px;font-weight:600;">U/S/W</th>
+          <th style="text-align:right;padding:0 10px 6px;font-weight:600;">WoW</th>
+          <th style="text-align:right;padding:0 0 6px 10px;font-weight:600;">vs pre-endcap</th>
+        </tr></thead>
+        <tbody>${liftRows}</tbody>
+      </table>
+      <div style="font-size:11px;color:#888;margin-top:10px;line-height:1.5;">
+        The control is every Catalyst store <em>not</em> on the endcap list, so it absorbs whatever the rest of the business did — the rollback, seasonality, distribution gains.
+        Whole-program gap vs that control: ${net == null ? "—" : "<strong>" + p1(net) + "</strong>"}. Display-only gap (set vs not-set, both holding the allocation): ${netDisplay == null ? "—" : "<strong>" + p1(netDisplay) + "</strong>"}.
+        ${es.set_zero ? n(es.set_zero) + " confirmed-set stores sold nothing in " + weekLabel(es.week) + "." : ""}
+      </div>
+    </div>
+
+    <div class="chart-card"><h3 style="margin:0 0 4px">U/S/W — set vs not-set vs control, weekly</h3><div id="endcap-rollout-chart" class="chart-div"></div></div>
+  `;
+
+  // Weekly U/S/W trend with the go-live marker, so the lift reads as a trend.
+  const S = es.series || [];
+  if (S.length && window.Plotly) {
+    const series = [
+      { key: "set",     name: "Endcap confirmed set", color: "#1a9850" },
+      { key: "notset",  name: "Endcap, not set",      color: "#d73027" },
+      { key: "control", name: "Control (non-endcap)", color: "#0057e7" },
+    ];
+    const x = S.map(r => weekLabel(r.week));
+    Plotly.newPlot("endcap-rollout-chart",
+      series.map(s => ({
+        x, y: S.map(r => r[s.key + "_usw"]), name: s.name, type: "scatter",
+        mode: "lines+markers", line: { color: s.color, width: 2.5 },
+        marker: { size: 6 },
+        hovertemplate: "%{x}<br>" + s.name + ": %{y:.2f} U/S/W<extra></extra>",
+      })),
+      {
+        margin: { l: 52, r: 18, t: 10, b: 58 }, height: 330,
+        yaxis: { title: "Units / store / week", rangemode: "tozero", gridcolor: "#f0f0f0" },
+        xaxis: { tickangle: -35 },
+        legend: { orientation: "h", y: -0.28 },
+        plot_bgcolor: "#fff", paper_bgcolor: "#fff", hovermode: "x unified",
+        shapes: es.base_week ? [{
+          type: "line", x0: weekLabel(es.base_week), x1: weekLabel(es.base_week),
+          yref: "paper", y0: 0, y1: 1,
+          line: { color: "#999", width: 1.5, dash: "dot" },
+        }] : [],
+        annotations: es.base_week ? [{
+          x: weekLabel(es.base_week), yref: "paper", y: 1.02, showarrow: false,
+          text: "endcap goes live", font: { size: 10, color: "#888" }, xanchor: "left",
+        }] : [],
+      },
+      { responsive: true, displayModeBar: false });
+  }
 }
 
 // Endcap cohort U/S/W tracker: 3 fixed cohorts, weekly velocity, Aug-1 marker.
@@ -6512,6 +6778,9 @@ function initEndcap() {
   document.getElementById("endcap-kpi-noaddr").textContent = noAddr.toLocaleString();
   const totalQty = endcap.rows.reduce((sum, r) => sum + (r.endcap_recommended_qty || 0), 0);
   document.getElementById("endcap-kpi-qty").textContent = totalQty.toLocaleString();
+
+  // Rollout Status is the default sub-tab, so draw it up front.
+  renderEndcapRollout();
 
   // ── Map ────────────────────────────────────────────────────────────────────
   const map = L.map("endcap-map", { preferCanvas: true }).setView([39.5, -98.35], 4);

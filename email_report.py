@@ -4,8 +4,8 @@ Called automatically at the end of extract_data.py.
 Usage standalone: python email_report.py --dry-run
 """
 
-import os, sys, smtplib, math, argparse, io, base64
-from datetime import date
+import os, sys, smtplib, math, argparse, io, base64, json
+from datetime import date, datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -377,28 +377,272 @@ def build_coop_section(data):
 
         <table width="100%" cellspacing="0" cellpadding="0">
           <tr>
-            {stat("Units @ rollback (to date)", f'{co["units_to_date"]:,}', "&#8776; " + usd(rb["dollars_total"]) + " retail")}
+            {stat(f'Units sold below ${rb["pre_price"]:.2f}', f'{rb["units_discounted"]:,}',
+                  f'{rb["pct_discounted"]:.0f}% of {rb["units_all"]:,} 15 lb units')}
+            {stat("Markdown $ (co-op draw)", usd(rb["markdown_dollars"]),
+                  f'{co["units_to_date"]:,} units at full ${co["discount"]:.2f}')}
             {stat("Co-op remaining", usdk(co["remaining"]), f'{co["units_remaining"]:,} units')}
-            {stat("Run rate", f'{co["run_rate"]:,}/wk', "latest wk (" + wl(co["as_of_week"]) + ")")}
           </tr>
           <tr>
+            {stat("Run rate", f'{co["run_rate"]:,}/wk', "latest wk (" + wl(co["as_of_week"]) + ")")}
             {stat("Co-op used up (est.)", two(ex_flat, ex_grow), "flat &middot; +3%/wk")}
             {stat("Profit to date", usd(co["profit_to_date"]), "@ $" + f'{co["profit_coop"]:.2f}' + "/unit")}
-            {stat("Exp. profit by " + end_lbl, two(usdk(co["flat"]["profit_total"]), usdk(co["growth"]["profit_total"])), "flat &middot; +3%/wk")}
           </tr>
           <tr>
+            {stat("Exp. profit by " + end_lbl, two(usdk(co["flat"]["profit_total"]), usdk(co["growth"]["profit_total"])), "flat &middot; +3%/wk")}
             {stat("Rollback $ split &mdash; us / WMT", two(f'{co["flat"]["our_pct"]:.0f}/{co["flat"]["wm_pct"]:.0f}%', f'{co["growth"]["our_pct"]:.0f}/{co["growth"]["wm_pct"]:.0f}%'), "flat &middot; +3%/wk")}
             {stat("Total rollback $ (all units)", two(usdk(co["flat"]["total_discount"]), usdk(co["growth"]["total_discount"])), "flat &middot; +3%/wk")}
-            {stat("&nbsp;", "&nbsp;", "&nbsp;")}
           </tr>
         </table>
+
+        {build_price_mix_block(rb)}
 
         <div style="margin-top:12px;font-size:10px;color:#999;line-height:1.5;border-top:1px solid #f2e0e0;padding-top:9px;">
           Profit is <strong>${co["profit_coop"]:.2f}/unit</strong> while our ${co["fee"]/1000:.0f}k co-op funds the ${co["discount"]:.2f} rollback
           (first {co["units_covered"]:,} units), then <strong>${co["profit_post"]:.2f}/unit</strong> once used up &mdash; Walmart funds the discount beyond that.
           Our ${co["fee"]/1000:.0f}k is fixed, so the split is our share of the <em>total</em> rollback discount.
-          Projections run at {co["run_rate"]:,}/wk (latest-week rollback units) through {end_lbl}; "+3%/wk" compounds weekly.
-          Rollback units are counted store-by-store from each store's weekly AUR (POS $ &divide; units) &mdash; stores selling at/above the pre-rollback price count zero.
+          <br><strong>Two different counts, on purpose.</strong> <em>Units sold below ${rb["pre_price"]:.2f}</em> ({rb["units_discounted"]:,}) counts every bag that rang up under the old
+          shelf price, using each store's own realized price (POS $ &divide; units). The <em>co-op draw</em> instead sums each store's actual discount &mdash; a store at $16.97 gives back
+          $1.27, not ${co["discount"]:.2f} &mdash; so {usd(rb["markdown_dollars"])} of markdown equals {co["units_to_date"]:,} full-discount-equivalent units. The fund pays ${co["discount"]:.2f} a bag,
+          so that second number is the one the {usdk(co["fee"])} burn and the projections run on ({co["run_rate"]:,}/wk through {end_lbl}; "+3%/wk" compounds weekly).
+          Stores at or above ${rb["pre_price"]:.2f} contribute to neither.
+        </div>
+      </td></tr>
+    </table>"""
+
+
+def build_price_mix_block(rb):
+    """Latest week's 15 lb price mix + a per-week table of the price split.
+
+    Store AURs are discrete and hold week to week, so these are the actual shelf
+    prices stores rang, which is what makes the "above the old $18.24" row worth
+    calling out on its own.
+    """
+    pb_all = rb.get("price_bands") or {}
+    if not pb_all:
+        return ""
+    wk = sorted(pb_all)[-1]
+    pb = pb_all[wk]
+
+    def color_of(b):
+        if b["vs_pre"] == "above":  return "#c62828"
+        if b["vs_pre"] == "at":     return "#8d6e63"
+        if b["vs_pre"] == "mixed":  return "#b0bec5"
+        if b["price"] is not None and abs(b["price"] - rb["price"]) < 0.005:
+            return "#2e7d32"
+        return "#66bb6a"
+
+    def label_of(b):
+        return (f'${b["price"]:.2f}' if b["price"] is not None
+                else f'other ({b["n_points"]})')
+
+    # Outlook/Gmail-safe stacked bar: a one-row table of percentage-width cells.
+    segs = "".join(
+        f'<td width="{b["pct"]:.1f}%" style="background:{color_of(b)};height:14px;'
+        f'font-size:0;line-height:0;">&nbsp;</td>' for b in pb["bands"] if b["pct"] > 0)
+    chips = " &nbsp; ".join(
+        f'<span style="color:{color_of(b)};font-weight:700;">&#9632;</span> '
+        f'<strong style="color:#1a1a2e;">{label_of(b)}</strong> '
+        f'<span style="color:#777;">{b["pct"]:.1f}% &middot; {b["units"]:,}u</span>'
+        for b in pb["bands"])
+
+    rows = ""
+    for w in sorted(pb_all):
+        p = pb_all[w]
+        blend = (' <span style="color:#bbb;font-size:9px;">blend</span>'
+                 if p.get("blended") else "")
+        rows += f"""<tr>
+          <td style="padding:3px 8px 3px 0;color:#555;">{wl(w)}{blend}</td>
+          <td align="right" style="padding:3px 8px;color:#333;">{p["units"]:,}</td>
+          <td align="right" style="padding:3px 8px;color:#2e7d32;font-weight:600;">{p["roll_pct"]:.1f}%</td>
+          <td align="right" style="padding:3px 8px;color:#333;">{p["below_pct"]:.1f}%</td>
+          <td align="right" style="padding:3px 8px;color:#8d6e63;">{p["at_pct"]:.1f}%</td>
+          <td align="right" style="padding:3px 8px;color:#c62828;font-weight:{700 if p["above_pct"] >= 5 else 400};">{p["above_pct"]:.1f}%</td>
+          <td align="right" style="padding:3px 0 3px 8px;color:#333;">${p["markdown"]:,.0f}</td>
+        </tr>"""
+
+    th = ('color:#999;font-size:9px;text-transform:uppercase;letter-spacing:.03em;'
+          'font-weight:600;padding:0 8px 4px;')
+    return f"""
+        <div style="margin-top:14px;border-top:1px solid #f2e0e0;padding-top:11px;">
+          <div style="font-size:11.5px;font-weight:700;color:#1a1a2e;margin-bottom:2px;">
+            Price mix &mdash; {wl(wk)} <span style="font-weight:400;color:#888;">({pb["units"]:,} 15&nbsp;lb units at the price each store actually rang)</span>
+          </div>
+          <div style="font-size:10.5px;color:#888;margin-bottom:6px;">
+            {pb["above_pct"]:.1f}% sold <strong style="color:#c62828;">above</strong> the old ${rb["pre_price"]:.2f}
+          </div>
+          <table width="100%" cellspacing="0" cellpadding="0" style="border-radius:4px;margin-bottom:7px;">
+            <tr>{segs}</tr>
+          </table>
+          <div style="font-size:10.5px;color:#555;line-height:1.9;margin-bottom:9px;">{chips}</div>
+          <table width="100%" cellspacing="0" cellpadding="0" style="font-size:10.5px;">
+            <tr>
+              <td style="{th}text-align:left;padding-left:0;">Week</td>
+              <td align="right" style="{th}">15 lb units</td>
+              <td align="right" style="{th}">@ ${rb["price"]:.2f}</td>
+              <td align="right" style="{th}">Below ${rb["pre_price"]:.2f}</td>
+              <td align="right" style="{th}">At ${rb["pre_price"]:.2f}</td>
+              <td align="right" style="{th}">Above</td>
+              <td align="right" style="{th}padding-right:0;">Markdown $</td>
+            </tr>
+            {rows}
+          </table>
+        </div>"""
+
+
+def build_endcap_section(data):
+    """Endcap rollout card: set rate, 36-bag arrival, and lift vs pre-endcap.
+
+    Set / not set comes from the merchandiser field visit, so it holds until the
+    next survey; units and inventory come from the live weekly feed, so the lift
+    refreshes every week.
+    """
+    es = data.get("endcap_status")
+    if not es:
+        return ""
+    iv = es["inv"]
+    set_row = next((r for r in es["lift"] if r.get("key") == "set"), None)
+    ctl_row = next((r for r in es["lift"] if r.get("key") == "control"), None)
+    ns_row  = next((r for r in es["lift"] if r.get("key") == "notset"), None)
+    if not set_row:
+        return ""
+    # Two readings: `net` vs the non-endcap control is the whole program
+    # (allocation + display); `net_disp` vs endcap stores that got the bags but
+    # never set the feature isolates what the display itself earned.
+    net      = es.get("net_vs_control")
+    net_disp = es.get("net_vs_notset")
+
+    def n(v):  return "—" if v is None else f"{round(v):,}"
+    def p1(v): return "—" if v is None else f'{"+" if v > 0 else ""}{v:.1f}%'
+    def sgn(v): return "#1a9850" if (v or 0) > 0 else "#c62828" if (v or 0) < 0 else "#666"
+    live = date.fromisoformat(es["live_date"])
+
+    def stat(label, main, sub, color="#1a1a2e"):
+        return f"""<td width="33%" valign="top" style="padding:6px 8px;">
+          <div style="font-size:9px;font-weight:700;color:#1b6b3a;text-transform:uppercase;letter-spacing:.04em;">{label}</div>
+          <div style="font-size:17px;font-weight:800;color:{color};line-height:1.15;margin-top:2px;">{main}</div>
+          <div style="font-size:10px;color:#888;margin-top:1px;">{sub or "&nbsp;"}</div>
+        </td>"""
+
+    INV_META = [("received", f'Have the {es["units_target"]} bags', "#1a9850"),
+                ("transit",  "In transit",      "#66bb6a"),
+                ("onorder",  "On order only",   "#f4a340"),
+                ("short",    "Pipeline short",  "#d73027")]
+
+    def bar(label, count, denom, color, note=""):
+        w = (count / denom * 100) if denom else 0
+        note_h = f' <span style="color:#aaa;font-size:9px;">{note}</span>' if note else ""
+        return f"""<tr>
+          <td width="46%" style="padding:2px 8px 2px 0;font-size:11px;color:#444;">{label}{note_h}</td>
+          <td width="34%" style="padding:2px 0;">
+            <table width="100%" cellspacing="0" cellpadding="0" style="background:#eef0f2;border-radius:5px;">
+              <tr><td width="{w:.1f}%" style="background:{color};height:10px;font-size:0;line-height:0;border-radius:5px;">&nbsp;</td>
+                  <td style="font-size:0;line-height:0;">&nbsp;</td></tr>
+            </table>
+          </td>
+          <td width="20%" align="right" style="padding:2px 0 2px 8px;font-size:11px;color:#222;font-weight:600;">
+            {n(count)} <span style="color:#999;font-weight:400;">({w:.0f}%)</span></td>
+        </tr>"""
+
+    set_bars = bar("Confirmed set", es["n_set"], es["n_visited"], "#1a9850")
+    for r in es["reasons"]:
+        set_bars += bar(r["label"], r["n"], es["n_visited"], "#d73027",
+                        f'· {n(r["received"])} had the {es["units_target"]}' if r["received"] else "")
+    inv_bars = "".join(bar(lab, iv["counts"][k], es["n_endcap"], c)
+                       for k, lab, c in INV_META)
+
+    lift_rows = ""
+    for r in es["lift"]:
+        lead = r.get("key") in ("set", "control")
+        lift_rows += f"""<tr style="{"font-weight:600;color:#222;" if lead else "color:#555;"}">
+          <td style="padding:3px 8px 3px 0;">{r["label"]}</td>
+          <td align="right" style="padding:3px 8px;">{n(r["n"])}</td>
+          <td align="right" style="padding:3px 8px;">{n(r.get("vs_base_units"))}</td>
+          <td align="right" style="padding:3px 8px;">{n(r.get("wow_units"))}</td>
+          <td align="right" style="padding:3px 8px;">{n(r["units"])}</td>
+          <td align="right" style="padding:3px 8px;">{"—" if r["usw"] is None else f'{r["usw"]:.2f}'}</td>
+          <td align="right" style="padding:3px 8px;color:{sgn(r.get("wow_pct"))};">{p1(r.get("wow_pct"))}</td>
+          <td align="right" style="padding:3px 0 3px 8px;color:{sgn(r.get("vs_base_pct"))};">{p1(r.get("vs_base_pct"))}</td>
+        </tr>"""
+
+    th = ('color:#999;font-size:9px;text-transform:uppercase;letter-spacing:.03em;'
+          'font-weight:600;padding:0 8px 4px;')
+    return f"""
+    <table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:22px;">
+      <tr><td style="background:#fff;border:1px solid #c8e6c9;border-top:3px solid #1a9850;border-radius:12px;padding:16px 18px;">
+        <div style="font-weight:800;font-size:15px;color:#1b6b3a;font-family:Arial,Helvetica,sans-serif;">
+          &#127919; Endcap Rollout &mdash; {n(es["n_set"])} of {n(es["n_visited"])} stores set ({es["set_pct"]:.0f}%)
+        </div>
+        <div style="font-size:11px;color:#888;margin:2px 0 12px;">
+          Set / not set from the merchandiser field visit ({wl(es["survey_week"])}) &middot;
+          sales &amp; inventory from the live feed ({wl(es["week"])}) &middot;
+          program live {live.strftime("%b")} {live.day}
+        </div>
+
+        <table width="100%" cellspacing="0" cellpadding="0">
+          <tr>
+            {stat("Confirmed set", n(es["n_set"]), f'{es["set_pct"]:.0f}% of {n(es["n_visited"])} visited', "#1a9850")}
+            {stat("Not set (reason filed)", n(es["n_notset"]), f'{n(es["n_unvisited"])} not visited yet', "#c62828")}
+            {stat(f'Have the {es["units_target"]} bags', n(iv["counts"]["received"]),
+                  f'{iv["pct"]["received"]:.0f}% of {n(es["n_endcap"])} endcap stores', "#1a9850")}
+          </tr>
+          <tr>
+            {stat("Set but no product", n(iv["set_short"]), f'of {n(es["n_set"])} set stores', "#e67300")}
+            {stat(f'Set-store units, {wl(es["week"])}', n(set_row["units"]),
+                  ("" if set_row["usw"] is None else f'{set_row["usw"]:.2f} U/S/W &middot; ')
+                  + p1(set_row.get("wow_pct")) + " WoW", "#0057e7")}
+            {stat("Display effect", p1(net_disp), "set vs not-set &mdash; both got the bags", "#0057e7")}
+          </tr>
+        </table>
+
+        <div style="margin-top:12px;padding:10px 12px;background:#f6faf7;border-left:3px solid #1a9850;font-size:11px;color:#555;line-height:1.6;">
+          <strong style="color:#222;">Reading the lift.</strong> Set stores are {p1(set_row.get("vs_base_pct"))} vs the pre-endcap week and the non-endcap control is
+          {p1(ctl_row.get("vs_base_pct")) if ctl_row else "—"} &mdash; a {"—" if net is None else f"<strong>{p1(net)}</strong>"} gap. That gap is the whole program, not the display:
+          every store on the endcap list got a {es["units_target"]}-bag allocation whether or not the feature went up, and the endcap stores that <em>never set</em> are still
+          {p1(ns_row.get("vs_base_pct")) if ns_row else "—"}. Both groups got the inventory, so the display's own contribution is the set-vs-not-set gap:
+          <strong style="color:#0057e7;">{p1(net_disp)}</strong>. The rest is the allocation itself &mdash; restocking stores that were thin or out, plus the endcap stores
+          that weren't carrying the SKU before and are ramping from zero.
+        </div>
+
+        <table width="100%" cellspacing="0" cellpadding="0" style="margin-top:14px;">
+          <tr>
+            <td width="49%" valign="top">
+              <div style="font-size:11.5px;font-weight:700;color:#1a1a2e;margin-bottom:6px;">Why the other {n(es["n_visited"] - es["n_set"])} aren't set</div>
+              <table width="100%" cellspacing="0" cellpadding="0">{set_bars}</table>
+            </td>
+            <td width="2%">&nbsp;</td>
+            <td width="49%" valign="top">
+              <div style="font-size:11.5px;font-weight:700;color:#1a1a2e;margin-bottom:6px;">Did the {es["units_target"]} bags land?</div>
+              <table width="100%" cellspacing="0" cellpadding="0">{inv_bars}</table>
+            </td>
+          </tr>
+        </table>
+
+        <div style="margin-top:14px;font-size:11.5px;font-weight:700;color:#1a1a2e;">
+          15&nbsp;lb Original units by segment
+        </div>
+        <table width="100%" cellspacing="0" cellpadding="0" style="font-size:10.5px;margin-top:5px;">
+          <tr>
+            <td style="{th}text-align:left;padding-left:0;">Segment</td>
+            <td align="right" style="{th}">Stores</td>
+            <td align="right" style="{th}">{wl(es["base_week"])}<br>pre-endcap</td>
+            <td align="right" style="{th}">{wl(es["last_week"])}</td>
+            <td align="right" style="{th}">{wl(es["week"])}</td>
+            <td align="right" style="{th}">U/S/W</td>
+            <td align="right" style="{th}">WoW</td>
+            <td align="right" style="{th}padding-right:0;">vs pre-endcap</td>
+          </tr>
+          {lift_rows}
+        </table>
+
+        <div style="margin-top:12px;font-size:10px;color:#999;line-height:1.5;border-top:1px solid #e0f0e2;padding-top:9px;">
+          A store counts as having its {es["units_target"]} bags if on-hand plus everything it has sold since the allocation shipped reaches {es["units_target"]};
+          there is no DC-warehouse column in this feed, so stock that exists but isn't on a store order yet reads as "pipeline short".
+          The control is every Catalyst store <em>not</em> on the endcap list, so it absorbs whatever the rest of the business did (rollback, seasonality, distribution).
+          Whole-program gap vs that control: {"—" if net is None else f"<strong>{p1(net)}</strong>"}. Display-only gap (set vs not-set, both holding the allocation):
+          {"—" if net_disp is None else f"<strong>{p1(net_disp)}</strong>"}.
+          {f'{n(es["set_zero"])} confirmed-set stores sold nothing in {wl(es["week"])}.' if es.get("set_zero") else ""}
+          Stores that filed a reason while already holding the {es["units_target"]} bags are recoverable with a revisit rather than more freight.
         </div>
       </td></tr>
     </table>"""
@@ -503,6 +747,9 @@ def build_html(data):
 
     # ── Rollback co-op tracker (top of email) ───────────────────────────────────
     coop_html = build_coop_section(data)
+
+    # ── Endcap rollout scorecard ────────────────────────────────────────────────
+    endcap_html = build_endcap_section(data)
 
     # ── Highlights / auto-commentary ────────────────────────────────────────────
     highlights_html = build_highlights(
@@ -769,6 +1016,7 @@ def build_html(data):
   <!-- Body -->
   <div class="body-card">
     {coop_html}
+    {endcap_html}
     {highlights_html}
     {kpi_html}
     {sku_html}
@@ -795,7 +1043,79 @@ def build_html(data):
 # ── Send ──────────────────────────────────────────────────────────────────────
 DEV_RECIPIENTS = ["pross@lignetics.com"]
 
-def send_report(data, dry_run=False, dev_only=False):
+# ── Duplicate-send guardrail ──────────────────────────────────────────────────
+# The auto-ingest pipeline keys off inbound email, so the same week's workbook can
+# arrive twice (a colleague forwarding Hailey's report on top of the original).
+# Each arrival triggers a rebuild with FORCE_FULL_DISTRO=1, and on 2026-08-17 that
+# sent the full distro two copies of the 202628 report.
+#
+# The gate lives here rather than in extract_data.py so it covers EVERY caller —
+# the ETL, the cloud poller, and one-off manual sends alike. A full-distro send is
+# refused when the same week already went to the full list inside the last
+# MIN_RESEND_HOURS. Dev-only sends are exempt: they reach one inbox and are the
+# normal way to preview a change.
+#   FORCE_RESEND=1            bypass for a deliberate resend (e.g. after a fix)
+#   EMAIL_MIN_RESEND_HOURS=N  widen or narrow the window (default 18)
+#   EMAIL_SEND_LOG=<path>     where the log lives. CI runs on a throwaway
+#                             checkout, so the workflow points this at the
+#                             persisted private data repo (_data/) and commits
+#                             it — otherwise the guard forgets every send and
+#                             can't block anything.
+SEND_LOG_FILE     = ".email_send_log.json"
+MIN_RESEND_HOURS  = 18
+SEND_LOG_KEEP     = 60      # trim the log so it can't grow without bound
+
+
+def _send_log_path():
+    override = os.environ.get("EMAIL_SEND_LOG")
+    if override:
+        return override
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), SEND_LOG_FILE)
+
+
+def _read_send_log():
+    try:
+        with open(_send_log_path(), "r", encoding="utf-8") as f:
+            log = json.load(f)
+        return log if isinstance(log, list) else log.get("sends", [])
+    except (OSError, ValueError):
+        return []
+
+
+def _record_send(entry):
+    log = _read_send_log()
+    log.append(entry)
+    path = _send_log_path()
+    try:
+        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(log[-SEND_LOG_KEEP:], f, indent=1)
+    except OSError as e:
+        print(f"  [Email] WARN: could not update {path} ({e})")
+
+
+def recent_full_send(week, hours=None):
+    """The most recent full-distro send of `week` inside the window, or None."""
+    if hours is None:
+        try:
+            hours = float(os.environ.get("EMAIL_MIN_RESEND_HOURS", MIN_RESEND_HOURS))
+        except ValueError:
+            hours = MIN_RESEND_HOURS
+    cutoff = datetime.now() - timedelta(hours=hours)
+    hits = []
+    for e in _read_send_log():
+        if e.get("scope") != "full" or e.get("week") != week:
+            continue
+        try:
+            ts = datetime.fromisoformat(e["ts"])
+        except (KeyError, ValueError):
+            continue
+        if ts >= cutoff:
+            hits.append((ts, e))
+    return max(hits)[1] if hits else None
+
+
+def send_report(data, dry_run=False, dev_only=False, force=False):
     WEEK_LABELS.clear()
     WEEK_LABELS.update(data.get("week_labels", {}))
     html = build_html(data)
@@ -814,6 +1134,15 @@ def send_report(data, dry_run=False, dev_only=False):
         print("  [Email] Skipped — no app password configured in credentials.py")
         return
 
+    scope = "dev" if dev_only else "full"
+    if scope == "full" and not (force or os.environ.get("FORCE_RESEND") == "1"):
+        dup = recent_full_send(cur_week)
+        if dup:
+            print(f"  [Email] BLOCKED (duplicate): the full distro already received "
+                  f"{wl(cur_week)} at {dup['ts'][:16].replace('T', ' ')}.")
+            print( "          Set FORCE_RESEND=1 to send it again on purpose.")
+            return
+
     recipients = DEV_RECIPIENTS if dev_only else EMAIL_TO
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
@@ -821,11 +1150,12 @@ def send_report(data, dry_run=False, dev_only=False):
     msg["To"]      = ", ".join(recipients)
     msg.attach(MIMEText(html, "html", "utf-8"))
 
+    sent_via = None
     try:
         with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as server:
             server.login(EMAIL_USER, EMAIL_APP_PASSWORD)
             server.sendmail(EMAIL_USER, recipients, msg.as_string())
-        print(f"  [Email] Sent to {', '.join(recipients)} — {subject}")
+        sent_via = "465/SSL"
     except Exception as e:
         # Fall back to STARTTLS on port 587
         try:
@@ -833,9 +1163,17 @@ def send_report(data, dry_run=False, dev_only=False):
                 server.starttls()
                 server.login(EMAIL_USER, EMAIL_APP_PASSWORD)
                 server.sendmail(EMAIL_USER, recipients, msg.as_string())
-            print(f"  [Email] Sent (587/TLS) to {', '.join(recipients)} — {subject}")
+            sent_via = "587/TLS"
         except Exception as e2:
             print(f"  [Email] FAILED (465: {e}) (587: {e2})")
+            return
+
+    # Log only after the send actually succeeded, so a failure doesn't gate the
+    # retry that follows it.
+    _record_send({"ts": datetime.now().isoformat(timespec="seconds"),
+                  "scope": scope, "week": cur_week, "subject": subject,
+                  "recipients": len(recipients), "via": sent_via})
+    print(f"  [Email] Sent ({sent_via}) to {', '.join(recipients)} — {subject}")
 
 
 # ── Standalone entry point ────────────────────────────────────────────────────

@@ -9,6 +9,7 @@ import sys
 import glob
 import re
 import math
+from collections import Counter
 from datetime import date, timedelta
 import pandas as pd
 import pgeocode
@@ -92,21 +93,41 @@ WHOLESALE_PRICE = {
 
 # ── Price rollback ───────────────────────────────────────────────────────────
 # Walmart rolled BOTH 15 lb Catalyst SKUs (Original + Unscented) from $18.24 to
-# $15.97 starting 2026-07-13 — mid fiscal week 202624. The weekly feed has no
-# per-day price, so "units sold at the rollback price" is IMPUTED per STORE
-# from each store-week's AUR (POS $ / POS qty) via a two-price back-out:
-#     units@rollback = qty * (P_pre - AUR_store) / (P_pre - P_rollback)
-# clamped to [0,1], where P_pre is the SKU's trailing pre-rollback implied
-# price. Stores whose AUR is at/above the pre-rollback price count ZERO, so
-# only bags actually sold below the old price draw against the co-op — and the
-# count self-corrects if prices revert (e.g. $19.97 after the program ends).
-# Weeks with no per-store POS $ column fall back to the same back-out on the
-# week's blended implied price. build_rollback() below.
+# $15.97 starting 2026-07-13 — mid fiscal week 202624.
+#
+# The feed has no per-day price, but it DOES have per-store POS $ and POS qty,
+# so each store-week's AUR (POS $ / qty) is its actual realized shelf price.
+# Those AURs are sharply discrete and persistent week to week — in 202628, 5
+# price points cover 95% of units and 92-96% of stores hold the same point as
+# the prior week — so AUR is a real price, not a statistical blur:
+#     $15.97  ~80% of units   the rollback price
+#     $16.97  ~7%             higher-zone rollback price (still discounted)
+#     $19.97  ~7%             ABOVE the old $18.24 shelf price (never rolled
+#                             back, or already reverted)
+# The one genuine blend is the transition week 202624 (5 of 7 days at the new
+# price), where intermediate AURs are real pre/post mixes.
+#
+# build_rollback() therefore reports TWO distinct measures instead of one, so
+# neither gets read as the other:
+#   units_discounted  — units at stores whose week AUR is strictly below the
+#                       $18.24 pre-rollback price. This is the literal "units
+#                       sold below the old price" count.
+#   units_equiv       — markdown dollars / $2.27. Every store's own discount
+#                       (pre - AUR, capped at the $2.27 program discount) is
+#                       what actually draws against the co-op fund, so a store
+#                       at $16.97 contributes 1.27/2.27 = 0.56 of a unit. This
+#                       is the number the $150k co-op burn runs on, and it is
+#                       also exact for the blended transition week.
+# Stores at or above $18.24 contribute zero to both, so the count self-corrects
+# as stores revert to $19.97. Weeks with no per-store POS $ column fall back to
+# the same back-out on the week's blended implied price.
 ROLLBACK = {
     "date":      "2026-07-13",                          # first day at rollback price
     "pre_price": 18.24,                                 # headline pre-rollback shelf price
     "price":     15.97,                                 # rollback price (both 15 lb scents)
     "skus":      ["CATALYST15ORIG", "CATALYST15UNSCEN"],
+    "band_eps":  0.005,   # cents tolerance when testing AUR against a price point
+    "top_bands": 6,       # distinct price points listed per week (rest -> "other")
 }
 
 
@@ -128,6 +149,217 @@ COOP = {
 # Endcap program goes live 2026-08-01. "Stocked before" is fixed at the last
 # weekly report BEFORE this date; cohorts are then tracked forward.
 ENDCAP_LIVE_DATE = "2026-08-01"
+
+# Endcap rollout status (build_endcap_status). The 36-bag endcap allocation
+# started shipping in week 202626, so "has the allocation landed?" tests on-hand
+# plus every week of sell-through from that week forward. The merchandiser field
+# survey is the authoritative set / not-set record; it is a point-in-time visit,
+# so the set counts stay pinned to the survey week while sales roll forward.
+ENDCAP_ARRIVAL_WEEK = "202626"
+ENDCAP_UNITS        = 36
+ENDCAP_SURVEY_FILE  = "(Walmart) Lignetics Inc. Cat Litter Endcap Set WK27.xlsx"
+ENDCAP_SURVEY_WEEK  = "202627"
+ENDCAP_SKU          = "CATALYST15ORIG"   # the SKU the endcap feature is built on
+ENDCAP_REASONS = {  # survey answer -> (key, label)
+    "No Available space":                    ("space",     "No available space"),
+    "Not enough inventory to build feature": ("inventory", "Not enough inventory"),
+    "Product not located":                   ("located",   "Product not located"),
+    "Store Refusal":                         ("refusal",   "Store refusal"),
+}
+
+
+def _load_endcap_survey():
+    """store_num (str) -> survey record from the merchandiser field visit.
+
+    Reuses build_endcap_report.load_survey so the set/not-set definition and the
+    reason taxonomy can't drift between the standalone report and the dashboard.
+    Returns {} when the survey workbook isn't present.
+    """
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ENDCAP_SURVEY_FILE)
+    if not os.path.exists(path):
+        return {}
+    try:
+        from build_endcap_report import load_survey
+        return {str(s): v for s, v in load_survey().items()}
+    except Exception as e:
+        print(f"  [WARN] Endcap survey unreadable ({e}) — rollout status skipped.")
+        return {}
+
+
+def build_endcap_status(all_store_weeks, endcap, week_dates):
+    """Endcap rollout scorecard: set rate, 36-bag arrival, and sales lift.
+
+    Answers, refreshed every week off the live feed:
+      - how many of the endcap stores the merchandisers confirmed set, and the
+        filed reason for each store that isn't
+      - how many have the 36-bag allocation at store, inbound, or short
+      - 15 lb Original lift for the set stores this week vs last week, and vs
+        the last week before the program went live, each against a control of
+        every non-endcap Catalyst store (so market-wide moves net out)
+
+    Returns None when the endcap roster or survey isn't available.
+    """
+    if not endcap or not endcap.get("rows"):
+        return None
+    survey = _load_endcap_survey()
+    if not survey:
+        return None
+
+    weeks = sorted(w for w in all_store_weeks if w in week_dates)
+    if len(weeks) < 2:
+        return None
+    live      = date.fromisoformat(ENDCAP_LIVE_DATE)
+    this_week = weeks[-1]
+    last_week = weeks[-2]
+    pre       = [w for w in weeks if date.fromisoformat(week_dates[w]) < live]
+    base_week = pre[-1] if pre else None
+    arrival   = [w for w in weeks if w >= ENDCAP_ARRIVAL_WEEK]
+
+    # per-store 15 lb Original units by week, plus latest on-hand / pipeline
+    def q15(w):
+        return {sn: ((d.get("skus") or {}).get(ENDCAP_SKU) or {}).get("qty") or 0
+                for sn, d in (all_store_weeks.get(w) or {}).items()}
+    qty    = {w: q15(w) for w in
+              set(weeks[-2:] + ([base_week] if base_week else []) + arrival)}
+    latest = all_store_weeks.get(this_week) or {}
+
+    def sku_at(sn, key):
+        return ((latest.get(sn, {}).get("skus") or {}).get(ENDCAP_SKU) or {}).get(key) or 0
+
+    roster  = {str(r["store_number"]): r for r in endcap["rows"]}
+    seg_of  = {sn: (survey.get(sn) or {}).get("seg", "unvisited") for sn in roster}
+    set_ok  = {sn for sn in roster if seg_of[sn] == "set"}
+    unvis   = {sn for sn in roster if seg_of[sn] == "unvisited"}
+    notset  = set(roster) - set_ok - unvis
+    visited = set_ok | notset
+
+    # 36-bag arrival: on-hand now + everything sold since the allocation shipped.
+    # A store that already sold through its 36 still counts as received. There is
+    # no DC-warehouse column in this feed, so stock not yet on order reads "short".
+    def inv_status(sn):
+        if sn not in latest:
+            return "short"
+        have = sku_at(sn, "on_hand") + sum(qty[w].get(sn, 0) for w in arrival)
+        transit, onorder = sku_at(sn, "in_transit"), sku_at(sn, "on_order")
+        if have >= ENDCAP_UNITS:
+            return "received"
+        if have + transit + onorder >= ENDCAP_UNITS:
+            return "transit" if transit > 0 else "onorder"
+        return "short"
+
+    inv_of   = {sn: inv_status(sn) for sn in roster}
+    INV_KEYS = ["received", "transit", "onorder", "short"]
+
+    # Lift: units this week vs each comparison week, per segment plus control.
+    # The control is non-endcap stores that CARRIED the endcap SKU in the baseline
+    # week — not merely present in the feed. Including stores that stock other
+    # Catalyst sizes but not this one would pad the denominator with structural
+    # zeros and understate the control's U/S/W, flattering the endcap comparison.
+    ref_week = base_week or last_week
+    control = [sn for sn, d in (all_store_weeks.get(ref_week) or {}).items()
+               if sn not in roster and ENDCAP_SKU in (d.get("skus") or {})]
+
+    def lift_row(label, stores, key=None):
+        stores = list(stores)
+        n = len(stores)
+        out = {"label": label, "key": key, "n": n,
+               "units": round(sum(qty[this_week].get(sn, 0) for sn in stores)),
+               "usw": None}
+        if n:
+            out["usw"] = round(out["units"] / n, 2)
+        for tag, wk in (("wow", last_week), ("vs_base", base_week)):
+            if not wk:
+                continue
+            prev = sum(qty[wk].get(sn, 0) for sn in stores)
+            out[tag + "_units"] = round(prev)
+            out[tag + "_usw"]   = round(prev / n, 2) if n else None
+            out[tag + "_pct"]   = (round((out["units"] - prev) / prev * 100, 1)
+                                   if prev else None)
+        return out
+
+    lift = [lift_row("Endcap confirmed set", set_ok, "set"),
+            lift_row("Not set — all reasons", notset, "notset")]
+    for _a, (key, label) in ENDCAP_REASONS.items():
+        lift.append(lift_row("· " + label, {sn for sn in notset if seg_of[sn] == key}, key))
+    if unvis:
+        lift.append(lift_row("Not visited yet", unvis, "unvisited"))
+    lift.append(lift_row("Control: all non-endcap stores", control, "control"))
+
+    # Weekly set-vs-control U/S/W series from the pre-live baseline forward, so
+    # the lift reads as a trend instead of a single pair of weeks.
+    series = []
+    for w in [w for w in weeks if base_week is None or w >= base_week]:
+        if w not in qty:
+            qty[w] = q15(w)
+        row = {"week": w}
+        for key, sset in (("set", set_ok), ("notset", notset), ("control", control)):
+            n = len(sset)
+            u = sum(qty[w].get(sn, 0) for sn in sset)
+            row[key + "_units"] = round(u)
+            row[key + "_usw"]   = round(u / n, 3) if n else None
+        series.append(row)
+
+    inv_rows = []
+    seg_order = [("set", "Confirmed set")] + \
+        [(k, l) for _a, (k, l) in ENDCAP_REASONS.items()] + [("unvisited", "Not visited yet")]
+    for key, label in seg_order:
+        stores = [sn for sn in roster if seg_of[sn] == key]
+        if not stores:
+            continue
+        c = Counter(inv_of[sn] for sn in stores)
+        inv_rows.append({"key": key, "label": label, "n": len(stores),
+                         **{k: c.get(k, 0) for k in INV_KEYS}})
+    inv_tot = Counter(inv_of.values())
+
+    # Two different "lift vs control" readings, because the endcap list got a
+    # 36-bag allocation whether or not the display was ever built:
+    #   net_vs_control = set-store growth minus control growth. This is the whole
+    #     program effect — allocation AND display — not the display alone.
+    #   net_vs_notset  = set-store growth minus NOT-set endcap-store growth. Both
+    #     groups got the inventory, so the gap isolates building the display.
+    set_row, ns_row = lift[0], lift[1]
+    ctl_row = lift[-1]
+    def gap(a, b):
+        if a.get("vs_base_pct") is None or b.get("vs_base_pct") is None:
+            return None
+        return round(a["vs_base_pct"] - b["vs_base_pct"], 1)
+
+    return {
+        "week":         this_week,
+        "last_week":    last_week,
+        "base_week":    base_week,
+        "survey_week":  ENDCAP_SURVEY_WEEK,
+        "live_date":    ENDCAP_LIVE_DATE,
+        "sku":          ENDCAP_SKU,
+        "units_target": ENDCAP_UNITS,
+        "n_endcap":     len(roster),
+        "n_set":        len(set_ok),
+        "n_notset":     len(notset),
+        "n_unvisited":  len(unvis),
+        "n_visited":    len(visited),
+        "set_pct":      round(len(set_ok) / len(visited) * 100, 1) if visited else 0,
+        "set_pct_all":  round(len(set_ok) / len(roster) * 100, 1) if roster else 0,
+        "reasons":      [{"key": k, "label": l,
+                          "n": sum(1 for sn in notset if seg_of[sn] == k),
+                          "received": sum(1 for sn in notset if seg_of[sn] == k
+                                          and inv_of[sn] == "received")}
+                         for _a, (k, l) in ENDCAP_REASONS.items()],
+        "inv": {
+            "counts": {k: inv_tot.get(k, 0) for k in INV_KEYS},
+            "pct":    {k: round(inv_tot.get(k, 0) / len(roster) * 100, 1) for k in INV_KEYS},
+            "rows":   inv_rows,
+            "set_received":     sum(1 for sn in set_ok if inv_of[sn] == "received"),
+            "set_short":        sum(1 for sn in set_ok if inv_of[sn] != "received"),
+            "received_selling": sum(1 for sn in roster if inv_of[sn] == "received"
+                                    and qty[this_week].get(sn, 0) > 0),
+        },
+        "lift":           lift,
+        "series":         series,
+        "net_vs_control": gap(set_row, ctl_row),
+        "net_vs_notset":  gap(set_row, ns_row),
+        "inc_units":      round(set_row["units"] - set_row.get("vs_base_units", set_row["units"])),
+        "set_zero":       sum(1 for sn in set_ok if qty[this_week].get(sn, 0) == 0),
+    }
 
 
 def build_endcap_cohorts(all_store_weeks, traited, endcap, week_dates):
@@ -204,9 +436,10 @@ def build_coop(rollback, metrics, week_dates):
 
     as_of_wk = sorted(rollback["by_week"])[-1]
     as_of    = date.fromisoformat(week_dates[as_of_wk])
-    # Run rate = latest week's IMPUTED rollback units (both scents) — go-forward
-    # the same share of units keeps selling at the rollback price. Falls back to
-    # full 15 lb volume if imputation returned nothing for the latest week.
+    # Run rate = latest week's full-discount-EQUIVALENT units (both scents),
+    # i.e. that week's markdown dollars / $2.27 — go-forward the same price mix
+    # keeps drawing on the fund at the same rate. Falls back to full 15 lb
+    # volume if the classification returned nothing for the latest week.
     run = sum((rollback["by_week"].get(as_of_wk) or {}).values())
     if not run:
         run = sum(((metrics.get(as_of_wk, {}).get(s) or {}).get("pos_qty") or 0) for s in skus)
@@ -267,20 +500,34 @@ def build_coop(rollback, metrics, week_dates):
 
 
 def build_rollback(metrics, week_dates, store_rows_by_week=None):
-    """Impute cumulative 15 lb units sold at the rollback price. See ROLLBACK.
+    """Measure the 15 lb rollback from per-store realized prices. See ROLLBACK.
 
-    Store-level: each store-week's AUR (POS $ / POS qty) is backed out between
-    the SKU's pre-rollback baseline and the rollback price, clamped to [0,1] —
-    stores selling at/above the pre-rollback price contribute zero units.
-    Weeks without per-store POS $ fall back to the week-level blended back-out.
+    For every rollback-era store-week the AUR (POS $ / POS qty) is that store's
+    actual shelf price, so each store-week is classified against the $18.24
+    pre-rollback price and its markdown dollars are accumulated:
 
-    Returns a dict for the dashboard/email, or None if no rollback-era week
-    has data yet.
+      units_discounted  units at stores priced strictly below $18.24
+      units_at_rollback units at stores priced at $15.97 (the headline price)
+      units_full_price  units at stores priced at or above $18.24
+      markdown_dollars  sum of qty * min(pre - AUR, $2.27) over discounted
+                        stores — the actual draw against the co-op fund
+      units_equiv       markdown_dollars / $2.27, i.e. full-discount-equivalent
+                        units. This is what `units_total` carries, because the
+                        $150k co-op converts to units only at $2.27 apiece.
+
+    Also returns per-week price bands (units and share by distinct price point)
+    so the price mix is visible rather than inferred.
+
+    Weeks without per-store POS $ fall back to the week-level blended AUR.
+    Returns None if no rollback-era week has data yet.
     """
-    rb_date = date.fromisoformat(ROLLBACK["date"])
-    price   = ROLLBACK["price"]
-    skus    = ROLLBACK["skus"]
-    weeks   = sorted(w for w in week_dates)
+    rb_date  = date.fromisoformat(ROLLBACK["date"])
+    price    = ROLLBACK["price"]
+    pre_hdr  = ROLLBACK["pre_price"]
+    skus     = ROLLBACK["skus"]
+    eps      = ROLLBACK["band_eps"]
+    discount = round(pre_hdr - price, 2)                 # $2.27 program discount
+    weeks    = sorted(w for w in week_dates)
     store_rows_by_week = store_rows_by_week or {}
 
     def implied(w, sku):
@@ -289,25 +536,25 @@ def build_rollback(metrics, week_dates, store_rows_by_week=None):
         return (d / q) if d and q else None
 
     # Per-SKU pre-rollback baseline = mean implied price over up to 4 fully-pre
-    # weeks (week END before the rollback date). Captures each scent's own price.
+    # weeks (week END before the rollback date). Reported for reference; the
+    # classification below uses the headline $18.24 so the threshold is the one
+    # the co-op deal was written against, not a drifting blend.
     baseline = {}
     for sku in skus:
         pre = [implied(w, sku) for w in weeks
                if date.fromisoformat(week_dates[w]) < rb_date]
         pre = [p for p in pre if p]
-        baseline[sku] = round(sum(pre[-4:]) / len(pre[-4:]), 4) if pre else ROLLBACK["pre_price"]
+        baseline[sku] = round(sum(pre[-4:]) / len(pre[-4:]), 4) if pre else pre_hdr
 
-    def frac_for(sku, aur):
-        denom = baseline[sku] - price
-        if aur is None or denom <= 0:
-            return 0.0
-        return min(1.0, max(0.0, (baseline[sku] - aur) / denom))
+    tot = {k: 0.0 for k in ("units", "disc_u", "roll_u", "at_pre_u",
+                            "above_u", "markdown", "disc_dol")}
+    by_week          = {}      # co-op-equivalent units per sku (drives build_coop)
+    by_week_disc     = {}      # strict units-below-$18.24 per week
+    units_by_sku     = {sku: 0 for sku in skus}
+    disc_by_sku      = {sku: 0 for sku in skus}
+    price_bands      = {}
+    start_week, partial = None, None
 
-    by_week = {}
-    units_by_sku   = {sku: 0 for sku in skus}
-    units_excluded = 0                      # units at/above pre-rollback AUR (not counted)
-    start_week = None
-    partial = None
     for w in weeks:
         end   = date.fromisoformat(week_dates[w])
         start = end - timedelta(days=6)
@@ -316,33 +563,93 @@ def build_rollback(metrics, week_dates, store_rows_by_week=None):
         if start_week is None:
             start_week = w
         srows = [r for r in (store_rows_by_week.get(w) or [])
-                 if r["item_name"] in skus and r.get("pos_dollars") is not None]
-        row = {}
+                 if r["item_name"] in skus and r.get("pos_dollars") is not None
+                 and (r.get("pos_qty") or 0) > 0]
+
+        wk = {k: 0.0 for k in ("units", "disc_u", "roll_u", "at_pre_u",
+                               "above_u", "markdown", "disc_dol")}
+        band_units = {}          # price point (rounded cents) -> units
+        row, row_disc = {}, {}
+
         for sku in skus:
             mine = [r for r in srows if r["item_name"] == sku]
-            if mine:
-                # Store-level: back out each store's AUR against the baseline.
-                tot = 0.0
-                for r in mine:
-                    q = r["pos_qty"]
-                    if q <= 0:
-                        continue
-                    f = frac_for(sku, r["pos_dollars"] / q)
-                    tot += q * f
-                    units_excluded += q * (1.0 - f)
-                u = int(round(tot))
-            else:
-                # Fallback: week-level blended back-out.
+            if not mine:
+                # Fallback: one synthetic "store" at the week's blended AUR.
                 q = metrics.get(w, {}).get(sku, {}).get("pos_qty")
-                if not q:
+                a = implied(w, sku)
+                if not q or a is None:
                     continue
-                f = frac_for(sku, implied(w, sku))
-                u = int(round(q * f))
-                units_excluded += q * (1.0 - f)
-            if u:
-                row[sku] = u
-                units_by_sku[sku] += u
-        by_week[w] = row
+                mine = [{"pos_qty": q, "pos_dollars": q * a}]
+
+            s_md, s_disc, s_dol = 0.0, 0.0, 0.0
+            for r in mine:
+                q   = r["pos_qty"]
+                aur = round(r["pos_dollars"] / q, 2)
+                wk["units"] += q
+                band_units[aur] = band_units.get(aur, 0) + q
+                if aur < pre_hdr - eps:
+                    s_disc += q
+                    s_dol  += r["pos_dollars"]
+                    # Cap at the program discount so deep clearance ($9.97 etc.)
+                    # can't over-draw a fund that only pays $2.27 a bag.
+                    s_md += q * min(pre_hdr - aur, discount)
+                    if abs(aur - price) <= 0.01:
+                        wk["roll_u"] += q
+                elif aur <= pre_hdr + eps:
+                    wk["at_pre_u"] += q
+                else:
+                    wk["above_u"] += q
+
+            wk["disc_u"]   += s_disc
+            wk["markdown"] += s_md
+            wk["disc_dol"] += s_dol
+            equiv = int(round(s_md / discount)) if discount else 0
+            if equiv:
+                row[sku] = equiv
+                units_by_sku[sku] += equiv
+            if s_disc:
+                row_disc[sku] = int(round(s_disc))
+                disc_by_sku[sku] += int(round(s_disc))
+
+        by_week[w]      = row
+        by_week_disc[w] = row_disc
+        for k in tot:
+            tot[k] += wk[k]
+
+        # Price bands: keep the biggest distinct points, fold the rest into
+        # "other" so the mix reads at a glance without 60 rows of noise. The kept
+        # points are then re-sorted by PRICE so a stacked bar reads left-to-right
+        # as a price ramp, with the above-pre-price tail at the right end.
+        u = wk["units"]
+        pts = sorted(band_units.items(), key=lambda kv: -kv[1])
+        keep, rest = pts[:ROLLBACK["top_bands"]], pts[ROLLBACK["top_bands"]:]
+        keep.sort(key=lambda kv: kv[0])
+        bands = [{"price": p, "units": int(round(q)),
+                  "pct": round(q / u * 100, 1) if u else 0,
+                  "vs_pre": ("below" if p < pre_hdr - eps else
+                             "at" if p <= pre_hdr + eps else "above")}
+                 for p, q in keep]
+        if rest:
+            rq = sum(q for _p, q in rest)
+            bands.append({"price": None, "n_points": len(rest),
+                          "units": int(round(rq)),
+                          "pct": round(rq / u * 100, 1) if u else 0,
+                          "vs_pre": "mixed"})
+        price_bands[w] = {
+            "units":       int(round(u)),
+            "bands":       bands,
+            "below_pct":   round(wk["disc_u"]   / u * 100, 1) if u else 0,
+            "at_pct":      round(wk["at_pre_u"] / u * 100, 1) if u else 0,
+            "above_pct":   round(wk["above_u"]  / u * 100, 1) if u else 0,
+            "below_units": int(round(wk["disc_u"])),
+            "at_units":    int(round(wk["at_pre_u"])),
+            "above_units": int(round(wk["above_u"])),
+            "roll_units":  int(round(wk["roll_u"])),
+            "roll_pct":    round(wk["roll_u"] / u * 100, 1) if u else 0,
+            "markdown":    round(wk["markdown"], 2),
+            "blended":     w == start_week,   # transition week: AURs are real mixes
+        }
+
         if start < rb_date <= end and partial is None:
             partial = {"week": w, "days_pre": (rb_date - start).days,
                        "days_roll": (end - rb_date).days + 1}
@@ -350,20 +657,42 @@ def build_rollback(metrics, week_dates, store_rows_by_week=None):
     if start_week is None:
         return None
 
-    units_total = sum(units_by_sku.values())
+    units_equiv = sum(units_by_sku.values())
+    u_all       = tot["units"]
+    share = lambda v: round(v / u_all * 100, 1) if u_all else 0
     return {
-        "date":           ROLLBACK["date"],
-        "pre_price":      ROLLBACK["pre_price"],
-        "price":          price,
-        "skus":           skus,
-        "start_week":     start_week,
-        "baseline_price": baseline,
-        "by_week":        by_week,
-        "units_by_sku":   units_by_sku,
-        "units_total":    units_total,
-        "units_excluded": int(round(units_excluded)),
-        "dollars_total":  round(units_total * price, 2),
-        "partial":        partial,
+        "date":            ROLLBACK["date"],
+        "pre_price":       pre_hdr,
+        "price":           price,
+        "discount":        discount,
+        "skus":            skus,
+        "start_week":      start_week,
+        "baseline_price":  baseline,
+        "by_week":         by_week,           # co-op-equivalent units per sku
+        "by_week_disc":    by_week_disc,      # strict units below $18.24
+        "units_by_sku":    units_by_sku,
+        "units_total":     units_equiv,       # == units_equiv (co-op burn basis)
+        "units_equiv":     units_equiv,
+        "units_discounted":   int(round(tot["disc_u"])),
+        "disc_by_sku":        disc_by_sku,
+        "units_at_rollback":  int(round(tot["roll_u"])),
+        "units_at_pre":       int(round(tot["at_pre_u"])),
+        "units_above_pre":    int(round(tot["above_u"])),
+        "units_full_price":   int(round(tot["at_pre_u"] + tot["above_u"])),
+        "units_all":          int(round(u_all)),
+        "pct_discounted":     share(tot["disc_u"]),
+        "pct_at_rollback":    share(tot["roll_u"]),
+        "pct_above_pre":      share(tot["above_u"]),
+        "markdown_dollars":   round(tot["markdown"], 2),
+        # Back-compat: this key's label has always been "units at/above the
+        # pre-rollback price", which is now what it actually holds.
+        "units_excluded":  int(round(tot["at_pre_u"] + tot["above_u"])),
+        # Actual POS dollars rung on the discounted units (not units x $15.97 —
+        # the $16.97 tier makes that estimate low).
+        "dollars_total":   round(tot["disc_dol"], 2),
+        "dollars_discounted": round(tot["disc_dol"], 2),
+        "price_bands":     price_bands,
+        "partial":         partial,
     }
 
 # ── Ecomm product matching ───────────────────────────────────────────────────
@@ -1253,18 +1582,32 @@ def main():
     week_labels = {w: compute_week_label(w) for w in all_week_codes}
     week_dates  = {w: d for w in all_week_codes if (d := compute_week_date(w))}
 
-    # Price rollback: impute cumulative 15 lb units sold at the $15.97 rollback
-    # price, store-by-store from each store's weekly AUR.
+    # Price rollback: classify every rollback-era store-week by its realized
+    # price (AUR) against the $18.24 pre-rollback price.
     rollback = build_rollback(metrics, week_dates, raw_store_rows_by_week)
     if rollback:
         p = rollback.get("partial")
         pnote = (f", partial start week {p['week']}: {p['days_roll']}/7 days"
                  if p else "")
         print(f"\nRollback: 15 lb ${ROLLBACK['pre_price']:.2f}→${ROLLBACK['price']:.2f} "
-              f"from {ROLLBACK['date']} (start {rollback['start_week']}{pnote}); "
-              f"imputed {rollback['units_total']:,} units @ rollback "
-              f"(≈${rollback['dollars_total']:,.0f}); "
-              f"{rollback['units_excluded']:,} units excluded (store AUR at/above pre price)")
+              f"from {ROLLBACK['date']} (start {rollback['start_week']}{pnote})")
+        print(f"  Units below ${ROLLBACK['pre_price']:.2f}: "
+              f"{rollback['units_discounted']:,} of {rollback['units_all']:,} "
+              f"({rollback['pct_discounted']:.1f}%)  |  at ${ROLLBACK['price']:.2f} exactly: "
+              f"{rollback['units_at_rollback']:,} ({rollback['pct_at_rollback']:.1f}%)  |  "
+              f"at/above pre price: {rollback['units_full_price']:,} "
+              f"(of which {rollback['units_above_pre']:,} ABOVE, "
+              f"{rollback['pct_above_pre']:.1f}%)")
+        print(f"  Markdown ${rollback['markdown_dollars']:,.0f} "
+              f"= {rollback['units_equiv']:,} full-discount-equivalent units "
+              f"(co-op burn basis)")
+        lw = sorted(rollback["price_bands"])[-1]
+        pb = rollback["price_bands"][lw]
+        mix = "  ".join(
+            (f"${b['price']:.2f}:{b['pct']:.0f}%" if b["price"] is not None
+             else f"other({b['n_points']}):{b['pct']:.0f}%")
+            for b in pb["bands"])
+        print(f"  {lw} price mix ({pb['units']:,} units): {mix}")
 
     # Co-op tracker: project the $150k fund's exhaustion + total profit (flat & +3%/mo).
     coop = build_coop(rollback, metrics, week_dates)
@@ -1318,6 +1661,25 @@ def main():
         print(f"\nEndcap cohorts (baseline {endcap_cohorts['baseline_week']}, live {ENDCAP_LIVE_DATE}): "
               f"A endcap+stocked={s['A']:,}, B no-endcap+stocked={s['B']:,}, C endcap+new={s['C']:,}")
 
+    # Endcap rollout scorecard: set rate (field survey), 36-bag arrival, lift.
+    endcap_status = build_endcap_status(all_store_weeks, endcap_data, week_dates)
+    if endcap_status:
+        es, iv = endcap_status, endcap_status["inv"]
+        sr = es["lift"][0]
+        print(f"\nEndcap rollout (survey wk{es['survey_week']}, sales wk{es['week']}): "
+              f"{es['n_set']:,} set of {es['n_visited']:,} visited ({es['set_pct']:.0f}%), "
+              f"{es['n_notset']:,} not set, {es['n_unvisited']:,} not visited")
+        print(f"  36-bag allocation: {iv['counts']['received']:,} received "
+              f"({iv['pct']['received']:.0f}%), {iv['counts']['transit']:,} in transit, "
+              f"{iv['counts']['onorder']:,} on order, {iv['counts']['short']:,} short; "
+              f"set stores without product: {iv['set_short']:,}")
+        wow = sr.get("wow_pct")
+        vb  = sr.get("vs_base_pct")
+        print(f"  Set-store 15O units {sr['units']:,} ({sr['usw']} U/S/W): "
+              f"WoW {wow if wow is None else f'{wow:+.1f}%'} vs {es['last_week']}, "
+              f"{vb if vb is None else f'{vb:+.1f}%'} vs pre-endcap {es['base_week']}; "
+              f"control {es['lift'][-1].get('vs_base_pct')}% vs base")
+
     data = {
         "weeks":       sorted(files.keys()),
         "store_weeks": store_weeks_list,
@@ -1336,6 +1698,7 @@ def main():
         "week_dates":   week_dates,
         "endcap":      endcap_data,
         "endcap_cohorts": endcap_cohorts,
+        "endcap_status":  endcap_status,
         "trial_repeat": trial_repeat,
         "traited": traited,
         "supply_plan": supply_plan,
@@ -1412,11 +1775,25 @@ def main():
         dev_only = True
     if os.environ.get("SKIP_EMAIL") == "1":
         print("  [Email] Skipped (SKIP_EMAIL=1)")
+    elif os.environ.get("EMAIL_DRY_RUN") == "1":
+        # Render email_preview.html from the real build data (the standalone
+        # `python email_report.py --dry-run` path re-runs a reduced ETL that has
+        # no rollback or endcap data, so its preview is missing those sections).
+        try:
+            from email_report import send_report
+            send_report(data, dry_run=True)
+        except Exception as e:
+            print(f"  [Email] Dry-run error: {e}")
     else:
         try:
             from email_report import send_report
             send_report(data, dev_only=dev_only)
-            if is_monday and not already_sent:
+            # Mark the day on ANY full-distro send, not just the Monday one. A
+            # FORCE_FULL_DISTRO cloud run used to leave the flag unwritten, so a
+            # second ingest of the same week sailed straight through this gate.
+            # send_report() also refuses same-week duplicates on its own; this
+            # keeps later runs on the dev list rather than relying on that.
+            if not dev_only:
                 open(sent_flag, "w").write(str(today))
         except Exception as e:
             print(f"  [Email] Error: {e}")

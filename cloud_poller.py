@@ -150,6 +150,20 @@ def main():
                 continue
             ext = ".xlsb" if fname.lower().endswith(".xlsb") else ".xlsx"
             out = os.path.join(args.inbox_dir, f"{week} Weekly Sales Report Catalyst{ext}")
+            # Message-ID dedupe can't catch a FORWARD of a report we already
+            # ingested: new Message-ID, same attachment. That happened on
+            # 2026-08-17 — a colleague forwarded the 202628 report, the poller
+            # re-ingested it, and the rebuild mailed the full distro a second
+            # copy. Compare bytes: identical content is not new data, so don't
+            # report the week and don't trigger a rebuild. (email_report.py
+            # independently blocks a duplicate full-distro send; this stops the
+            # wasted rebuild upstream of it.)
+            if os.path.exists(out) and open(out, "rb").read() == payload:
+                print(f"[poller] skip week {week}: byte-identical to the copy already "
+                      f"ingested (duplicate/forward of subject {subject!r})")
+                append_processed(args.state_file, msg_id)
+                processed.add(msg_id)
+                continue
             with open(out, "wb") as f:
                 f.write(payload)
             print(f"[poller] saved week {week}: {os.path.basename(out)} ({len(payload)} bytes) "
