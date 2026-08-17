@@ -6495,12 +6495,21 @@ function renderEndcapRollout(force) {
   // before the markup below so the chart's date-range caption can name week one.
   const S = es.series || [];
 
-  const invRows = iv.rows.map(r => `<tr>
+  // Arrival cross-tab. Every status column carries its own share of the row, not
+  // just "received" — a segment sitting on 30% short reads very differently from
+  // one sitting on 30% in transit, and a bare count hides that when the row
+  // denominators differ by 20x.
+  const invCell = (v, total, color, last) =>
+    `<td style="padding:5px ${last ? "0" : "10px"} 5px 10px;text-align:right;color:${color};white-space:nowrap;">
+       ${n(v)} <span style="color:#aaa;font-weight:400;">${total ? (v / total * 100).toFixed(1) + "%" : "—"}</span></td>`;
+  const invBody = (rows, bold) => rows.map(r => `<tr style="${bold ? "font-weight:600;border-top:1px solid #eee;" : ""}">
       <td style="padding:5px 10px 5px 0;color:#444;">${r.label}</td>
       <td style="padding:5px 10px;text-align:right;font-weight:600;">${n(r.n)}</td>
-      ${INV_META.map(m => `<td style="padding:5px 10px;text-align:right;color:${m.color};">${n(r[m.k])}</td>`).join("")}
-      <td style="padding:5px 0 5px 10px;text-align:right;color:#666;">${r.n ? (r.received / r.n * 100).toFixed(0) + "%" : "—"}</td>
+      ${INV_META.map((m, i) => invCell(r[m.k], r.n, m.color, i === INV_META.length - 1)).join("")}
     </tr>`).join("");
+  const invRows = invBody(iv.rows, false)
+    + invBody([{ label: "All endcap stores", n: es.n_endcap,
+                 ...Object.fromEntries(INV_META.map(m => [m.k, iv.counts[m.k]])) }], true);
 
   body.innerHTML = `
     <div style="background:#fff;border-radius:10px;padding:14px 18px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:14px;font-size:13px;color:#444;line-height:1.6;">
@@ -6545,6 +6554,24 @@ function renderEndcapRollout(force) {
           Across all ${n(es.n_endcap)} endcap stores. ${n(iv.received_selling)} of the ${n(iv.counts.received)} with product sold at least one bag in ${weekLabel(es.week)}.
           There is no DC-warehouse column in this feed, so stock that exists but isn't yet on a store order reads as "pipeline short".
         </div>
+      </div>
+    </div>
+
+    <div class="metrics-table-card" style="margin-bottom:14px;">
+      <h3>${es.units_target}-bag arrival by segment</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr style="color:#888;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid #eee;">
+          <th style="text-align:left;padding:0 10px 6px 0;font-weight:600;">Segment</th>
+          <th style="text-align:right;padding:0 10px 6px;font-weight:600;">Stores</th>
+          ${INV_META.map((m, i) => `<th style="text-align:right;padding:0 ${i === INV_META.length - 1 ? "0" : "10px"} 6px 10px;font-weight:600;">${m.label}</th>`).join("")}
+        </tr></thead>
+        <tbody>${invRows}</tbody>
+      </table>
+      <div style="font-size:11px;color:#888;margin-top:10px;line-height:1.5;">
+        Percentages are of that segment's own store count, so rows with very different sizes stay comparable.
+        The reason codes check out against the pipeline: "not enough inventory" stores really are the least stocked.
+        Read the "confirmed set" row with care — ${n(iv.set_short)} stores a merchandiser photographed as set still show fewer than
+        ${es.units_target} units received, which is receipt-posting lag or on-hand inaccuracy rather than a missing display.
       </div>
     </div>
 
