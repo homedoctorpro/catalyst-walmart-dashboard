@@ -157,6 +157,11 @@ ENDCAP_LIVE_DATE = "2026-08-01"
 # so the set counts stay pinned to the survey week while sales roll forward.
 ENDCAP_ARRIVAL_WEEK = "202626"
 ENDCAP_UNITS        = 36
+# Weeks of pre-set context on the endcap U/S/W charts. The program has ~25 weeks
+# of history in front of it that says nothing about the endcap; plotting all of it
+# compresses the part that matters into the last inch of the axis. Two pre-set
+# weeks is enough to show the lines were flat before they diverged.
+ENDCAP_CHART_PRE_WEEKS = 2
 ENDCAP_SURVEY_FILE  = "(Walmart) Lignetics Inc. Cat Litter Endcap Set WK27.xlsx"
 ENDCAP_SURVEY_WEEK  = "202627"
 ENDCAP_SKU          = "CATALYST15ORIG"   # the SKU the endcap feature is built on
@@ -285,10 +290,13 @@ def build_endcap_status(all_store_weeks, endcap, week_dates):
         lift.append(lift_row("Not visited yet", unvis, "unvisited"))
     lift.append(lift_row("Control: all non-endcap stores", control, "control"))
 
-    # Weekly set-vs-control U/S/W series from the pre-live baseline forward, so
-    # the lift reads as a trend instead of a single pair of weeks.
+    # Weekly set-vs-control U/S/W series, windowed the same way as the cohort
+    # chart (ENDCAP_CHART_PRE_WEEKS of pre-set context, then everything after) so
+    # the two charts share an x-axis and the lift reads as a trend rather than a
+    # single pair of weeks.
+    series_start = pre[-ENDCAP_CHART_PRE_WEEKS:][0] if pre else weeks[0]
     series = []
-    for w in [w for w in weeks if base_week is None or w >= base_week]:
+    for w in [w for w in weeks if w >= series_start]:
         if w not in qty:
             qty[w] = q15(w)
         row = {"week": w}
@@ -355,6 +363,7 @@ def build_endcap_status(all_store_weeks, endcap, week_dates):
         },
         "lift":           lift,
         "series":         series,
+        "pre_weeks":      ENDCAP_CHART_PRE_WEEKS,
         "net_vs_control": gap(set_row, ctl_row),
         "net_vs_notset":  gap(set_row, ns_row),
         "inc_units":      round(set_row["units"] - set_row.get("vs_base_units", set_row["units"])),
@@ -407,10 +416,16 @@ def build_endcap_cohorts(all_store_weeks, traited, endcap, week_dates):
             row[k + "_usw"]   = round(units / n, 3) if n else None
         series[w] = row
 
+    # Chart window: the last ENDCAP_CHART_PRE_WEEKS weeks before the endcap was
+    # set, then everything after. The table below the chart keeps full history.
+    chart_weeks = weeks[weeks.index(pre[-ENDCAP_CHART_PRE_WEEKS:][0]):] if pre else weeks
+
     return {
         "live_date":     ENDCAP_LIVE_DATE,
         "baseline_week": baseline,
         "weeks":         weeks,
+        "chart_weeks":   chart_weeks,
+        "pre_weeks":     ENDCAP_CHART_PRE_WEEKS,
         "sizes":         sizes,
         "series":        series,
         "labels": {

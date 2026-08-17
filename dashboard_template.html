@@ -1433,7 +1433,11 @@
         Compare <span style="color:#0057e7;font-weight:600">endcap-stocked</span> vs <span style="color:#2e7d32;font-weight:600">no-endcap-stocked</span> for lift on existing stores, and watch <span style="color:#e67300;font-weight:600">endcap-new</span> ramp from zero.
       </div>
       <div id="endcap-cohort-cards" class="endcap-kpi-row" style="grid-template-columns:repeat(3,1fr);"></div>
-      <div class="chart-card"><h3 style="margin:0 0 4px">U/S/W by cohort — weekly</h3><div id="endcap-cohort-chart" class="chart-div"></div></div>
+      <div class="chart-card">
+        <h3 style="margin:0 0 2px">U/S/W by cohort — weekly</h3>
+        <div id="endcap-cohort-range" style="font-size:11.5px;color:#888;margin:0 0 6px"></div>
+        <div id="endcap-cohort-chart" class="chart-div"></div>
+      </div>
       <div class="metrics-table-card" style="margin-top:14px;">
         <h3>Cohort U/S/W — weekly table</h3>
         <div class="store-list-scroll" style="max-height:360px;">
@@ -6487,6 +6491,10 @@ function renderEndcapRollout(force) {
     </tr>`;
   }).join("");
 
+  // Weekly U/S/W trend: a couple of pre-set weeks, then every week since. Read
+  // before the markup below so the chart's date-range caption can name week one.
+  const S = es.series || [];
+
   const invRows = iv.rows.map(r => `<tr>
       <td style="padding:5px 10px 5px 0;color:#444;">${r.label}</td>
       <td style="padding:5px 10px;text-align:right;font-weight:600;">${n(r.n)}</td>
@@ -6562,11 +6570,13 @@ function renderEndcapRollout(force) {
       </div>
     </div>
 
-    <div class="chart-card"><h3 style="margin:0 0 4px">U/S/W — set vs not-set vs control, weekly</h3><div id="endcap-rollout-chart" class="chart-div"></div></div>
+    <div class="chart-card">
+      <h3 style="margin:0 0 2px">U/S/W — set vs not-set vs control, weekly</h3>
+      <div style="font-size:11.5px;color:#888;margin:0 0 6px">Starting ${weekLabel((S[0] || {}).week)} — ${es.pre_weeks || 2} weeks before the endcap was set, then every week since.</div>
+      <div id="endcap-rollout-chart" class="chart-div"></div>
+    </div>
   `;
 
-  // Weekly U/S/W trend with the go-live marker, so the lift reads as a trend.
-  const S = es.series || [];
   if (S.length && window.Plotly) {
     const series = [
       { key: "set",     name: "Endcap confirmed set", color: "#1a9850" },
@@ -6574,6 +6584,11 @@ function renderEndcapRollout(force) {
       { key: "control", name: "Control (non-endcap)", color: "#0057e7" },
     ];
     const x = S.map(r => weekLabel(r.week));
+    // Go-live sits BETWEEN the baseline week and the first endcap week, not on
+    // either of them — the baseline week is the last one with no endcaps set. On
+    // a category axis that's the half-step before the first post-live category.
+    const liveIdx  = S.findIndex(r => (DATA.week_dates[r.week] || "") >= es.live_date);
+    const boundary = (liveIdx < 0 ? S.length : liveIdx) - 0.5;
     Plotly.newPlot("endcap-rollout-chart",
       series.map(s => ({
         x, y: S.map(r => r[s.key + "_usw"]), name: s.name, type: "scatter",
@@ -6582,20 +6597,21 @@ function renderEndcapRollout(force) {
         hovertemplate: "%{x}<br>" + s.name + ": %{y:.2f} U/S/W<extra></extra>",
       })),
       {
-        margin: { l: 52, r: 18, t: 10, b: 58 }, height: 330,
+        margin: { l: 52, r: 18, t: 22, b: 58 }, height: 330,
         yaxis: { title: "Units / store / week", rangemode: "tozero", gridcolor: "#f0f0f0" },
         xaxis: { tickangle: -35 },
         legend: { orientation: "h", y: -0.28 },
         plot_bgcolor: "#fff", paper_bgcolor: "#fff", hovermode: "x unified",
-        shapes: es.base_week ? [{
-          type: "line", x0: weekLabel(es.base_week), x1: weekLabel(es.base_week),
+        shapes: [{
+          type: "line", xref: "x", x0: boundary, x1: boundary,
           yref: "paper", y0: 0, y1: 1,
-          line: { color: "#999", width: 1.5, dash: "dot" },
-        }] : [],
-        annotations: es.base_week ? [{
-          x: weekLabel(es.base_week), yref: "paper", y: 1.02, showarrow: false,
-          text: "endcap goes live", font: { size: 10, color: "#888" }, xanchor: "left",
-        }] : [],
+          line: { color: "#d32f2f", width: 1.5, dash: "dot" },
+        }],
+        annotations: [{
+          x: boundary, xref: "x", y: 1, yref: "paper", yanchor: "bottom",
+          xanchor: "left", showarrow: false, text: "🎯 Endcap live 8/1",
+          font: { size: 10, color: "#d32f2f" }, bgcolor: "rgba(255,255,255,0.75)",
+        }],
       },
       { responsive: true, displayModeBar: false });
   }
@@ -6618,8 +6634,12 @@ function renderEndcapCohorts() {
     "baseline (" + (co.baseline_week ? weekLabel(co.baseline_week) : "—") + ")";
 
   const weeks = co.weeks;
-  const x = weeks.map(weekLabel);
   const last = weeks[weeks.length - 1];
+  // The chart is windowed to a couple of pre-set weeks + everything after; 25
+  // weeks of pre-endcap history would squeeze the interesting part off the axis.
+  // The table underneath still carries the full series.
+  const cWeeks = (co.chart_weeks && co.chart_weeks.length) ? co.chart_weeks : weeks;
+  const x = cWeeks.map(weekLabel);
 
   // Cohort summary cards
   document.getElementById("endcap-cohort-cards").innerHTML = ENDCAP_COHORT_STYLE.map(c => {
@@ -6633,13 +6653,13 @@ function renderEndcapCohorts() {
 
   // Weekly line chart with Aug-1 marker
   const traces = ENDCAP_COHORT_STYLE.map(c => ({
-    x, y: weeks.map(w => (co.series[w] ? co.series[w][c.k + "_usw"] : null)),
+    x, y: cWeeks.map(w => (co.series[w] ? co.series[w][c.k + "_usw"] : null)),
     name: co.labels[c.k], type:"scatter", mode:"lines+markers", connectgaps:false,
     line:{ color:c.color, width:2.5 }, marker:{ size:6, color:c.color },
     hovertemplate: "%{y:.2f} U/S/W<extra>" + co.labels[c.k] + "</extra>",
   }));
-  const liveIdx  = weeks.findIndex(w => (DATA.week_dates[w] || "") >= co.live_date);
-  const boundary = (liveIdx < 0 ? weeks.length : liveIdx) - 0.5;
+  const liveIdx  = cWeeks.findIndex(w => (DATA.week_dates[w] || "") >= co.live_date);
+  const boundary = (liveIdx < 0 ? cWeeks.length : liveIdx) - 0.5;
   const layout = { ...PLOTLY_LAYOUT_BASE,
     yaxis:{ ...PLOTLY_LAYOUT_BASE.yaxis, title:"Units/Store/Week" },
     shapes:[{ type:"line", xref:"x", yref:"paper", x0:boundary, x1:boundary, y0:0, y1:1,
@@ -6649,6 +6669,15 @@ function renderEndcapCohorts() {
               bgcolor:"rgba(255,255,255,0.75)" }],
   };
   Plotly.react("endcap-cohort-chart", traces, layout, { responsive:true, displayModeBar:false });
+
+  const rangeEl = document.getElementById("endcap-cohort-range");
+  if (rangeEl) {
+    const nPre = liveIdx < 0 ? cWeeks.length : liveIdx;   // weeks left of the go-live line
+    rangeEl.innerHTML = cWeeks.length < weeks.length
+      ? `Starting ${weekLabel(cWeeks[0])} — ${nPre} week${nPre === 1 ? "" : "s"} before the endcap was set, then every week since. `
+        + `Full history is in the table below.`
+      : "";
+  }
 
   // Weekly table (latest first)
   document.getElementById("endcap-cohort-thead").innerHTML =
