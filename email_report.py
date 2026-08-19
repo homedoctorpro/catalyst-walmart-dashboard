@@ -574,14 +574,18 @@ def build_endcap_section(data):
           &#127919; Endcap Rollout &mdash; {n(es["n_set"])} of {n(es["n_visited"])} stores set ({es["set_pct"]:.0f}%)
         </div>
         <div style="font-size:11px;color:#888;margin:2px 0 12px;">
-          Set / not set from the merchandiser field visit ({wl(es["survey_week"])}) &middot;
+          Set / not set from the merchandiser field visits ({wl(es["survey_week"])}{
+            f' + {n(es["n_set_fu"])} on the {wl(es["followup_week"])} follow-up' if es.get("n_set_fu") else ''
+          }) &middot;
           sales &amp; inventory from the live feed ({wl(es["week"])}) &middot;
           program live {live.strftime("%b")} {live.day}
         </div>
 
         <table width="100%" cellspacing="0" cellpadding="0">
           <tr>
-            {stat("Confirmed set", n(es["n_set"]), f'{es["set_pct"]:.0f}% of {n(es["n_visited"])} visited', "#1a9850")}
+            {stat("Confirmed set", n(es["n_set"]),
+                  (f'{n(es["n_set_w27"])} + {n(es["n_set_fu"])} on follow-up' if es.get("n_set_fu")
+                   else f'{es["set_pct"]:.0f}% of {n(es["n_visited"])} visited'), "#1a9850")}
             {stat("Not set (reason filed)", n(es["n_notset"]), f'{n(es["n_unvisited"])} not visited yet', "#c62828")}
             {stat(f'Have the {es["units_target"]} bags', n(iv["counts"]["received"]),
                   f'{iv["pct"]["received"]:.0f}% of {n(es["n_endcap"])} endcap stores', "#1a9850")}
@@ -591,7 +595,7 @@ def build_endcap_section(data):
             {stat(f'Set-store units, {wl(es["week"])}', n(set_row["units"]),
                   ("" if set_row["usw"] is None else f'{set_row["usw"]:.2f} U/S/W &middot; ')
                   + p1(set_row.get("wow_pct")) + " WoW", "#0057e7")}
-            {stat("Display effect", p1(net_disp), "set vs not-set &mdash; both got the bags", "#0057e7")}
+            {stat("Display effect", p1(net_disp), "points of growth, set vs not-set &mdash; both got the bags", "#0057e7")}
           </tr>
         </table>
 

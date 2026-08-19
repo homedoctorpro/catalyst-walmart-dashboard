@@ -164,6 +164,11 @@ ENDCAP_UNITS        = 36
 ENDCAP_CHART_PRE_WEEKS = 2
 ENDCAP_SURVEY_FILE  = "(Walmart) Lignetics Inc. Cat Litter Endcap Set WK27.xlsx"
 ENDCAP_SURVEY_WEEK  = "202627"
+# The set list grows in waves: the original WK27 sweep plus every follow-up
+# re-visit Anderson sends ("* Endcap Update.xlsx", overlaid in load_survey).
+# A follow-up store had no display up in the weeks before its own visit, so it
+# is broken out of the set cohort everywhere sales are compared.
+ENDCAP_FOLLOWUP_WEEK = "202628"
 ENDCAP_SKU          = "CATALYST15ORIG"   # the SKU the endcap feature is built on
 ENDCAP_REASONS = {  # survey answer -> (key, label)
     "No Available space":                    ("space",     "No available space"),
@@ -234,6 +239,9 @@ def build_endcap_status(all_store_weeks, endcap, week_dates):
     roster  = {str(r["store_number"]): r for r in endcap["rows"]}
     seg_of  = {sn: (survey.get(sn) or {}).get("seg", "unvisited") for sn in roster}
     set_ok  = {sn for sn in roster if seg_of[sn] == "set"}
+    wave_of = {sn: (survey.get(sn) or {}).get("wave", "") for sn in roster}
+    set_w27 = {sn for sn in set_ok if wave_of[sn] != "followup"}
+    set_fu  = {sn for sn in set_ok if wave_of[sn] == "followup"}
     unvis   = {sn for sn in roster if seg_of[sn] == "unvisited"}
     notset  = set(roster) - set_ok - unvis
     visited = set_ok | notset
@@ -282,8 +290,11 @@ def build_endcap_status(all_store_weeks, endcap, week_dates):
                                    if prev else None)
         return out
 
-    lift = [lift_row("Endcap confirmed set", set_ok, "set"),
-            lift_row("Not set — all reasons", notset, "notset")]
+    lift = [lift_row("Endcap confirmed set", set_ok, "set")]
+    if set_fu:
+        lift += [lift_row("· set on the WK27 visit", set_w27, "set_w27"),
+                 lift_row("· set on the follow-up sweep", set_fu, "set_fu")]
+    lift.append(lift_row("Not set — all reasons", notset, "notset"))
     for _a, (key, label) in ENDCAP_REASONS.items():
         lift.append(lift_row("· " + label, {sn for sn in notset if seg_of[sn] == key}, key))
     if unvis:
@@ -300,7 +311,10 @@ def build_endcap_status(all_store_weeks, endcap, week_dates):
         if w not in qty:
             qty[w] = q15(w)
         row = {"week": w}
-        for key, sset in (("set", set_ok), ("notset", notset), ("control", control)):
+        for key, sset in (("set", set_ok), ("set_w27", set_w27), ("set_fu", set_fu),
+                          ("notset", notset), ("control", control)):
+            if not sset:
+                continue
             n = len(sset)
             u = sum(qty[w].get(sn, 0) for sn in sset)
             row[key + "_units"] = round(u)
@@ -325,8 +339,8 @@ def build_endcap_status(all_store_weeks, endcap, week_dates):
     #     program effect — allocation AND display — not the display alone.
     #   net_vs_notset  = set-store growth minus NOT-set endcap-store growth. Both
     #     groups got the inventory, so the gap isolates building the display.
-    set_row, ns_row = lift[0], lift[1]
-    ctl_row = lift[-1]
+    row_of = {r["key"]: r for r in lift}
+    set_row, ns_row, ctl_row = row_of["set"], row_of["notset"], row_of["control"]
     def gap(a, b):
         if a.get("vs_base_pct") is None or b.get("vs_base_pct") is None:
             return None
@@ -342,6 +356,9 @@ def build_endcap_status(all_store_weeks, endcap, week_dates):
         "units_target": ENDCAP_UNITS,
         "n_endcap":     len(roster),
         "n_set":        len(set_ok),
+        "n_set_w27":    len(set_w27),
+        "n_set_fu":     len(set_fu),
+        "followup_week": ENDCAP_FOLLOWUP_WEEK if set_fu else None,
         "n_notset":     len(notset),
         "n_unvisited":  len(unvis),
         "n_visited":    len(visited),

@@ -6465,20 +6465,21 @@ function renderEndcapRollout(force) {
   body.innerHTML = `
     <div style="background:#fff;border-radius:10px;padding:14px 18px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:14px;font-size:13px;color:#444;line-height:1.6;">
       <div style="font-weight:700;color:#222;margin-bottom:4px;">Endcap rollout — set rate, ${es.units_target}-bag arrival, and lift</div>
-      <strong>Set / not set</strong> is the merchandiser field visit (survey week <strong>${weekLabel(es.survey_week)}</strong>) — a point-in-time answer to
+      <strong>Set / not set</strong> is the merchandiser field visit — a point-in-time answer to
       "is the feature product set on a feature space", so it doesn't move until the next visit.
+      ${es.n_set_fu ? `The set list has two waves: <strong>${n(es.n_set_w27)}</strong> confirmed on the original ${weekLabel(es.survey_week)} sweep and <strong>${n(es.n_set_fu)}</strong> more on the ${weekLabel(es.followup_week)} follow-up re-visit. The follow-up stores had no display up before their own visit, so they are shown as a separate line everywhere sales are compared.` : `Survey week <strong>${weekLabel(es.survey_week)}</strong>.`}
       <strong>Sales and inventory</strong> are the live feed through <strong>${weekLabel(es.week)}</strong>, so lift refreshes weekly.
       "Vs pre-endcap" compares against <strong>${weekLabel(es.base_week)}</strong>, the last report before the program went live ${new Date(es.live_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}.
       A store counts as having its ${es.units_target} bags if on-hand plus everything it has sold since the allocation shipped reaches ${es.units_target}.
     </div>
 
     <div class="endcap-kpi-row" style="grid-template-columns:repeat(6,1fr);">
-      ${kpi("Confirmed set", n(es.n_set), es.set_pct.toFixed(0) + "% of " + n(es.n_visited) + " visited", "#1a9850")}
+      ${kpi("Confirmed set", n(es.n_set), es.n_set_fu ? n(es.n_set_w27) + " + " + n(es.n_set_fu) + " on follow-up" : es.set_pct.toFixed(0) + "% of " + n(es.n_visited) + " visited", "#1a9850")}
       ${kpi("Not set (reason filed)", n(es.n_notset), n(es.n_unvisited) + " not visited yet", "#d73027")}
       ${kpi("Have the " + es.units_target + " bags", n(iv.counts.received), iv.pct.received.toFixed(0) + "% of " + n(es.n_endcap) + " endcap stores", "#1a9850")}
       ${kpi("Set but no product", n(iv.set_short), "of " + n(es.n_set) + " set stores", "#e67300")}
       ${kpi("Set-store units, " + weekLabel(es.week), n(setRow.units), setRow.usw == null ? "" : setRow.usw.toFixed(2) + " U/S/W · " + p1(setRow.wow_pct) + " WoW", "#0057e7")}
-      ${kpi("Display effect", p1(netDisplay), "set vs not-set — both got the bags", "#0057e7")}
+      ${kpi("Display effect", p1(netDisplay), "points of growth, set vs not-set — both got the bags", "#0057e7")}
     </div>
 
     <div style="background:#fff;border-radius:10px;padding:13px 18px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:14px;font-size:12.5px;color:#444;line-height:1.7;">
@@ -6545,6 +6546,7 @@ function renderEndcapRollout(force) {
         The control is every Catalyst store <em>not</em> on the endcap list, so it absorbs whatever the rest of the business did — the rollback, seasonality, distribution gains.
         Whole-program gap vs that control: ${net == null ? "—" : "<strong>" + p1(net) + "</strong>"}. Display-only gap (set vs not-set, both holding the allocation): ${netDisplay == null ? "—" : "<strong>" + p1(netDisplay) + "</strong>"}.
         ${es.set_zero ? n(es.set_zero) + " confirmed-set stores sold nothing in " + weekLabel(es.week) + "." : ""}
+        ${es.n_set_fu ? " The follow-up wave is the cleanest read on the display itself: those " + n(es.n_set_fu) + " stores were flat while they sat unset, then stepped up the week their display went in." : ""}
       </div>
     </div>
 
@@ -6561,6 +6563,11 @@ function renderEndcapRollout(force) {
       { key: "notset",  name: "Endcap, not set",      color: "#d73027" },
       { key: "control", name: "Control (non-endcap)", color: "#0057e7" },
     ];
+    // The follow-up wave is a natural control on itself: flat while unset, then
+    // it steps up in the week it was set. Dashed so it reads as a subset.
+    if (es.n_set_fu) series.push(
+      { key: "set_w27", name: "Set on the " + weekLabel(es.survey_week) + " sweep", color: "#66bb6a", dash: "dot" },
+      { key: "set_fu",  name: "Set on the " + weekLabel(es.followup_week) + " follow-up", color: "#1b5e20", dash: "dash" });
     const x = S.map(r => weekLabel(r.week));
     // Go-live sits BETWEEN the baseline week and the first endcap week, not on
     // either of them — the baseline week is the last one with no endcaps set. On
@@ -6570,7 +6577,7 @@ function renderEndcapRollout(force) {
     Plotly.newPlot("endcap-rollout-chart",
       series.map(s => ({
         x, y: S.map(r => r[s.key + "_usw"]), name: s.name, type: "scatter",
-        mode: "lines+markers", line: { color: s.color, width: 2.5 },
+        mode: "lines+markers", line: { color: s.color, width: s.dash ? 1.8 : 2.5, dash: s.dash || "solid" },
         marker: { size: 6 },
         hovertemplate: "%{x}<br>" + s.name + ": %{y:.2f} U/S/W<extra></extra>",
       })),
