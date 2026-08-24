@@ -160,6 +160,7 @@ Output: self-contained Leaflet.js maps at `output/index.html` (tabs: SKU map, si
 ## Key Implementation Notes
 
 - **Sheet name variability**: Each week's Excel has inconsistent sheet names. `SHEET_MAP` in `extract_data.py` maps week → sheet names. Always check when adding new weeks.
+- **Partial-cut sheets**: Some weeks ship a second, narrower copy of the store feed — wk202629 added `CATALYST Endcap Sales by Store` next to `CATALYST Sales by Store`. It matches the same keywords but covers only the ~1,880 endcap stores. `detect_sheets` now rejects any sheet with "endcap" in the name for the `instore`/`bystore` slots. Watch for `[WARN] Store coverage fell N%` on every run — that guard fires when a week's store count drops >10%, which means the wrong sheet was picked, not that distribution collapsed. A partial feed silently corrupts OOS counts, state rollups, the endcap lift, **and** the co-op burn rate (rollback units are derived per store).
 - **Geocoding cache**: `stores_geo.json` persists zip → lat/lon. New zips are fetched and appended automatically.
 - **Self-contained outputs**: Both `dashboard.html` and store map HTMLs embed all data inline — no external dependencies beyond CDN JS libs.
 - **Lazy tab rendering**: Dashboard tabs only initialize charts on first click.
