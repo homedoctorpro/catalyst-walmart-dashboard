@@ -100,7 +100,13 @@ def load_current_skus() -> dict[int, set[str]]:
     if not f:
         return {}
     wb = openpyxl.load_workbook(f, read_only=True)
-    ws = wb["Sales by Store"]
+    # The sheet is not always called "Sales by Store" — wk202629 shipped it as
+    # "CATALYST Sales by Store" alongside an endcap-only cut of the same name
+    # shape. Resolve it with the same detector the dashboard build uses so the
+    # two can't disagree about which sheet is the full-chain feed.
+    from extract_data import detect_sheets
+    name = detect_sheets(str(f)).get("bystore") or "Sales by Store"
+    ws = wb[name]
     out: dict[int, set[str]] = {}
     for r in list(ws.iter_rows(values_only=True))[1:]:
         if r[1] is None or r[0] is None:

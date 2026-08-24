@@ -652,6 +652,122 @@ def build_endcap_section(data):
     </table>"""
 
 
+def build_endcap_usw_section(data):
+    """U/S/W before the endcap vs now — by segment, for every SKU.
+
+    Answers the three questions the field asks about the program in one table:
+    what is rate of sale doing week over week, what was it before the endcap
+    went up, and how much of the move belongs to the display rather than to
+    the market. Each cohort is fixed to the stores that carried that SKU in
+    the pre-endcap week and held constant across all three weeks, so a change
+    here is rate of sale — never distribution arriving.
+    """
+    es = data.get("endcap_status")
+    if not es or not es.get("by_sku"):
+        return ""
+    by_sku, order = es["by_sku"], es.get("sku_order") or list(SKU_LABELS)
+    head = by_sku.get("CATALYST15ORIG") or by_sku.get("ALL")
+    hrow = next((r for r in head["rows"] if r["key"] == "set"), None) if head else None
+    if not hrow:
+        return ""
+
+    def f3(v):  return "&mdash;" if v is None else f"{v:.2f}"
+    def p1(v):  return "&mdash;" if v is None else f'{"+" if v > 0 else ""}{v:.1f}%'
+    def pp(v):  return "&mdash;" if v is None else f'{"+" if v > 0 else ""}{v:.1f} pts'
+    def sgn(v): return "#1a9850" if (v or 0) > 0 else "#c62828" if (v or 0) < 0 else "#666"
+
+    def stat(label, main, sub, color="#1a1a2e"):
+        return f"""<td width="33%" valign="top" style="padding:6px 8px;">
+          <div style="font-size:9px;font-weight:700;color:#1b6b3a;text-transform:uppercase;letter-spacing:.04em;">{label}</div>
+          <div style="font-size:17px;font-weight:800;color:{color};line-height:1.15;margin-top:2px;">{main}</div>
+          <div style="font-size:10px;color:#888;margin-top:1px;">{sub or "&nbsp;"}</div>
+        </td>"""
+
+    th = ('color:#999;font-size:9px;text-transform:uppercase;letter-spacing:.03em;'
+          'font-weight:600;padding:0 6px 4px;')
+    ROW_TINT = {"set": "#f3faf5", "notset": "#ffffff", "control": "#fafafa"}
+
+    blocks = ""
+    for sku in ["ALL"] + list(order):
+        blk = by_sku.get(sku)
+        if not blk:
+            continue
+        name = "All 4 SKUs" if sku == "ALL" else SKU_LABELS.get(sku, sku)
+        rows = ""
+        for r in blk["rows"]:
+            lead = r["key"] == "set"
+            rows += f"""<tr style="background:{ROW_TINT.get(r['key'], '#fff')};">
+              <td style="padding:4px 6px 4px 0;{'font-weight:700;color:#1b6b3a;' if lead else 'color:#555;'}">{r["label"]}</td>
+              <td align="right" style="padding:4px 6px;color:#888;">{r["n"]:,}</td>
+              <td align="right" style="padding:4px 6px;color:#555;">{f3(r["base_usw"])}</td>
+              <td align="right" style="padding:4px 6px;color:#555;">{f3(r["last_usw"])}</td>
+              <td align="right" style="padding:4px 6px;font-weight:700;color:#222;">{f3(r["cur_usw"])}</td>
+              <td align="right" style="padding:4px 6px;color:{sgn(r["wow_pct"])};">{p1(r["wow_pct"])}</td>
+              <td align="right" style="padding:4px 0 4px 6px;font-weight:{700 if lead else 400};color:{sgn(r["vs_base_pct"])};">{p1(r["vs_base_pct"])}</td>
+            </tr>"""
+        blocks += f"""
+        <tr><td colspan="7" style="padding:11px 0 3px;font-size:11.5px;font-weight:700;color:#1a1a2e;">
+          {name}
+          <span style="font-weight:400;color:#999;font-size:10px;">
+            &nbsp;set vs non-endcap {pp(blk["net_vs_control"])} &middot; set vs not-set {pp(blk["net_vs_notset"])}
+          </span>
+        </td></tr>
+        <tr>
+          <td style="{th}text-align:left;padding-left:0;">Segment</td>
+          <td align="right" style="{th}">Stores</td>
+          <td align="right" style="{th}">{wl(es["base_week"])}<br>pre-endcap</td>
+          <td align="right" style="{th}">{wl(es["last_week"])}</td>
+          <td align="right" style="{th}">{wl(es["week"])}</td>
+          <td align="right" style="{th}">WoW</td>
+          <td align="right" style="{th}padding-right:0;">vs pre-endcap</td>
+        </tr>
+        {rows}"""
+
+    all_set = next((r for r in by_sku["ALL"]["rows"] if r["key"] == "set"), {})
+    return f"""
+    <table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:22px;">
+      <tr><td style="background:#fff;border:1px solid #c8e6c9;border-top:3px solid #1b6b3a;border-radius:12px;padding:16px 18px;">
+        <div style="font-weight:800;font-size:15px;color:#1b6b3a;font-family:Arial,Helvetica,sans-serif;">
+          &#128200; Endcap U/S/W &mdash; before vs now
+        </div>
+        <div style="font-size:11px;color:#888;margin:2px 0 12px;">
+          Same stores every week: each cohort is fixed to the stores that carried the SKU in
+          {wl(es["base_week"])}, the last week before the endcap went live &middot;
+          set / not set from the field visits &middot; sales from the live feed ({wl(es["week"])})
+        </div>
+
+        <table width="100%" cellspacing="0" cellpadding="0">
+          <tr>
+            {stat(f'{SKU_LABELS.get("CATALYST15ORIG", "15lb")} set-store U/S/W',
+                  f3(hrow["cur_usw"]),
+                  f'{p1(hrow["wow_pct"])} WoW &middot; was {f3(hrow["last_usw"])}', "#0057e7")}
+            {stat("Pre-endcap &rarr; now",
+                  f'{f3(hrow["base_usw"])} &rarr; {f3(hrow["cur_usw"])}',
+                  f'{wl(es["base_week"])} &rarr; {wl(es["week"])}', "#1a9850")}
+            {stat("Lift vs pre-endcap", p1(hrow["vs_base_pct"]),
+                  f'across {hrow["n"]:,} confirmed-set stores', "#1a9850")}
+          </tr>
+        </table>
+
+        <table width="100%" cellspacing="0" cellpadding="0" style="font-size:10.5px;margin-top:6px;">
+          {blocks}
+        </table>
+
+        <div style="margin-top:12px;font-size:10px;color:#999;line-height:1.5;border-top:1px solid #e0f0e2;padding-top:9px;">
+          U/S/W = cohort units that week &divide; cohort stores, including stores that sold none.
+          Cohorts are frozen at {wl(es["base_week"])} carriers, so the {hrow["n"]:,}-store set cohort
+          here is smaller than the {es["n_set"]:,} stores confirmed set &mdash; endcap stores that
+          were not carrying a SKU before the program have no pre-endcap U/S/W to compare against and
+          are left out of that SKU's rows. "Not confirmed set" is every endcap store the field has not
+          confirmed, including the {es["n_unvisited"]:,} not yet visited; those stores still received the
+          {es["units_target"]}-bag allocation, so the set-vs-not-set gap is the display's own contribution
+          and the set-vs-non-endcap gap is the whole program.
+          All 4 SKUs is the sum of the four SKUs over stores carrying any of them.
+        </div>
+      </td></tr>
+    </table>"""
+
+
 # ── HTML builder ──────────────────────────────────────────────────────────────
 def build_html(data):
     weeks       = data["weeks"]
@@ -754,6 +870,9 @@ def build_html(data):
 
     # ── Endcap rollout scorecard ────────────────────────────────────────────────
     endcap_html = build_endcap_section(data)
+
+    # ── Endcap U/S/W: pre-endcap vs now, by segment and SKU ─────────────────────
+    endcap_usw_html = build_endcap_usw_section(data)
 
     # ── Highlights / auto-commentary ────────────────────────────────────────────
     highlights_html = build_highlights(
@@ -1021,6 +1140,7 @@ def build_html(data):
   <div class="body-card">
     {coop_html}
     {endcap_html}
+    {endcap_usw_html}
     {highlights_html}
     {kpi_html}
     {sku_html}

@@ -272,6 +272,67 @@ def build_endcap_status(all_store_weeks, endcap, week_dates):
     control = [sn for sn, d in (all_store_weeks.get(ref_week) or {}).items()
                if sn not in roster and ENDCAP_SKU in (d.get("skus") or {})]
 
+    # ── Per-SKU U/S/W by segment (like-for-like cohorts) ─────────────────────
+    # The 15 lb lift table below divides by every roster store in the segment,
+    # so an endcap store that wasn't carrying the SKU before the program counts
+    # as a zero in the baseline and its ramp reads as growth. That is the right
+    # read for "what did the program do", but it cannot answer "what was this
+    # store's U/S/W before?" — a store with no prior distribution has none.
+    #
+    # So this table fixes each cohort to the stores that CARRIED the SKU in the
+    # pre-endcap week and holds that cohort constant across all three weeks.
+    # Same stores, same denominator, every week: the U/S/W move is real rate of
+    # sale, not distribution arriving. Segments are the three the field asks
+    # about — endcap set, endcap not set, and everything off the endcap list.
+    notset_all = set(roster) - set_ok          # incl. the not-visited stores
+    non_endcap = [sn for sn in (all_store_weeks.get(ref_week) or {}) if sn not in roster]
+    sku_ref    = base_week or last_week
+
+    def _skus_at(sn, wk):
+        return ((all_store_weeks.get(wk) or {}).get(sn) or {}).get("skus") or {}
+
+    def _units(stores, sku, wk):
+        if sku == "ALL":
+            return sum(sum((v or {}).get("qty") or 0 for k, v in _skus_at(sn, wk).items()
+                           if k in SKUS) for sn in stores)
+        return sum((_skus_at(sn, wk).get(sku) or {}).get("qty") or 0 for sn in stores)
+
+    def sku_row(label, key, stores, sku):
+        # Cohort = segment stores carrying this SKU in the pre-endcap week.
+        cohort = [sn for sn in stores
+                  if (any(k in SKUS for k in _skus_at(sn, sku_ref))
+                      if sku == "ALL" else sku in _skus_at(sn, sku_ref))]
+        n = len(cohort)
+        out = {"key": key, "label": label, "n": n}
+        for tag, wk in (("base", base_week), ("last", last_week), ("cur", this_week)):
+            if not wk:
+                out[tag + "_units"], out[tag + "_usw"] = None, None
+                continue
+            u = _units(cohort, sku, wk)
+            out[tag + "_units"] = round(u)
+            out[tag + "_usw"]   = round(u / n, 3) if n else None
+        b, l, c = out["base_usw"], out["last_usw"], out["cur_usw"]
+        out["wow_pct"]     = round((c - l) / l * 100, 1) if (l and c is not None) else None
+        out["vs_base_pct"] = round((c - b) / b * 100, 1) if (b and c is not None) else None
+        return out
+
+    SKU_SEGS = [("set",     "Endcap — confirmed set",     set_ok),
+                ("notset",  "Endcap — not confirmed set", notset_all),
+                ("control", "Non-endcap stores",          non_endcap)]
+    by_sku = {}
+    for sku in ["ALL"] + list(SKUS):
+        rows_ = [sku_row(lab, k, st, sku) for k, lab, st in SKU_SEGS]
+        r_of  = {r["key"]: r for r in rows_}
+        def _gap(a, b, f):
+            x, y = r_of[a].get(f), r_of[b].get(f)
+            return None if (x is None or y is None) else round(x - y, 1)
+        by_sku[sku] = {
+            "sku": sku,
+            "rows": rows_,
+            "net_vs_control": _gap("set", "control", "vs_base_pct"),
+            "net_vs_notset":  _gap("set", "notset",  "vs_base_pct"),
+        }
+
     def lift_row(label, stores, key=None):
         stores = list(stores)
         n = len(stores)
@@ -379,6 +440,8 @@ def build_endcap_status(all_store_weeks, endcap, week_dates):
                                     and qty[this_week].get(sn, 0) > 0),
         },
         "lift":           lift,
+        "by_sku":         by_sku,
+        "sku_order":      list(SKUS),
         "series":         series,
         "pre_weeks":      ENDCAP_CHART_PRE_WEEKS,
         "net_vs_control": gap(set_row, ctl_row),
@@ -886,9 +949,14 @@ def detect_sheets(filepath):
 
     is_ecomm = lambda s: "ecomm" in s
     is_l52   = lambda s: "l52" in s or "52wk" in s or "52 wk" in s
+    # Some weeks ship a second, endcap-only cut of the same sheet ("CATALYST
+    # Endcap Sales by Store", wk202629). It matches every keyword the real
+    # store feed does but covers only the ~1,880 endcap stores, so picking it
+    # silently drops 55% of the chain. Never let an endcap cut win either slot.
+    is_endcap = lambda s: "endcap" in s
 
     def is_instore(s):
-        if is_ecomm(s) or "by store" in s:
+        if is_ecomm(s) or "by store" in s or is_endcap(s):
             return False
         if any(k in s for k in ("inventory", "forecast", "supply", "demand",
                                 "modular", "order", "plan")):
@@ -897,7 +965,7 @@ def detect_sheets(filepath):
 
     return {
         "instore":   pick(is_instore),
-        "bystore":   pick(lambda s: "by store" in s),
+        "bystore":   pick(lambda s: "by store" in s and not is_endcap(s)),
         "ecomm_l52": pick(lambda s: is_ecomm(s) and is_l52(s), prefer_catalyst=False),
         "ecomm_lw":  pick(lambda s: is_ecomm(s) and not is_l52(s)
                                     and ("lw" in s or "last week" in s)),
@@ -1548,7 +1616,19 @@ def main():
                 rows = extract_store_data(week, df_bs)
                 raw_store_rows_by_week[week] = rows
                 store_weeks_list.append(week)
-                print(f"  Sales by Store: {len(rows)} rows")
+                n_stores = len({r["store_num"] for r in rows})
+                print(f"  Sales by Store: {len(rows)} rows ({n_stores} stores)")
+                # Coverage guard. The store feed grows slowly week to week, so a
+                # double-digit drop means the wrong sheet was picked (an endcap-
+                # only or single-SKU cut), not a real distribution change.
+                if store_weeks_list[:-1]:
+                    prev_w = store_weeks_list[-2]
+                    prev_n = len({r["store_num"] for r in raw_store_rows_by_week[prev_w]})
+                    if prev_n and n_stores < prev_n * 0.9:
+                        print(f"  [WARN] Store coverage fell {1 - n_stores / prev_n:.0%} vs "
+                              f"{prev_w} ({prev_n} → {n_stores} stores) from sheet "
+                              f"'{bystore_sheet}' — check that this is the full-chain "
+                              f"feed and not a partial cut.")
             except Exception as e:
                 print(f"  [ERROR] ByStore sheet '{bystore_sheet}': {e}")
 
@@ -1722,6 +1802,20 @@ def main():
               f"WoW {wow if wow is None else f'{wow:+.1f}%'} vs {es['last_week']}, "
               f"{vb if vb is None else f'{vb:+.1f}%'} vs pre-endcap {es['base_week']}; "
               f"control {es['lift'][-1].get('vs_base_pct')}% vs base")
+        print(f"  Per-SKU U/S/W, like-for-like cohorts (base {es['base_week']} → "
+              f"{es['last_week']} → {es['week']}):")
+        for sku in ["ALL"] + es["sku_order"]:
+            blk = es["by_sku"][sku]
+            print(f"    {('All 4 SKUs' if sku == 'ALL' else sku):<22}"
+                  f" net vs control {blk['net_vs_control']}pp | "
+                  f"net vs not-set {blk['net_vs_notset']}pp")
+            for r in blk["rows"]:
+                f2 = lambda v: "—" if v is None else f"{v:.3f}"
+                fp = lambda v: "—" if v is None else f"{v:+.1f}%"
+                print(f"      {r['label']:<30} n={r['n']:<5} "
+                      f"base {f2(r['base_usw'])} → last {f2(r['last_usw'])} → "
+                      f"now {f2(r['cur_usw'])}  WoW {fp(r['wow_pct']):<8} "
+                      f"vs pre-endcap {fp(r['vs_base_pct'])}")
 
     data = {
         "weeks":       sorted(files.keys()),
