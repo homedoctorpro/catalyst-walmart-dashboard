@@ -1596,6 +1596,17 @@ def main():
     except Exception as e:
         print(f"[WARN] inbox sync skipped ({e}) — using workbooks on disk")
 
+    # Weekly Walmart review refresh. Self-throttling: refetches only when the
+    # embedded payload is older than MAX_AGE_DAYS, so calling it on every build
+    # still hits Walmart about once a week. Non-fatal by design — Walmart may
+    # rate-limit or block, and a review refresh must never take down the weekly
+    # dashboard build or block the Monday send. Set SKIP_REVIEWS=1 to bypass.
+    try:
+        from walmart_reviews import refresh_if_stale
+        refresh_if_stale()
+    except Exception as e:
+        print(f"[WARN] review refresh skipped ({e}) — using last saved payload")
+
     # 1. Find Excel files
     files = find_excel_files()
     print(f"Found {len(files)} Excel files: {sorted(files.keys())}")

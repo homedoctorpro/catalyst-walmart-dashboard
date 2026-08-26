@@ -299,18 +299,25 @@ def build_summary(df, reviews):
     }
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--full", action="store_true",
-                    help="refetch all pages instead of reusing cached raw JSON")
-    args = ap.parse_args()
+SUMMARY_PATH = os.path.join(OUTDIR, "reviews_summary.json")
 
+# How stale the payload may get before the weekly dashboard build refreshes it.
+# Six rather than seven so a Monday build always fires even if the previous run
+# landed a few hours late.
+MAX_AGE_DAYS = 6
+
+
+def build(full=False):
+    """Collect, write every output, and return the dashboard summary.
+
+    Returns None if nothing could be collected.
+    """
     os.makedirs(OUTDIR, exist_ok=True)
     all_reviews = []
 
     for item, label in PRODUCTS.items():
         raw_path = os.path.join(OUTDIR, f"reviews_raw_{item}.json")
-        if not args.full and os.path.exists(raw_path):
+        if not full and os.path.exists(raw_path):
             with open(raw_path, encoding="utf-8") as fh:
                 cached = json.load(fh)
             print(f"  {label} ({item}): {len(cached)} reviews from cache "
@@ -326,7 +333,7 @@ def main():
 
     if not all_reviews:
         print("[FAIL] no reviews collected")
-        return 1
+        return None
 
     df = flatten(all_reviews)
     csv_path = os.path.join(OUTDIR, "catalyst_reviews.csv")
@@ -344,20 +351,61 @@ def main():
 
     # Aggregated payload the dashboard embeds (see load_reviews in extract_data.py).
     summary = build_summary(df, all_reviews)
-    summary_path = os.path.join(OUTDIR, "reviews_summary.json")
-    with open(summary_path, "w", encoding="utf-8") as fh:
+    with open(SUMMARY_PATH, "w", encoding="utf-8") as fh:
         # allow_nan=False so an unscrubbed NaN fails loudly here rather than
         # silently producing JSON the browser cannot parse.
         json.dump(summary, fh, separators=(",", ":"), allow_nan=False)
-    print(f"[OK] dashboard payload -> {summary_path} "
-          f"({os.path.getsize(summary_path) / 1024:.0f} KB)")
+    print(f"[OK] dashboard payload -> {SUMMARY_PATH} "
+          f"({os.path.getsize(SUMMARY_PATH) / 1024:.0f} KB)")
 
     print(f"\n[OK] {len(df)} verified reviews -> {csv_path}")
     print(f"     date range {df['date'].min():%Y-%m-%d} to {df['date'].max():%Y-%m-%d}")
     print(f"     overall avg rating {df['rating'].mean():.2f}")
     print(df.groupby(["product", "size"])["rating"]
             .agg(["size", "mean"]).round(2).to_string())
-    return 0
+    return summary
+
+
+def payload_age_days():
+    """Age of the embedded payload in days, or None if it does not exist yet."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), SUMMARY_PATH)
+    if not os.path.exists(path):
+        return None
+    return (time.time() - os.path.getmtime(path)) / 86400.0
+
+
+def refresh_if_stale(max_age_days=MAX_AGE_DAYS, full=True):
+    """Weekly refresh hook called by extract_data.py.
+
+    Refetches only when the payload is older than `max_age_days`, so the
+    dashboard build can call this every run and still hit Walmart about once a
+    week. Set SKIP_REVIEWS=1 to bypass entirely.
+
+    Returns True if a refresh actually ran.
+    """
+    if os.environ.get("SKIP_REVIEWS") == "1":
+        print("  [Reviews] Skipped (SKIP_REVIEWS=1)")
+        return False
+
+    age = payload_age_days()
+    if age is not None and age < max_age_days:
+        print(f"  [Reviews] Payload is {age:.1f}d old (< {max_age_days}d), "
+              "skipping refresh")
+        return False
+
+    where = "missing" if age is None else f"{age:.1f}d old"
+    print(f"  [Reviews] Payload {where} - refreshing from Walmart")
+    # full=True by default: the raw cache is what goes stale, so reusing it
+    # would defeat the point of a scheduled refresh.
+    return build(full=full) is not None
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--full", action="store_true",
+                    help="refetch all pages instead of reusing cached raw JSON")
+    args = ap.parse_args()
+    return 0 if build(full=args.full) is not None else 1
 
 
 if __name__ == "__main__":

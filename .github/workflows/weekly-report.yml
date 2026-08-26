@@ -225,7 +225,10 @@ jobs:
         run: |
           git config user.name  "catalyst-bot"
           git config user.email "ligneticsdata@gmail.com"
+          # Reviews/ carries the refreshed verified-purchase payload. Without it the
+          # next run starts from a stale cache and the tab silently ages.
           git add dashboard.html store_map.html stores_geo.json
+          git add Reviews/ 2>/dev/null || true
           if ! git diff --cached --quiet; then
             git commit -m "Auto-rebuild dashboard: ${{ steps.poll.outputs.weeks || 'manual' }}"
             git push

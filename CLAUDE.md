@@ -121,6 +121,14 @@ XLSX (the XLSX has a `.gitignore` exception; the PNGs are intermediates, don't c
 Collects **verified-purchase** reviews for the two Catalyst listings (each rolls up its
 15 lb and 34 lb variants) and feeds the dashboard's ⭐ Reviews tab.
 
+**Refreshes automatically, about once a week.** `extract_data.py` calls
+`refresh_if_stale()` on every build; it only actually hits Walmart when
+`Reviews/reviews_summary.json` is older than `MAX_AGE_DAYS` (6), so the weekly
+Monday build refreshes it and same-week rebuilds reuse the payload. The call is
+wrapped non-fatally — Walmart rate-limiting must never take down the dashboard
+build or block the Monday send. `SKIP_REVIEWS=1` bypasses it.
+
+Manual runs:
 ```bash
 python walmart_reviews.py           # uses cached raw JSON if present
 python walmart_reviews.py --full    # refetch every page
@@ -148,6 +156,12 @@ is non-fatal and just leaves the tab with a "run walmart_reviews.py" placeholder
   basis a number uses. The proper source for everything is the Bazaarvoice API, if the
   brand team's credentials can be tracked down.
 - **Counts drift between runs** as Walmart moderates; don't treat a small delta as a bug.
+- **The cloud build scrapes from a GitHub datacenter IP**, which bot detection treats
+  far more harshly than a residential one. Local runs have been clean, but if the
+  Action starts logging `[WARN] review refresh skipped`, that is the likely cause —
+  fall back to running `walmart_reviews.py` locally and committing `Reviews/`.
+- The workflow's Pages step commits `Reviews/` back. Without that the next run
+  starts from a stale cache and the tab silently ages.
 - `THEMES` in `walmart_reviews.py` and `RV_THEME_PATTERNS` in `dashboard_template.html`
   must stay in sync — the chart and the table filter would otherwise disagree.
 - NaN is not valid JSON. The payload writer uses `allow_nan=False` so an unscrubbed NaN
