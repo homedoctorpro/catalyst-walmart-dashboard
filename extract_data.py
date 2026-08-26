@@ -1468,6 +1468,31 @@ def compute_state_oos(all_store_weeks, stores):
     return out
 
 
+REVIEWS_SUMMARY = os.path.join("Reviews", "reviews_summary.json")
+
+
+def load_reviews():
+    """Load the Walmart verified-purchase review payload, if it has been built.
+
+    Produced by `python walmart_reviews.py`; refreshed independently of the
+    weekly workbook build, so a missing file is normal and non-fatal.
+    """
+    path = os.path.join(os.path.dirname(__file__), REVIEWS_SUMMARY)
+    if not os.path.exists(path):
+        print("  [note] no Reviews/reviews_summary.json - run walmart_reviews.py "
+              "to populate the Reviews tab")
+        return None
+    try:
+        with open(path, encoding="utf-8") as fh:
+            rv = json.load(fh)
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"  [WARN] could not read {REVIEWS_SUMMARY}: {e}")
+        return None
+    print(f"  Reviews: {rv.get('n')} verified, avg {rv.get('avg')}, "
+          f"through {rv.get('date_max')} (collected {rv.get('as_of')})")
+    return rv
+
+
 def build_weekly_store_summary(raw_store_rows_by_week):
     """
     Collapse per-SKU rows into per-store dicts.
@@ -1817,6 +1842,8 @@ def main():
                       f"now {f2(r['cur_usw'])}  WoW {fp(r['wow_pct']):<8} "
                       f"vs pre-endcap {fp(r['vs_base_pct'])}")
 
+    reviews = load_reviews()
+
     data = {
         "weeks":       sorted(files.keys()),
         "store_weeks": store_weeks_list,
@@ -1842,6 +1869,7 @@ def main():
         "forecast_baseline": forecast_baseline,
         "rollback": rollback,
         "coop": coop,
+        "reviews": reviews,
     }
 
     # 7. Read template and embed JSON

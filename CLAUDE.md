@@ -116,6 +116,45 @@ XLSX (the XLSX has a `.gitignore` exception; the PNGs are intermediates, don't c
 
 ---
 
+## Walmart Reviews (`walmart_reviews.py`)
+
+Collects **verified-purchase** reviews for the two Catalyst listings (each rolls up its
+15 lb and 34 lb variants) and feeds the dashboard's ⭐ Reviews tab.
+
+```bash
+python walmart_reviews.py           # uses cached raw JSON if present
+python walmart_reviews.py --full    # refetch every page
+```
+
+Walmart server-renders review data as JSON inside the page's `__NEXT_DATA__` script tag,
+so there is **no browser, DOM parsing, or API reverse-engineering** — fetch the HTML,
+pull one JSON blob. Pagination is `?vp=true&sort=submission-desc&page=N`, 10 per page.
+
+Outputs to `Reviews/`: `reviews_summary.json` (the dashboard payload — **commit this**,
+the cloud rebuild needs it), plus `catalyst_reviews.csv`, `.xlsx`, and raw JSON per item.
+`extract_data.py` calls `load_reviews()` and embeds it as `DATA.reviews`; a missing file
+is non-fatal and just leaves the tab with a "run walmart_reviews.py" placeholder.
+
+### Notes / gotchas
+- **Pagination drift silently drops reviews.** Walmart paginates by offset over a
+  newest-first list, so a review submitted mid-walk shifts every later row down one —
+  repeating a row at the page boundary and dropping the one that slid past. A single
+  pass reliably comes up ~3 short. The collector unions by `reviewId` across repeat
+  passes until it hits the advertised total and prints `[OK] n/n complete`; watch for
+  `[WARN] collected N of M`.
+- **Verified is a small slice of what the PDP shows.** 350 verified vs ~8,220 total
+  ratings — the other ~96% is syndicated in via Bazaarvoice from the DTC site and other
+  retailers. Verified-only averages ~4.13 against the 4.3 displayed. Always say which
+  basis a number uses. The proper source for everything is the Bazaarvoice API, if the
+  brand team's credentials can be tracked down.
+- **Counts drift between runs** as Walmart moderates; don't treat a small delta as a bug.
+- `THEMES` in `walmart_reviews.py` and `RV_THEME_PATTERNS` in `dashboard_template.html`
+  must stay in sync — the chart and the table filter would otherwise disagree.
+- NaN is not valid JSON. The payload writer uses `allow_nan=False` so an unscrubbed NaN
+  fails loudly rather than shipping JSON the browser cannot parse.
+
+---
+
 ## Dashboard Features
 
 - **Password gate**: `pellets123` (stored in `localStorage`)
@@ -182,7 +221,7 @@ Output: self-contained Leaflet.js maps at `output/index.html` (tabs: SKU map, si
 
 ## gstack Skills
 
-**Web browsing:** Always use `/browse` for all web browsing tasks. Never use `mcp__claude-in-chrome__*` tools.
+**Web browsing:** Prefer `/browse` (headless Chromium) for general web browsing. `mcp__claude-in-chrome__*` is **allowed** — use it when a task needs the user's real Chrome profile (logged-in sessions) or when a site rate-limits/blocks headless traffic. Approved 2026-08-26 for the Walmart review collection.
 
 **Available skills:**
 
