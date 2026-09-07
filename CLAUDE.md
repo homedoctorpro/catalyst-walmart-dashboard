@@ -59,6 +59,21 @@ Do all of the following without being asked:
 7. **Commit and push** to deploy to GitHub Pages:
    `git add dashboard.html dashboard_template.html store_map.html store_map_template.html extract_data.py email_report.py stores_geo.json && git commit -m "Add week XXXXXX data" && git push origin master`
 
+### When the rep firm doesn't send the workbook (holiday, Hailey out):
+Pull it ourselves from Scintilla Report Builder (user's Lignetics login in Chrome;
+Walmart SSO texts a code to the user's phone). Three saved reports, each run
+**Saved tab → Edit & Create report → Create Report → Run Once → Today**, then downloaded:
+`Catalyst Weekly Sales by Store`, `Catalyst Weekly Item Summary`, `Lignetics Weekly Ecomm`
+(all filtered to "WMT Last week"; ~5 min each). Then:
+```bash
+python _assemble_from_scintilla.py 202631        # reads the 3 downloads from ~/Downloads
+```
+That writes `202631 Weekly Sales Report Catalyst.xlsx` in Hailey's layout. Upload it to the
+private data repo (`gh api -X PUT repos/homedoctorpro/catalyst-walmart-data/contents/<name>`)
+so the cloud build sees it, then run `python extract_data.py` and commit/push as usual.
+Ecomm uses the AUTH basis (matches Hailey's Net Retail Sales exactly). Trust the file's
+week column, not the date range shown in the Report information panel.
+
 ### When the calendar year rolls over (e.g. 202701 lands):
 Add the new fiscal year's week-1 Friday to `FISCAL_YEAR_WEEK1_FRIDAY` in `extract_data.py` (one line, e.g. `"2027": date(2027, 2, 5)`). Until that's set, week labels for the new year fall back to the raw `YYYYWW` code.
 
