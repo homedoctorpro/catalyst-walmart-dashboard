@@ -1095,6 +1095,13 @@ def extract_store_data(week, df):
             zip_raw   = row.iloc[5]
             zip5 = normalize_zip(zip_raw)
 
+            # Scintilla pulls (wk202630/202631) include phantom stores with no
+            # address at all — returns-only rows (negative POS, not traited)
+            # that Hailey's tool filters out. They can't be mapped and would
+            # render as city "nan" on the store map, so drop them here.
+            if state_raw.lower() in ("", "nan", "none") and city.lower() in ("", "nan", "none"):
+                continue
+
             rows.append({
                 "item_name":    item_name,
                 "store_num":    store_num,
