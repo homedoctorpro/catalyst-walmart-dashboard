@@ -1846,7 +1846,7 @@
     <!-- Channel Default U/S/W -->
     <div class="rt-defaults">
       <div class="rt-defaults-head">
-        <h3>Channel default U/S/W (units / store / week)</h3>
+        <h3>Channel target U/S/W (units / store / week)</h3>
         <button class="rt-btn" onclick="resetRetailerDefaults()">↺ Reset defaults</button>
       </div>
       <div class="rt-defaults-grid" id="rt-defaults-grid"></div>
@@ -1919,12 +1919,14 @@
           and Progressive Grocer's annual chain rankings.
         </dd>
 
-        <dt>Channel default U/S/W</dt>
+        <dt>Channel target U/S/W</dt>
         <dd>
-          Starting estimates indexed off Walmart's actual Catalyst U/S/W (this dashboard's Metrics
-          tab) and channel-level pet-litter velocity benchmarks. Mass 1.0 · Pet Specialty 2.0 ·
-          Club 3.0 · Farm &amp; Rural 1.5 · Grocery 0.5 · Hardware/Home 0.35 · Drug 0.2 ·
-          Dollar/Value 0.3. <em>All editable; override per retailer in the U/S/W column.</em>
+          Target velocities per channel, set 2026-09. Mass and Pet Specialty are the 4.0 U/S/W
+          target retailer velocity; Club is 6.0 (fewer doors, larger basket per visit). The
+          remaining channels are scaled estimates off those anchors and channel-level pet-litter
+          velocity benchmarks: Farm &amp; Rural 3.0 · Grocery 2.0 · Hardware/Home 1.0 ·
+          Drug 0.5 · Dollar/Value 0.75. <em>All editable; override per retailer in the U/S/W
+          column.</em>
         </dd>
 
         <dt>Unit economics</dt>
@@ -7591,27 +7593,27 @@ function renderTrialSummaryTable() {
 
 // ══ Tab: Retailers ════════════════════════════════════════════════════════════
 const RT_STORAGE_KEY = "catalyst_retailers_v1";
-const RT_DEFAULTS_KEY = "catalyst_retailer_channel_defaults_v1";
+const RT_DEFAULTS_KEY = "catalyst_retailer_channel_defaults_v2";
 const RT_WHOLESALE_PRICE = 10;
 const RT_RETAIL_PRICE = 20;
 const RT_WEEKS_PER_YEAR = 52;
 
 const RT_CHANNELS = {
-  mass:     { name: "Mass",            color: "#0057e7", defaultUSW: 1.0,
+  mass:     { name: "Mass",            color: "#0057e7", defaultUSW: 4.0,
               note: "Big-box discount stores — broad cat-owner foot traffic." },
-  pet:      { name: "Pet Specialty",   color: "#e91e63", defaultUSW: 2.0,
+  pet:      { name: "Pet Specialty",   color: "#e91e63", defaultUSW: 4.0,
               note: "Dedicated pet shoppers; highest litter velocity per store." },
-  grocery:  { name: "Grocery",         color: "#00a86b", defaultUSW: 0.5,
+  grocery:  { name: "Grocery",         color: "#00a86b", defaultUSW: 2.0,
               note: "Limited litter set; premium pellet is a niche SKU." },
-  club:     { name: "Club",            color: "#9c27b0", defaultUSW: 3.0,
+  club:     { name: "Club",            color: "#9c27b0", defaultUSW: 6.0,
               note: "Low door count but high per-store volume per visit." },
-  farm:     { name: "Farm & Rural",    color: "#8d6e63", defaultUSW: 1.5,
+  farm:     { name: "Farm & Rural",    color: "#8d6e63", defaultUSW: 3.0,
               note: "Rural shoppers over-index on natural/premium cat litter." },
-  hardware: { name: "Hardware / Home", color: "#e67300", defaultUSW: 0.35,
+  hardware: { name: "Hardware / Home", color: "#e67300", defaultUSW: 1.0,
               note: "Pet aisles small; litter is occasional add-on." },
-  drug:     { name: "Drug",            color: "#1565c0", defaultUSW: 0.2,
+  drug:     { name: "Drug",            color: "#1565c0", defaultUSW: 0.5,
               note: "Convenience-only pet aisle; low litter affinity." },
-  dollar:   { name: "Dollar / Value",  color: "#f57c00", defaultUSW: 0.3,
+  dollar:   { name: "Dollar / Value",  color: "#f57c00", defaultUSW: 0.75,
               note: "Price-driven shoppers; bag size mismatch for 15/34 lb." },
 };
 const RT_CHANNEL_ORDER = ["mass","pet","club","farm","grocery","hardware","drug","dollar"];
