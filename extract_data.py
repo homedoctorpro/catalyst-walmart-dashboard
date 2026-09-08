@@ -503,6 +503,53 @@ def build_endcap_status(all_store_weeks, endcap, week_dates):
             "post_usw": round(post_u / n, 2) if n else None,
         })
 
+    # ── Why the not-set stores aren't set (Endcap ▸ Why Not Set) ────────────
+    # Everything the survey can say about the not-set stores: reason and
+    # sub-reason on the latest visit, whether the 36 bags are actually there,
+    # how the reason moved between visits for stores seen twice, who refused,
+    # and every free-text note. The tab renders the narrative off these numbers.
+    def _raw(sn, k):
+        return (survey.get(sn) or {}).get(k, "") or ""
+    why_reasons = []
+    for _a, (key, label) in ENDCAP_REASONS.items():
+        stores = [sn for sn in notset if seg_of[sn] == key]
+        n = len(stores)
+        subs = Counter(_raw(sn, "sub") for sn in stores if _raw(sn, "sub"))
+        why_reasons.append({
+            "key": key, "label": label, "n": n,
+            "received":   sum(1 for sn in stores if inv_of[sn] == "received"),
+            "inbound":    sum(1 for sn in stores if inv_of[sn] in ("transit", "onorder")),
+            "short":      sum(1 for sn in stores if inv_of[sn] == "short"),
+            "onhand_pos": sum(1 for sn in stores if sku_at(sn, "on_hand") > 0),
+            "persist":    sum(1 for sn in stores if _raw(sn, "prior_reason") == _raw(sn, "reason")),
+            "refiled":    sum(1 for sn in stores if _raw(sn, "prior_reason")),
+            "subs":       subs.most_common(),
+            "has_subs":   bool(subs),
+        })
+    refiled = [sn for sn in notset if _raw(sn, "prior_reason")]
+    trans = Counter((_raw(sn, "prior_reason"), _raw(sn, "reason")) for sn in refiled)
+    lbl = {a: l for a, (_k, l) in ENDCAP_REASONS.items()}
+    transitions = [{"from": lbl.get(a, a), "to": lbl.get(b, b), "n": c, "same": a == b}
+                   for (a, b), c in trans.most_common()]
+    same = sum(1 for sn in refiled if _raw(sn, "prior_reason") == _raw(sn, "reason"))
+    notes = []
+    for sn in sorted(notset, key=lambda x: int(x) if str(x).isdigit() else 0):
+        d = _raw(sn, "detail")
+        if " — " in d:
+            sub, other = d.split(" — ", 1)
+            notes.append({"store": sn, "reason": lbl.get(_raw(sn, "reason"), _raw(sn, "reason")),
+                          "sub": sub, "text": other, "date": _raw(sn, "date")})
+    notset_why = {
+        "n": len(notset), "n_refiled": len(refiled), "same": same,
+        "same_pct": round(same / len(refiled) * 100) if refiled else None,
+        "reasons": why_reasons, "transitions": transitions,
+        "titles": Counter(_raw(sn, "title") for sn in notset
+                          if seg_of[sn] == "refusal" and _raw(sn, "title")).most_common(),
+        "notes": notes,
+        "latest_visit": max((_raw(sn, "date") for sn in notset), default=""),
+        "no_text_reasons": [r["label"] for r in why_reasons if not r["has_subs"]],
+    }
+
     inv_rows = []
     seg_order = [("set", "Confirmed set")] + \
         [(k, l) for _a, (k, l) in ENDCAP_REASONS.items()] + [("unvisited", "Not visited yet")]
@@ -541,6 +588,7 @@ def build_endcap_status(all_store_weeks, endcap, week_dates):
         "waves":        wave_rows,
         "store_status": store_status,
         "growth_dist":  growth_dist,
+        "notset_why":   notset_why,
         "n_notset":     len(notset),
         "n_unvisited":  len(unvis),
         "n_visited":    len(visited),

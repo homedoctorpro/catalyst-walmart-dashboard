@@ -1388,6 +1388,7 @@
     <div class="endcap-sub-tabs">
       <button class="endcap-sub-btn active" onclick="switchEndcapView('rollout',this)">📊 Rollout Status</button>
       <button class="endcap-sub-btn"        onclick="switchEndcapView('setmap',this)">🎯 Set Map</button>
+      <button class="endcap-sub-btn"        onclick="switchEndcapView('why',this)">📝 Why Not Set</button>
       <button class="endcap-sub-btn"        onclick="switchEndcapView('map',this)">🗺️ Stock Map</button>
       <button class="endcap-sub-btn"        onclick="switchEndcapView('table',this)">📋 Table</button>
       <button class="endcap-sub-btn"        onclick="switchEndcapView('cohort',this)">📈 U/S/W Lift</button>
@@ -1399,6 +1400,10 @@
         (<code>(Walmart) Lignetics Inc. Cat Litter Endcap Set WK27.xlsx</code>) in the project folder.
       </div>
       <div id="endcap-rollout-body"></div>
+    </div>
+
+    <div id="endcap-view-why" class="endcap-view">
+      <div id="endcap-why-body"></div>
     </div>
 
     <div id="endcap-view-setmap" class="endcap-view">
@@ -6480,6 +6485,7 @@ function switchEndcapView(view, btn) {
   document.getElementById("endcap-view-" + view).classList.add("active");
   if (view === "map" && window._endcapMap) setTimeout(() => window._endcapMap.invalidateSize(), 50);
   if (view === "setmap") renderEndcapSetMap();
+  if (view === "why") renderEndcapWhy();
   if (view === "cohort") renderEndcapCohorts();
   if (view === "rollout") renderEndcapRollout();
 }
@@ -6804,6 +6810,100 @@ const ENDCAP_COHORT_STYLE = [
   { k:"B", color:"#2e7d32" },   // no endcap + stocked before
   { k:"C", color:"#e67300" },   // endcap + not stocked before (net-new)
 ];
+// ══ Endcap ▸ Why Not Set ══════════════════════════════════════════════════════
+// The narrative read of the not-set stores, rebuilt from endcap_status.notset_why
+// every week: reason mix on the latest visit, whether the 36 bags are actually
+// there, how the reason moved between visits, who refused, and the free text.
+let _endcapWhyDone = false;
+function renderEndcapWhy() {
+  if (_endcapWhyDone) return;
+  const es = DATA.endcap_status, W = es && es.notset_why;
+  const body = document.getElementById("endcap-why-body");
+  if (!W || !W.reasons) {
+    body.innerHTML = '<div style="padding:40px;text-align:center;color:#888">Needs the merchandiser survey (see Rollout Status).</div>';
+    return;
+  }
+  _endcapWhyDone = true;
+  const n = v => (v == null ? "—" : Number(v).toLocaleString());
+  const pct = (a, b) => (b ? Math.round(a / b * 100) + "%" : "—");
+  const card = (title, inner) => `<div style="background:#fff;border-radius:10px;padding:14px 18px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:14px;font-size:13px;color:#444;line-height:1.65;">${title ? `<h3 style="margin:0 0 8px;font-size:14px;color:#222;">${title}</h3>` : ""}${inner}</div>`;
+  const R = W.reasons, byKey = Object.fromEntries(R.map(r => [r.key, r]));
+  const top = [...R].sort((a, b) => b.n - a.n)[0];
+  const stickiest = [...R].filter(r => r.refiled).sort((a, b) => (b.persist / b.refiled) - (a.persist / a.refiled))[0];
+  const sp = byKey.space, inv = byKey.inventory, loc = byKey.located, ref = byKey.refusal;
+  const receivedAll = R.reduce((a, r) => a + r.received, 0);
+  const sub = (r, needle) => ((r.subs || []).find(x => x[0].toLowerCase().includes(needle)) || [null, 0])[1];
+  const title = (needle) => ((W.titles || []).find(x => x[0].toLowerCase().includes(needle)) || [null, 0])[1];
+  const trans = (W.transitions || []).filter(t => !t.same);
+  const flows = trans.slice(0, 3).map(t => `${n(t.n)} went from "${t.from}" to "${t.to}"`).join(", ");
+
+  const reasonRows = R.map(r => `<tr>
+      <td style="padding:5px 10px 5px 0;font-weight:600;color:#222;">${r.label}</td>
+      <td style="padding:5px 10px;text-align:right;">${n(r.n)} <span style="color:#999;font-weight:400;">${pct(r.n, W.n)}</span></td>
+      <td style="padding:5px 10px;text-align:right;color:#1a9850;">${n(r.received)} <span style="color:#999;">${pct(r.received, r.n)}</span></td>
+      <td style="padding:5px 10px;text-align:right;">${n(r.onhand_pos)} <span style="color:#999;">${pct(r.onhand_pos, r.n)}</span></td>
+      <td style="padding:5px 10px;text-align:right;">${r.refiled ? n(r.persist) + ' <span style="color:#999;">' + pct(r.persist, r.refiled) + "</span>" : "—"}</td>
+      <td style="padding:5px 0 5px 10px;color:#555;">${r.has_subs ? r.subs.map(x => `${x[0]} (${x[1]})`).join(" · ") : '<em style="color:#b06600;">no follow-up question on the form</em>'}</td>
+    </tr>`).join("");
+
+  const transRows = (W.transitions || []).map(t => `<tr style="${t.same ? "color:#999;" : ""}">
+      <td style="padding:3px 10px 3px 0;">${t.from}</td><td style="padding:3px 10px;">→</td><td style="padding:3px 10px 3px 0;">${t.to}</td>
+      <td style="padding:3px 0 3px 10px;text-align:right;font-weight:600;">${n(t.n)}</td></tr>`).join("");
+
+  const notesRows = (W.notes || []).map(x => `<tr>
+      <td style="padding:3px 10px 3px 0;white-space:nowrap;color:#222;font-weight:600;">#${x.store}</td>
+      <td style="padding:3px 10px;white-space:nowrap;color:#888;">${x.date || ""}</td>
+      <td style="padding:3px 10px;white-space:nowrap;">${x.reason}${x.sub ? " · " + x.sub : ""}</td>
+      <td style="padding:3px 0 3px 10px;color:#444;">“${x.text}”</td></tr>`).join("");
+
+  body.innerHTML = `
+    ${card("", `<div style="font-weight:700;color:#222;margin-bottom:4px;">Why the ${n(W.n)} not-set stores aren't set</div>
+      The ${W.n_refiled ? n(W.n_refiled) + " stores re-visited on the latest sweep refiled a reason, so this is current as of " + W.latest_visit + ". " : ""}
+      Set / not set is the merchandiser's answer on the visit; the 36-bag check and on-hand come from the live feed for ${weekLabel(es.week)}.
+      <strong>The short answer: it isn't inventory. It's space, and the reasons are unstable.</strong>`)}
+
+    ${card("Reason on the latest visit, checked against the pipeline", `
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr style="color:#888;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid #eee;">
+          <th style="text-align:left;padding:0 10px 6px 0;font-weight:600;">Reason filed</th>
+          <th style="text-align:right;padding:0 10px 6px;font-weight:600;">Stores</th>
+          <th style="text-align:right;padding:0 10px 6px;font-weight:600;">Have the ${es.units_target}</th>
+          <th style="text-align:right;padding:0 10px 6px;font-weight:600;">On-hand &gt; 0</th>
+          <th style="text-align:right;padding:0 10px 6px;font-weight:600;">Same reason both visits</th>
+          <th style="text-align:left;padding:0 0 6px 10px;font-weight:600;">Sub-reason</th>
+        </tr></thead>
+        <tbody>${reasonRows}</tbody>
+      </table>
+      <ul style="margin:12px 0 0;padding-left:18px;">
+        <li><strong>No available space</strong> is ${n(sp.n)} stores (${pct(sp.n, W.n)}) and it's the sticky one: ${n(sp.persist)} said "no space" on both visits.
+          Those stores have the product — ${pct(sp.received, sp.n)} show the full ${es.units_target} received and ${n(sp.onhand_pos)} of ${n(sp.n)} have units on hand.
+          That is the structural ceiling the WK27 review predicted, and it won't move without a space fix from the Walmart side.</li>
+        <li><strong>Not enough inventory</strong> is ${n(inv.n)}, but the feed disagrees: ${pct(inv.received, inv.n)} of those stores show the ${es.units_target} received and ${n(inv.onhand_pos)} of ${n(inv.n)} have on-hand.
+          The merchandiser couldn't find enough to build, which reads as product in the backroom, in the steel, or already merched inline rather than never shipped.</li>
+        <li><strong>Product not located</strong> is ${n(loc.n)}. Sub-reasons say on-hand adjustments suggested (${n(sub(loc, "adjust"))}) and showing zero on hands (${n(sub(loc, "zero"))}). ${pct(loc.received, loc.n)} show received.</li>
+        <li><strong>Store refusal</strong> is ${n(ref.n)}, mostly "come back later" (${n(sub(ref, "later"))}) and remodel or inventory (${n(sub(ref, "remodel"))}).
+          Refusers are team leads (${n(title("team lead"))}) and store managers (${n(title("store manager"))}).</li>
+      </ul>
+      <div style="font-size:11px;color:#888;margin-top:8px;">"Have the ${es.units_target}" is on-hand plus everything sold since the allocation shipped, so it can't tell backroom from sales floor — the reason codes are the only signal for that.</div>`)}
+
+    ${W.n_refiled ? card("The reasons don't persist — what changed between visits", `
+      Only <strong>${W.same_pct}%</strong> of the ${n(W.n_refiled)} stores seen twice gave the same reason both times. ${flows ? flows.charAt(0).toUpperCase() + flows.slice(1) + "." : ""}
+      That pattern, plus the free text below, says the display often arrived, got built or partially built, and then was absorbed into the shelf or put away.
+      So the actionable split is roughly <strong>${n(sp.persist)}</strong> stores that are a genuine space problem for Walmart, about <strong>${n(W.n - sp.persist - ref.n)}</strong> that have the bags and need a return visit with a store lead who'll let it be built, and <strong>${n(ref.n)}</strong> refusals to schedule.
+      <details style="margin-top:8px;"><summary style="cursor:pointer;color:#0057e7;font-size:12px;">Full reason-to-reason matrix</summary>
+        <table style="border-collapse:collapse;font-size:12px;margin-top:6px;"><tbody>${transRows}</tbody></table></details>`) : ""}
+
+    ${card("What the merchandisers wrote", `
+      ${W.no_text_reasons && W.no_text_reasons.length ? `<p style="margin:0 0 8px;"><strong>There is no commentary for ${W.no_text_reasons.join(" or ")}.</strong>
+        Every one of those rows has exactly two fields filled: "No" and the reason. The form only asks a follow-up for "Product not located" (a dropdown plus an "other" box) and "Store refusal" (a dropdown, the refusing associate's title, and an "other" box).
+        That's a form gap worth raising with Anderson before the next sweep — the two reasons behind ${n(sp.n + inv.n)} of the ${n(W.n)} not-set stores are the two the survey says the least about.
+        Two follow-ups would make the next pass actionable: for <em>no space</em>, is the endcap occupied by another vendor's feature, is it the store's own mod, or is there no feature space in the pet aisle at all, and was an alternate location offered;
+        for <em>not enough inventory</em>, how many bags did the merchandiser actually find, and where (sales floor, backroom, steel).</p>` : ""}
+      ${notesRows ? `<div style="font-size:12px;color:#666;margin-bottom:4px;">The only free text on file — ${n((W.notes || []).length)} notes, all on not-located or refusal rows — points the same way:</div>
+        <div style="max-height:320px;overflow:auto;"><table style="border-collapse:collapse;font-size:12px;width:100%;"><tbody>${notesRows}</tbody></table></div>` : "<em>No free-text notes on file.</em>"}`)}
+  `;
+}
+
 // ══ Endcap Set Map ════════════════════════════════════════════════════════════
 // Every Catalyst store as a dot: endcap stores confirmed set (one colour per
 // set wave), endcap stores visited but not set (popup carries the filed reason),
