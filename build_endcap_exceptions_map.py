@@ -170,8 +170,8 @@ TEMPLATE = """<!DOCTYPE html>
 <script>
 const DATA = /*DATA*/;
 const map = L.map('map').setView([39.5, -96.5], 4);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-  { attribution:'&copy; OpenStreetMap &copy; CARTO', maxZoom:18 }).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  { attribution:'&copy; OpenStreetMap contributors', maxZoom:18 }).addTo(map);
 
 document.getElementById('sub').textContent =
   DATA.n_endcap.toLocaleString() + ' endcap stores \\u00b7 set W/E 08/08/26 \\u00b7 sales wk ' +

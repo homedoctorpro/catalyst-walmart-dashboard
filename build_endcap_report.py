@@ -2,7 +2,7 @@
 """
 Endcap Rollout Report
 =====================
-Single self-contained HTML report for the wk202627 endcap set (W/E 08/08/26):
+Single self-contained HTML report for the 15 lb endcap program (live 2026-08-01):
 KPIs, status map, week-over-week lift, per-store growth histogram,
 prior-distribution segment deep dive, the "still not set" by-reason workbench
 (multi-reason filter + Excel export with evidence), and the zero-sale
@@ -26,17 +26,19 @@ Output: endcap_report.html            (password-gated like dashboard.html)
 
 Definitions baked into the page:
   "set" = a merchandiser answered Yes to "is the feature product set on a
-  feature space". Two waves: the WK27 visit (465 stores, Aug 3-8) and the
-  WK28 follow-up sweep (136 more, Aug 9-11) = 601 set. Everything else is
-  either a store still carrying its filed WK27 reason for not setting
-  (1,259) or a store never visited (24). The older Exceptions_*.xlsx export
-  is a stale subset of the same survey (1,324 rows) and is no longer read.
+  feature space". Set in waves (see WAVES): the WK27 visit (465, Aug 3-8),
+  the Aug 9-11 follow-up (136) and the WK30 re-sweep (575, Aug 23-29) =
+  1,176 set. Everything else is either a store still carrying its latest
+  filed reason for not setting (691) or a store never visited (17). The
+  older Exceptions_*.xlsx export is a stale subset and is no longer read.
 """
 import csv
 import glob
 import json
 import os
 from collections import Counter, defaultdict
+
+import re
 
 import openpyxl
 
@@ -50,13 +52,61 @@ STANDALONE_OUTPUT = os.path.join(HERE, "endcap-report-x3f8a1.html")
 # ARRIVAL_WEEKS is every week since the 36-bag allocation started shipping — the
 # "has it landed?" test sums sell-through across all of them, so a store that has
 # already sold its 36 isn't misread as never having received them.
-PRIOR_WEEK, ENDCAP_WEEK = "202626", "202628"
-ARRIVAL_WEEKS = ["202626", "202627", "202628"]
+PRIOR_WEEK = "202626"
+
+
+def _weeks_on_disk():
+    out = []
+    for f in glob.glob(os.path.join(HERE, "2026?? Weekly Sales Report*.xlsx")):
+        m = re.match(r"(2026\d\d) ", os.path.basename(f))
+        if m and not os.path.basename(f).startswith("~$"):
+            out.append(m.group(1))
+    return sorted(set(out))
+
+
+ENDCAP_WEEK = (_weeks_on_disk() or ["202628"])[-1]
+ARRIVAL_WEEKS = [w for w in _weeks_on_disk() if w >= PRIOR_WEEK] or [PRIOR_WEEK, ENDCAP_WEEK]
 SURVEY = "(Walmart) Lignetics Inc. Cat Litter Endcap Set WK27.xlsx"
 # Follow-up confirmations. Anderson re-sweeps the not-set stores and sends a
 # cumulative "set" list; the newest one wins. Glob rather than hard-code so the
 # next drop is picked up by dropping the file in the folder.
 FOLLOWUP_GLOB = "* Endcap Update.xlsx"
+# Full re-sweeps. Anderson re-visits every not-set store and sends a combined
+# "WK27_WK30_Final" workbook in the WK27 survey layout, one row per store with
+# its latest visit. Rows dated after a store's current record win; a store
+# already confirmed set is never downgraded (the follow-up sweep isn't in
+# these files, so its 136 stores show their stale WK27 "No" row there).
+RESWEEP_GLOB = "*Cat Litter Endcap Set WK*_*Final*.xlsx"
+
+# Set waves, in the order they happened. Every sales cut reports them
+# separately: a wave's display was up for none of the weeks before its visit,
+# only part of the visit week, and all of every week after (first_full_week).
+# Re-sweep waves are registered at load time from the workbook's own
+# "WKnn (Mon d - Mon d)" header, so the next drop needs no code edit.
+WAVES = {
+    "wk27":     {"label": "WK27 sweep (Aug 3-8)",      "visit_week": "202627",
+                 "first_full_week": "202628", "color": "#66bb6a"},
+    "followup": {"label": "Aug 9-11 follow-up",        "visit_week": "202628",
+                 "first_full_week": "202629", "color": "#1b5e20"},
+}
+WAVE_COLORS = ["#66bb6a", "#1b5e20", "#00897b", "#8bc34a", "#33691e"]
+
+
+def walmart_week(d):
+    """FY26 Walmart week code for a date (Sat-Fri weeks, wk1 = Jan 31 2026)."""
+    from datetime import date as _date
+    return f"2026{((d - _date(2026, 1, 31)).days // 7) + 1:02d}"
+
+
+def wave_meta(survey):
+    """Ordered list of the set waves present in `survey`, with store counts."""
+    out = []
+    for i, (key, w) in enumerate(WAVES.items()):
+        n = sum(1 for v in survey.values() if v.get("set") and v.get("wave") == key)
+        if n:
+            out.append({"key": key, "n": n, **w,
+                        "color": w.get("color") or WAVE_COLORS[i % len(WAVE_COLORS)]})
+    return out
 
 REASONS = {  # survey answer -> (key, label, color)
     "No Available space":                    ("space",     "No available space",   "#d73027"),
@@ -76,8 +126,15 @@ def load_bystore(week):
     wb = openpyxl.load_workbook(
         os.path.join(HERE, f"{week} Weekly Sales Report Catalyst.xlsx"),
         read_only=True)
+    # The store feed has shipped as "Sales by Store" and "CATALYST Sales by
+    # Store". Never take the "Endcap Sales by Store" cut -- it is the same
+    # layout but only the ~1,880 endcap stores (see extract_data.detect_sheets).
+    sheet = next((n for n in wb.sheetnames
+                  if "sales by store" in n.lower() and "endcap" not in n.lower()), None)
+    if not sheet:
+        raise SystemExit(f"[err] {week}: no store-level sales sheet in {wb.sheetnames}")
     q15, oh15, pipe15, qtot, meta = {}, {}, {}, defaultdict(float), {}
-    for r in wb["Sales by Store"].iter_rows(min_row=2, values_only=True):
+    for r in wb[sheet].iter_rows(min_row=2, values_only=True):
         if r[0] is None or r[1] is None:
             continue
         try:
@@ -142,47 +199,136 @@ def load_followup():
     return out, os.path.basename(path)
 
 
+SURVEY_COLS = {  # field -> unique substring of the column header
+    "store":        "store number",
+    "date":         "date",
+    "set":          "set on a feature space",
+    "where":        "where is the feature product set",
+    "where_other":  "alternate location",
+    "priced":       "priced",
+    "reason":       "not set?",
+    "located_sub":  "could not be located?",
+    "located_other": "other reason why product could not be located",
+    "refusal_sub":  "store refused the service",
+    "refusal_other": "other reason the store refused",
+    "title":        "title of the refusing",
+}
+
+
+def survey_columns(header):
+    """{field: column index} for a 'Store Details' header row."""
+    idx = {}
+    for field, needle in SURVEY_COLS.items():
+        hits = [i for i, h in enumerate(header)
+                if h and needle in str(h).lower()
+                and not (field == "date" and "update" in str(h).lower())]
+        if not hits:
+            raise SystemExit(f"[err] survey column not found: {field!r} ({needle!r})")
+        idx[field] = hits[0]
+    return idx
+
+
+def _survey_row(r, cols):
+    """Parse one 'Store Details' row of a merchandiser survey workbook."""
+    g = lambda f: r[cols[f]] if cols[f] < len(r) else None
+    answer = (g("reason") or "").strip()
+    key = REASONS.get(answer, (None,))[0]
+    if key == "located":
+        sub, other = clean(g("located_sub")), clean(g("located_other"))
+    elif key == "refusal":
+        sub, other = clean(g("refusal_sub")), clean(g("refusal_other"))
+    else:
+        sub, other = "", ""
+    detail = f"{sub} \u2014 {other}".strip(" \u2014") if other else sub
+    d = g("date")
+    is_set = g("set") == "Yes"
+    return {
+        "date": d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d or ""),
+        "set": is_set,
+        "where": clean(g("where")),
+        "where_other": clean(g("where_other")),
+        "priced": clean(g("priced")),
+        "seg": "set" if is_set else (key or "space"),
+        "reason": answer,
+        "sub": sub,          # dropdown answer only -- used for the summary chips
+        "detail": detail,    # dropdown answer + free text -- used per store
+        "title": clean(g("title")),
+        "wave": "",
+        "prior_reason": "",
+    }
+
+
+def load_resweeps():
+    """[(file, windows, {store: row})] for every re-sweep workbook, oldest
+    first. Wave keys and date windows come from the Summary sheet's
+    "WK27 (Aug 2 - Aug 8) and WK30 (Aug 23 - Aug 29)" line; a row's wave is
+    the window its visit date falls in."""
+    from datetime import datetime
+    files = sorted(glob.glob(os.path.join(HERE, RESWEEP_GLOB)), key=os.path.getmtime)
+    files = [f for f in files if not os.path.basename(f).startswith("~$")]
+    out = []
+    for path in files:
+        wb = openpyxl.load_workbook(path, read_only=True)
+        windows = {}
+        if "Summary" in wb.sheetnames:
+            for r in wb["Summary"].iter_rows(max_row=8, values_only=True):
+                for cell in r:
+                    pat = r"WK(\d+)\s*\((\w{3} \d{1,2})\s*-\s*(\w{3} \d{1,2})\)"
+                    for wk, a, b in re.findall(pat, str(cell or "")):
+                        da = datetime.strptime(a + " 2026", "%b %d %Y").date()
+                        db = datetime.strptime(b + " 2026", "%b %d %Y").date()
+                        windows[f"wk{int(wk)}"] = (da, db)
+        rows = {}
+        it = wb["Store Details"].iter_rows(values_only=True)
+        cols = survey_columns(next(it))
+        for r in it:
+            if r[cols["store"]] is None:
+                continue
+            try:
+                store = int(r[cols["store"]])
+            except (TypeError, ValueError):
+                continue
+            rec = _survey_row(r, cols)
+            dd = r[cols["date"]]
+            d = dd.date() if hasattr(dd, "date") else None
+            wave = next((k for k, (a, b) in windows.items() if d and a <= d <= b), None)
+            if wave is None and d:
+                wave = "wk" + str(int(walmart_week(d)[4:]))
+            rec["wave"] = wave or ""
+            rows[store] = rec
+            if wave and wave not in WAVES:
+                a, b = windows.get(wave, (d, d))
+                vw = f"2026{int(wave[2:]):02d}"
+                WAVES[wave] = {
+                    "label": f"{wave.upper()} sweep ({a.strftime('%b')} {a.day}-{b.day})",
+                    "visit_week": vw,
+                    "first_full_week": f"2026{int(vw[4:]) + 1:02d}",
+                    "color": WAVE_COLORS[len(WAVES) % len(WAVE_COLORS)],
+                }
+        out.append((os.path.basename(path), windows, rows))
+    return out
+
+
 def load_survey():
     """store -> field-visit record from the WK27 merchandiser survey, with the
-    follow-up set list overlaid on top.
+    follow-up set list and every later re-sweep overlaid on top.
 
-    Columns: 0 store, 1 date, 5 set?, 6 where set, 7 alt-location explain,
-    8 priced?, 9 reason not set, 10 not-located sub-reason, 11 not-located
-    other, 12 refusal sub-reason, 13 refusal other, 14 refusing associate.
+    Columns are matched by header (SURVEY_COLS) because the WK27 and re-sweep
+    workbooks order the free-text columns differently.
     """
     wb = openpyxl.load_workbook(os.path.join(HERE, SURVEY), read_only=True)
     out = {}
-    for r in wb["Store Details"].iter_rows(min_row=2, values_only=True):
-        if r[0] is None:
+    it = wb["Store Details"].iter_rows(values_only=True)
+    cols = survey_columns(next(it))
+    for r in it:
+        if r[cols["store"]] is None:
             continue
         try:
-            store = int(r[0])
+            store = int(r[cols["store"]])
         except (TypeError, ValueError):
             continue
-        answer = (r[9] or "").strip()
-        key = REASONS.get(answer, (None,))[0]
-        # sub-reason: the "other (explain)" free text wins when present
-        if key == "located":
-            sub, other = clean(r[10]), clean(r[11])
-        elif key == "refusal":
-            sub, other = clean(r[12]), clean(r[13])
-        else:
-            sub, other = "", ""
-        detail = f"{sub} — {other}".strip(" —") if other else sub
-        out[store] = {
-            "date": r[1].strftime("%Y-%m-%d") if hasattr(r[1], "strftime") else str(r[1] or ""),
-            "set": r[5] == "Yes",
-            "where": clean(r[6]),
-            "where_other": clean(r[7]),
-            "priced": clean(r[8]),
-            "seg": "set" if r[5] == "Yes" else (key or "space"),
-            "reason": answer,
-            "sub": sub,          # dropdown answer only — used for the summary chips
-            "detail": detail,    # dropdown answer + free text — used per store
-            "title": clean(r[14]),
-            "wave": "wk27" if r[5] == "Yes" else "",
-            "prior_reason": "",
-        }
+        out[store] = _survey_row(r, cols)
+        out[store]["wave"] = "wk27" if out[store]["set"] else ""
 
     # --- follow-up overlay -------------------------------------------------
     # A store on the follow-up list is set now, whatever the WK27 visit said.
@@ -207,6 +353,27 @@ def load_survey():
     if fu_file:
         n_fu = sum(1 for v in out.values() if v.get("wave") == "followup")
         print(f"[ok] follow-up list {fu_file}: {len(fu)} set, {n_fu} newly converted")
+
+    # --- re-sweep overlay ---------------------------------------------------
+    # Only a visit dated after the store's current record can change it, and a
+    # store already confirmed set stays set (the re-sweep workbook carries the
+    # stale WK27 "No" row for the follow-up stores, which were not re-visited).
+    for fname, _windows, rows in load_resweeps():
+        n_new = n_reason = 0
+        for store, rec in rows.items():
+            prev = out.get(store)
+            if prev and rec["date"] <= prev["date"]:
+                continue
+            if prev and prev["set"]:
+                continue
+            rec["prior_reason"] = prev["reason"] if prev else ""
+            if rec["set"]:
+                n_new += 1
+            else:
+                rec["wave"] = ""
+                n_reason += 1
+            out[store] = rec
+        print(f"[ok] re-sweep {fname}: {n_new} newly set, {n_reason} not-set reasons refreshed")
     return out
 
 
@@ -253,12 +420,14 @@ def main():
         return inv_status_asof(s, ENDCAP_WEEK)
 
     set_ok = {s for s in endcap if seg_of[s] == "set"}
-    # Two set waves: the original WK27 visit and the follow-up sweep that ran
-    # Aug 9-11 (start of wk202628). They are NOT interchangeable for lift — the
-    # follow-up stores had no display up during wk202627 and only part of
-    # wk202628 — so every sales cut reports them separately.
-    set_w27 = {s for s in set_ok if survey[s].get("wave") == "wk27"}
-    set_fu = {s for s in set_ok if survey[s].get("wave") == "followup"}
+    # Set waves (WAVES / wave_meta): a wave's stores had no display up before
+    # their own visit and only part of the visit week, so the waves are NOT
+    # interchangeable for lift and every sales cut reports them separately.
+    waves = wave_meta(survey)
+    set_by_wave = {w["key"]: {s for s in set_ok if survey[s].get("wave") == w["key"]}
+                   for w in waves}
+    set_w27 = set_by_wave.get("wk27", set())
+    later_waves = [w for w in waves if w["key"] != "wk27"]
     unvisited = {s for s in endcap if seg_of[s] == "unvisited"}
     exc = {s for s in endcap if seg_of[s] not in ("set", "unvisited")}
     visited = set_ok | exc
@@ -276,10 +445,10 @@ def main():
                 "pct": round((u27 - u26) / u26 * 100, 1) if u26 else None}
 
     control = [s for s in q15_26 if s not in endcap]
-    lift = [lift_row("Endcap confirmed set", set_ok),
-            lift_row("· set on the WK27 visit", set_w27),
-            lift_row("· set on the follow-up sweep", set_fu),
-            lift_row("Not set — all reasons", exc)]
+    lift = [lift_row("Endcap confirmed set", set_ok)]
+    lift += [lift_row("· set on the " + w["label"], set_by_wave[w["key"]]) for w in waves]
+    lift.append(lift_row("Not set — all reasons", exc))
+    r_ns = lift[-1]
     for _answer, (key, label, _c) in REASONS.items():
         lift.append(lift_row("· " + label, {s for s in exc if seg_of[s] == key}))
     lift.append(lift_row("Not visited yet", unvisited))
@@ -294,14 +463,14 @@ def main():
     # factors (after/before), because the groups start at different U/S/W.
     def factor(r):
         return (r["u27"] / r["u26"]) if r["u26"] else None
-    f_set, f_exc, f_ctl = factor(lift[0]), factor(lift[3]), factor(lift[-1])
+    f_set, f_exc, f_ctl = factor(lift[0]), factor(r_ns), factor(lift[-1])
     # Two conventions, both reported, because they answer different questions
     # and the dashboard tab quotes the pp one: *_pp is the simple gap in growth
     # rates (percentage points), *_pct is the relative uplift over what the
     # group would have done on the comparison group's trend.
     decomp = {
-        "alloc_pp":  round(lift[3]["pct"] - lift[-1]["pct"], 1),
-        "disp_pp":   round(lift[0]["pct"] - lift[3]["pct"], 1),
+        "alloc_pp":  round(r_ns["pct"] - lift[-1]["pct"], 1),
+        "disp_pp":   round(lift[0]["pct"] - r_ns["pct"], 1),
         "total_pp":  round(lift[0]["pct"] - lift[-1]["pct"], 1),
         "alloc_pct": round((f_exc / f_ctl - 1) * 100, 1),
         "disp_pct":  round((f_set / f_exc - 1) * 100, 1),
@@ -450,8 +619,22 @@ def main():
 
     # how many stores that filed each reason on the WK27 visit have since been
     # set on the follow-up sweep — the "which blockers actually cleared?" read
-    converted = Counter(survey[s]["prior_reason"] for s in set_fu
-                        if survey[s].get("prior_reason"))
+    converted = Counter(survey[s]["prior_reason"] for w in later_waves
+                        for s in set_by_wave[w["key"]] if survey[s].get("prior_reason"))
+
+    # per-wave trajectory: U/S/W by week for the wave's own stores. The week
+    # before the visit is the clean "before"; the visit week is partial.
+    wave_rows = []
+    for w in waves:
+        stores = set_by_wave[w["key"]]
+        n = len(stores)
+        traj = {wk: (round(sum(by_week[wk][0].get(s, 0) for s in stores) / n, 2) if n else None)
+                for wk in sorted(by_week)}
+        pre_wk = max((wk for wk in traj if wk < w["visit_week"]), default=None)
+        pre, cur = traj.get(pre_wk), traj.get(ENDCAP_WEEK)
+        wave_rows.append({**w, "n": n, "traj": traj, "pre_week": pre_wk, "pre_usw": pre,
+                          "cur_usw": cur,
+                          "pct": round((cur - pre) / pre * 100, 1) if (pre and cur is not None) else None})
     conv_by_key = {REASONS[a][0]: n for a, n in converted.items() if a in REASONS}
 
     ns_reasons = []
@@ -515,14 +698,17 @@ def main():
         "n_endcap": len(endcap), "n_set": len(set_ok), "n_exc": len(exc),
         "n_unvisited": len(unvisited), "n_visited": len(visited),
         "confirmed_set": len(set_ok),
-        "n_set_w27": len(set_w27), "n_set_fu": len(set_fu),
-        # where / priced were only asked on the WK27 visit, so both are reported
-        # over that wave alone rather than diluted across all 601 set stores
-        "set_where": dict(Counter(survey[s]["where"] for s in set_w27)),
-        "set_priced": sum(1 for s in set_w27 if survey[s].get("priced") == "Yes"),
+        "n_set_w27": len(set_w27),
+        "n_set_fu": sum(len(set_by_wave[w["key"]]) for w in later_waves),
+        "waves": wave_rows,
+        # where / priced are asked on the full sweeps (WK27, WK30) but not on
+        # the Aug 9-11 follow-up, so report them over the stores actually asked
+        "n_where_asked": sum(1 for s in set_ok if survey[s].get("where")),
+        "set_where": dict(Counter(survey[s]["where"] for s in set_ok if survey[s].get("where"))),
+        "set_priced": sum(1 for s in set_ok if survey[s].get("priced") == "Yes"),
         "decomp": decomp,
         "kpi": {"lift_pct": lift[0]["pct"], "exc_pct": round(len(exc) / len(visited) * 100),
-                "notset_pct": lift[3]["pct"],
+                "notset_pct": r_ns["pct"],
                 "inc_units": inc_units, "inc_retail": round(inc_units * 15.97)},
         "notset": {"cols": NS_COLS, "rows": ns_rows, "reasons": ns_reasons},
         "lift": lift, "lift_all": lift_all,
@@ -541,7 +727,7 @@ def main():
     html = TEMPLATE.replace("/*DATA*/", json.dumps(payload, separators=(",", ":")))
     with open(OUTPUT, "w", encoding="utf-8") as f:
         f.write(html)
-    print(f"[ok] set={len(set_ok)} (wk27 {len(set_w27)} + follow-up {len(set_fu)}) "
+    print(f"[ok] set={len(set_ok)} (" + " + ".join(f'{w["key"]} {w["n"]}' for w in wave_rows) + ") "
           f"notset={len(exc)} unvisited={len(unvisited)} "
           f"flags={len(flags)} notset_rows={len(ns_rows)} map_stores={len(map_stores)}")
     print(f"[ok] wrote {OUTPUT}")
@@ -788,15 +974,14 @@ const fmt = n => n.toLocaleString();
 const wkLabel = w => 'wk ' + w;
 
 document.getElementById('subtitle').textContent =
-  DATA.n_endcap.toLocaleString() + ' program stores · set W/E 08/08/26 · sales ' +
+  DATA.n_endcap.toLocaleString() + ' program stores · set in ' + DATA.waves.length + ' waves · sales ' +
   wkLabel(DATA.prior_week) + ' → ' + wkLabel(DATA.week) + ' · generated from Walmart weekly data';
 
 document.getElementById('liftnote').innerHTML =
   'Week ' + DATA.prior_week + ' (the last report before the endcap went live) vs. week ' +
   DATA.week + ' (latest). &ldquo;Set&rdquo; = a merchandiser answered Yes on a field visit — ' +
-  fmt(DATA.n_set_w27) + ' on the original W/E 08/08 sweep, ' + fmt(DATA.n_set_fu) +
-  ' on the Aug 9–11 follow-up. The follow-up stores had no display up for wk' +
-  DATA.prior_week + ' or wk202627 and only part of wk' + DATA.week + ', so they are broken out.';
+  DATA.waves.map(w => fmt(w.n) + ' on the ' + w.label).join(', ') +
+  '. A wave had no display up before its own visit and only part of the visit week, so each is broken out.';
 document.getElementById('invweek').textContent = '(wk' + DATA.week + ' inventory)';
 
 /* ---- KPIs ---- */
@@ -809,7 +994,7 @@ const kpis = [
    fmt(DATA.n_visited) + ' visited · ' + fmt(DATA.n_unvisited) + ' not yet'],
   [fmt(DATA.n_set) + ' (' + Math.round(100*DATA.n_set/DATA.n_visited) + '%)',
    'confirmed set by a merchandiser',
-   fmt(DATA.n_set_w27) + ' on the WK27 visit + ' + fmt(DATA.n_set_fu) + ' on follow-up'],
+   DATA.waves.map(w => fmt(w.n)).join(' + ') + ' by wave'],
   [fmt(DATA.n_exc) + ' (' + K.exc_pct + '%)', 'visited but not set', 'reason filed for every one'],
   ['+' + K.lift_pct + '%', 'U/S/W lift in set stores',
    'vs ' + notSetPct(K.notset_pct) + ' not set, ' +
@@ -827,8 +1012,8 @@ let mapInit = false;
 function initMap(){
   if (mapInit) return; mapInit = true;
   const map = L.map('map').setView([38.8, -93], 4);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-    { attribution:'&copy; OpenStreetMap &copy; CARTO', maxZoom:18 }).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  { attribution:'&copy; OpenStreetMap contributors', maxZoom:18 }).addTo(map);
   const groups = {};
   for (const key in DATA.map.segments) groups[key] = L.layerGroup().addTo(map);
   for (const s of DATA.map.stores) {
@@ -877,7 +1062,7 @@ DATA.lift.forEach((r, i) => {
 document.getElementById('lifttable').innerHTML = lt;
 const la = DATA.lift_all;
 const DC = DATA.decomp;
-const R_SET = byLabel('Endcap confirmed set'), R_FU = byLabel('· set on the follow-up sweep'),
+const R_SET = byLabel('Endcap confirmed set'),
       R_NS = byLabel('Not set — all reasons'), R_CTL = byLabel('Control: all non-endcap stores');
 document.getElementById('liftcallout').innerHTML =
   '<b>The lift is real growth, not shelf cannibalization:</b> all-SKU units in set stores rose ' +
@@ -891,10 +1076,12 @@ document.getElementById('liftcallout').innerHTML =
   'In relative terms the display put set stores <b>+' + DC.disp_pct + '%</b> above where the allocation ' +
   'alone would have left them — ' + fmt(DC.disp_units) + ' extra 15-lb units in wk' + DATA.week +
   ', ≈$' + fmt(DC.disp_retail) + ' retail, in one week.<br><br>' +
-  '<b>The follow-up wave is the cleanest proof.</b> The ' + fmt(DATA.n_set_fu) + ' stores set on the ' +
-  'Aug 9–11 sweep sat flat at ' + R_FU.usw26.toFixed(2) + ' U/S/W while they were unset, then went to ' +
-  R_FU.usw27.toFixed(2) + ' (+' + R_FU.pct + '%) in the week their display went in — same stores, ' +
-  'same inventory, only the display changed.';
+  DATA.waves.filter(w => w.key !== 'wk27' && w.pre_usw != null && w.cur_usw != null).map(w =>
+    '<b>' + w.label + ' wave, before vs after its own visit.</b> Its ' + fmt(w.n) + ' stores were at ' +
+    w.pre_usw.toFixed(2) + ' U/S/W in wk' + w.pre_week + ', the week before the visit, while unset and already holding ' +
+    'the allocation; they are at ' + w.cur_usw.toFixed(2) + ' in wk' + DATA.week + ' (' + (w.pct > 0 ? '+' : '') + w.pct +
+    '%). Same stores, same inventory — the step from the pre-visit week is the display's own effect for that wave; ' +
+    'compare it with the not-set stores over the same weeks, not with the pre-program baseline.').join('<br><br>');
 
 /* ---- histogram ---- */
 const H = DATA.hist, maxH = Math.max(...H.counts);
@@ -981,8 +1168,8 @@ const nsSel = new Set(NS.reasons.filter(r => r.key !== 'unvisited').map(r => r.k
 const MAXROWS = 400;
 
 document.getElementById('nsnote').textContent =
-  'Every program store that is STILL not set, with the reason the merchandiser filed on the ' +
-  'W/E 08/08/26 visit. Stores that were fixed on the Aug 9–11 follow-up sweep have been removed ' +
+  'Every program store that is STILL not set, with the reason the merchandiser filed on its ' +
+  'most recent visit (WK27 or the WK30 re-sweep). Stores set on any later wave have been removed ' +
   'from this list. Tick one or more reasons to combine them — the table and both downloads ' +
   'follow the selection. The Excel file carries all ' + NSC.length + ' evidence columns per store: ' +
   'reason and sub-reason, refusing associate, visit date, full address, endcap-product status, ' +
@@ -1108,7 +1295,7 @@ document.getElementById('nsxlsx').onclick = () => {
     ['Not set (reason filed)', DATA.n_exc],
     ['Not visited yet', DATA.n_unvisited],
     [],
-    ['Status source', 'Merchandiser field visits, W/E 08/08/26 (WK27 survey)'],
+    ['Status source', 'Merchandiser field visits: ' + DATA.waves.map(w => w.label).join(', ')],
     ['Sales / inventory source', 'Walmart weekly reports wk' + DATA.prior_week +
       ' and wk' + DATA.week + ', Sales by Store, CATALYST15ORIG'],
     ['Endcap allocation', DATA.inv.units + ' units per store'],
@@ -1159,10 +1346,10 @@ document.getElementById('csvbtn').onclick = () => {
 /* ---- footer ---- */
 document.getElementById('foot').innerHTML =
   'Definitions: U/S/W = units per store per week. &ldquo;Set&rdquo; = a merchandiser answered Yes to ' +
-  '&ldquo;is the Catalyst feature product set on a feature space&rdquo; — ' + fmt(DATA.n_set_w27) +
-  ' stores on the W/E 08/08/26 visit (of which ' + (DATA.set_where['Endcap'] || 0) +
-  ' on a true endcap) plus ' + fmt(DATA.n_set_fu) + ' more confirmed on the Aug 9–11 follow-up ' +
-  'sweep, ' + fmt(DATA.n_set) + ' in total. ' +
+  '&ldquo;is the Catalyst feature product set on a feature space&rdquo; — ' +
+  DATA.waves.map(w => fmt(w.n) + ' on the ' + w.label).join(' + ') + ', ' + fmt(DATA.n_set) +
+  ' in total (' + (DATA.set_where['Endcap'] || 0) + ' of the ' + fmt(DATA.n_where_asked) +
+  ' asked &ldquo;where&rdquo; are on a true endcap). ' +
   'Every other visited store carries the reason its merchandiser filed; ' + fmt(DATA.n_unvisited) +
   ' program stores had no visit logged and are counted separately, never as set. ' +
   'Sales from Walmart weekly reports ' + wkLabel(DATA.prior_week) + ' and ' + wkLabel(DATA.week) +

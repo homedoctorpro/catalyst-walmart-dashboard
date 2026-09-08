@@ -164,11 +164,12 @@ ENDCAP_UNITS        = 36
 ENDCAP_CHART_PRE_WEEKS = 2
 ENDCAP_SURVEY_FILE  = "(Walmart) Lignetics Inc. Cat Litter Endcap Set WK27.xlsx"
 ENDCAP_SURVEY_WEEK  = "202627"
-# The set list grows in waves: the original WK27 sweep plus every follow-up
-# re-visit Anderson sends ("* Endcap Update.xlsx", overlaid in load_survey).
+# The set list grows in waves: the original WK27 sweep, the Aug 9-11 follow-up
+# ("* Endcap Update.xlsx") and every later re-sweep ("*_Final.xlsx"), all
+# overlaid in build_endcap_report.load_survey; wave_meta() there is the single
+# source of truth for wave keys, labels and first-full-week.
 # A follow-up store had no display up in the weeks before its own visit, so it
 # is broken out of the set cohort everywhere sales are compared.
-ENDCAP_FOLLOWUP_WEEK = "202628"
 ENDCAP_SKU          = "CATALYST15ORIG"   # the SKU the endcap feature is built on
 ENDCAP_REASONS = {  # survey answer -> (key, label)
     "No Available space":                    ("space",     "No available space"),
@@ -194,6 +195,16 @@ def _load_endcap_survey():
     except Exception as e:
         print(f"  [WARN] Endcap survey unreadable ({e}) — rollout status skipped.")
         return {}
+
+
+def _endcap_waves(survey):
+    """Ordered set waves present in the survey (see build_endcap_report.WAVES)."""
+    try:
+        from build_endcap_report import wave_meta
+        return wave_meta(survey)
+    except Exception as e:
+        print(f"  [WARN] Endcap waves unavailable ({e}).")
+        return []
 
 
 def build_endcap_status(all_store_weeks, endcap, week_dates):
@@ -240,8 +251,8 @@ def build_endcap_status(all_store_weeks, endcap, week_dates):
     seg_of  = {sn: (survey.get(sn) or {}).get("seg", "unvisited") for sn in roster}
     set_ok  = {sn for sn in roster if seg_of[sn] == "set"}
     wave_of = {sn: (survey.get(sn) or {}).get("wave", "") for sn in roster}
-    set_w27 = {sn for sn in set_ok if wave_of[sn] != "followup"}
-    set_fu  = {sn for sn in set_ok if wave_of[sn] == "followup"}
+    waves   = _endcap_waves(survey)
+    set_by_wave = {w["key"]: {sn for sn in set_ok if wave_of[sn] == w["key"]} for w in waves}
     unvis   = {sn for sn in roster if seg_of[sn] == "unvisited"}
     notset  = set(roster) - set_ok - unvis
     visited = set_ok | notset
@@ -352,9 +363,9 @@ def build_endcap_status(all_store_weeks, endcap, week_dates):
         return out
 
     lift = [lift_row("Endcap confirmed set", set_ok, "set")]
-    if set_fu:
-        lift += [lift_row("· set on the WK27 visit", set_w27, "set_w27"),
-                 lift_row("· set on the follow-up sweep", set_fu, "set_fu")]
+    if len(waves) > 1:
+        lift += [lift_row("· set on the " + w["label"], set_by_wave[w["key"]], "set_" + w["key"])
+                 for w in waves]
     lift.append(lift_row("Not set — all reasons", notset, "notset"))
     for _a, (key, label) in ENDCAP_REASONS.items():
         lift.append(lift_row("· " + label, {sn for sn in notset if seg_of[sn] == key}, key))
@@ -372,8 +383,9 @@ def build_endcap_status(all_store_weeks, endcap, week_dates):
         if w not in qty:
             qty[w] = q15(w)
         row = {"week": w}
-        for key, sset in (("set", set_ok), ("set_w27", set_w27), ("set_fu", set_fu),
-                          ("notset", notset), ("control", control)):
+        for key, sset in ([("set", set_ok)]
+                          + [("set_" + w["key"], set_by_wave[w["key"]]) for w in waves]
+                          + [("notset", notset), ("control", control)]):
             if not sset:
                 continue
             n = len(sset)
@@ -381,6 +393,32 @@ def build_endcap_status(all_store_weeks, endcap, week_dates):
             row[key + "_units"] = round(u)
             row[key + "_usw"]   = round(u / n, 3) if n else None
         series.append(row)
+
+    # Per-wave trajectory: U/S/W by week for the wave's own stores, the week
+    # before its visit ("pre-visit"), the visit week (display up for part of
+    # it) and the latest week. Each wave sat unset through every week before
+    # its visit, so pre-visit -> latest is the display's own before/after.
+    wave_rows = []
+    for w in waves:
+        stores = set_by_wave[w["key"]]
+        n = len(stores)
+        traj = {}
+        for wk in [x for x in weeks if x >= series_start]:
+            if wk not in qty:
+                qty[wk] = q15(wk)
+            traj[wk] = round(sum(qty[wk].get(sn, 0) for sn in stores) / n, 3) if n else None
+        pre_wk = max((x for x in traj if x < w["visit_week"]), default=None)
+        pre, cur = traj.get(pre_wk), traj.get(this_week)
+        base = traj.get(base_week) if base_week in traj else None
+        wave_rows.append({
+            **w, "n": n, "traj": traj,
+            "pre_week": pre_wk, "pre_usw": pre,
+            "visit_usw": traj.get(w["visit_week"]),
+            "first_full_usw": traj.get(w["first_full_week"]),
+            "base_usw": base, "cur_usw": cur,
+            "vs_pre_pct":  round((cur - pre) / pre * 100, 1) if (pre and cur is not None) else None,
+            "vs_base_pct": round((cur - base) / base * 100, 1) if (base and cur is not None) else None,
+        })
 
     inv_rows = []
     seg_order = [("set", "Confirmed set")] + \
@@ -417,9 +455,7 @@ def build_endcap_status(all_store_weeks, endcap, week_dates):
         "units_target": ENDCAP_UNITS,
         "n_endcap":     len(roster),
         "n_set":        len(set_ok),
-        "n_set_w27":    len(set_w27),
-        "n_set_fu":     len(set_fu),
-        "followup_week": ENDCAP_FOLLOWUP_WEEK if set_fu else None,
+        "waves":        wave_rows,
         "n_notset":     len(notset),
         "n_unvisited":  len(unvis),
         "n_visited":    len(visited),

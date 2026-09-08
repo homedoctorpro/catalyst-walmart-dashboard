@@ -575,7 +575,8 @@ def build_endcap_section(data):
         </div>
         <div style="font-size:11px;color:#888;margin:2px 0 12px;">
           Set / not set from the merchandiser field visits ({wl(es["survey_week"])}{
-            f' + {n(es["n_set_fu"])} on the {wl(es["followup_week"])} follow-up' if es.get("n_set_fu") else ''
+            (" + " + " + ".join(f'{n(w["n"])} on the {w["label"]}' for w in es["waves"][1:]))
+            if len(es.get("waves") or []) > 1 else ''
           }) &middot;
           sales &amp; inventory from the live feed ({wl(es["week"])}) &middot;
           program live {live.strftime("%b")} {live.day}
@@ -584,7 +585,7 @@ def build_endcap_section(data):
         <table width="100%" cellspacing="0" cellpadding="0">
           <tr>
             {stat("Confirmed set", n(es["n_set"]),
-                  (f'{n(es["n_set_w27"])} + {n(es["n_set_fu"])} on follow-up' if es.get("n_set_fu")
+                  ((" + ".join(n(w["n"]) for w in es["waves"]) + " by wave") if len(es.get("waves") or []) > 1
                    else f'{es["set_pct"]:.0f}% of {n(es["n_visited"])} visited'), "#1a9850")}
             {stat("Not set (reason filed)", n(es["n_notset"]), f'{n(es["n_unvisited"])} not visited yet', "#c62828")}
             {stat(f'Have the {es["units_target"]} bags', n(iv["counts"]["received"]),

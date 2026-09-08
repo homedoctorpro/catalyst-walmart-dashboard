@@ -93,6 +93,44 @@ Add the new fiscal year's week-1 Friday to `FISCAL_YEAR_WEEK1_FRIDAY` in `extrac
 
 ---
 
+## Endcap Program (set waves, lift, maps)
+
+The 15 lb Original endcap went live 2026-08-01 across the 1,884-store roster in
+`endcap_stores.csv`. Set / not-set is the merchandiser field visit, assembled by
+`load_survey()` in `build_endcap_report.py` (single source of truth; `extract_data.py`
+imports it for the dashboard's Endcap ▸ Rollout Status tab and the email card):
+
+1. `(Walmart) Lignetics Inc. Cat Litter Endcap Set WK27.xlsx` — the base survey (Aug 2–8).
+2. `* Endcap Update.xlsx` (newest by mtime) — Anderson's cumulative confirmed-set list;
+   rows tagged FOLLOW UP are the Aug 9–11 re-visit wave.
+3. `*Cat Litter Endcap Set WK*_*Final*.xlsx` — full re-sweeps in the WK27 layout (e.g.
+   `WK27_WK30_Final`, one row per store with its latest visit). A row only changes a store
+   when its visit date is later than the store's current record, and a store already
+   confirmed set is never downgraded (these files carry the stale WK27 "No" row for the
+   follow-up stores, which were not re-visited). Wave key/dates are read from the Summary
+   sheet's `WKnn (Mon d - Mon d)` header, so **dropping the next file in the root is the
+   whole update** — no code edit. Columns are matched by header (`SURVEY_COLS`), because
+   the WK27 and re-sweep workbooks order the free-text columns differently.
+
+**Waves must never be pooled for lift.** `WAVES` / `wave_meta()` carry each wave's visit
+week and first full week; every sales cut (dashboard tab, email, standalone report) shows
+one line per wave plus a "Set waves" pre/post table. As of the WK30 re-sweep: 465 (WK27)
++ 136 (Aug 9–11 follow-up) + 575 (WK30) = 1,176 set, 691 not set, 17 unvisited.
+Report the lift two ways — set vs non-endcap control is the whole program (allocation +
+display); set vs not-set (both got the 36 bags) is the display alone.
+
+Refresh after a new survey file or a new sales week:
+```bash
+SKIP_EMAIL=1 SKIP_REVIEWS=1 python extract_data.py   # dashboard tab + email payload
+python build_endcap_report.py    # deep dive: endcap_report.html + unlisted endcap-report-x3f8a1.html
+python build_endcap_set_map.py   # endcap_set_map.html — set (by wave) / not set / non-endcap stores
+```
+`build_endcap_report.py` rolls `ENDCAP_WEEK` forward to the newest weekly workbook on disk
+and detects the store feed sheet by name ("Sales by Store" or "CATALYST Sales by Store",
+never the "Endcap" cut). Commit the three HTML outputs with the weekly push.
+
+---
+
 ## Growth Report (`build_growth_report.py`)
 
 Branded 2-slide PPTX + 2-sheet XLSX for stakeholder decks, output to `Growth Report/`:
