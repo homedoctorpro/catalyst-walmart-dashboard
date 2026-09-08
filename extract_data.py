@@ -1065,6 +1065,9 @@ def extract_store_data(week, df):
     in_transit_col = next((i for i, h in enumerate(header) if "In Transit Quantity" in h), None)
     on_order_col   = next((i for i, h in enumerate(header) if "On Order Quantity" in h), None)
     pipeline_col   = next((i for i, h in enumerate(header) if "Total Pipeline Quantity" in h), None)
+    # Per store-SKU traited flag (1/0). Present in Hailey's feed since wk202626
+    # and in our Scintilla pulls; absent in older weeks (-> None).
+    traited_col    = next((i for i, h in enumerate(header) if "Traited Store Count" in h), None)
 
     def to_int(v):
         try:
@@ -1115,10 +1118,63 @@ def extract_store_data(week, df):
                 "in_transit":   to_int(row.iloc[in_transit_col]) if in_transit_col is not None else 0,
                 "on_order":     to_int(row.iloc[on_order_col])   if on_order_col   is not None else 0,
                 "total_pipeline": to_int(row.iloc[pipeline_col]) if pipeline_col   is not None else 0,
+                "traited":      (1 if to_int(row.iloc[traited_col]) else 0) if traited_col is not None else None,
             })
         except Exception:
             continue
     return rows
+
+
+def build_traited_from_feed(raw_store_rows_by_week, week_dates=None):
+    """Traited/valid authorization from the weekly feed's own per-row flag.
+
+    Hailey's Sales-by-Store sheet has carried a 'Traited Store Count' (1/0 per
+    store-SKU) since wk202626, and our Scintilla pulls include it too. That is
+    fresher than the June OOS-Summary snapshot traited_status.py reads (which
+    drifts: 3,565 vs 3,609 traited 15O stores by wk202631), so when the latest
+    week has the flag it becomes DATA.traited. Same payload shape as
+    traited_status.build_traited_data() so every consumer (Sales Map filter,
+    OOS exclusions, Distribution/Authorization panel, Store Data tab) just works.
+    """
+    weeks = [w for w in sorted(raw_store_rows_by_week)
+             if any(r.get("traited") is not None for r in raw_store_rows_by_week[w])]
+    if not weeks:
+        return None
+    week = weeks[-1]
+    by_sku, summary = {}, {}
+
+    def bump(sku, key, n=1):
+        summary.setdefault(sku, {"feed": 0, "traited": 0, "non_traited": 0,
+                                 "oos_traited": 0, "oos_non_traited": 0})
+        summary[sku][key] += n
+
+    for r in raw_store_rows_by_week[week]:
+        if r.get("traited") is None:
+            continue
+        sku, oos = r["item_name"], r["on_hand"] == 0
+        bump(sku, "feed")
+        if r["traited"]:
+            by_sku.setdefault(sku, []).append(r["store_num"])
+            bump(sku, "traited")
+            if oos:
+                bump(sku, "oos_traited")
+        else:
+            bump(sku, "non_traited")
+            if oos:
+                bump(sku, "oos_non_traited")
+    total = {"feed": 0, "traited": 0, "non_traited": 0, "oos_traited": 0, "oos_non_traited": 0}
+    for s in summary.values():
+        for k in total:
+            total[k] += s[k]
+    summary["Total"] = total
+    d = (week_dates or {}).get(week) or compute_week_date(week)
+    return {
+        "snapshot_date": d.isoformat() if hasattr(d, "isoformat") else (str(d) if d else week),
+        "week":          week,
+        "source_file":   f"weekly Sales by Store feed, wk{week} (Traited Store Count flag)",
+        "by_sku":        by_sku,
+        "summary":       summary,
+    }
 
 
 # ─── Ecomm Extraction ─────────────────────────────────────────────────────────
@@ -1157,6 +1213,11 @@ def extract_ecomm_data(df):
         try:
             name_raw = str(row.iloc[0]).strip()
             if not name_raw or name_raw.lower() in ("total", "nan", "product name", ""):
+                continue
+            # Jeff's wk202630 tab ended with an "Applied filters: ... product_name is
+            # <all four names> ..." footer. It matched as 34lb Unscented and
+            # overwrote the real row with an empty value ($0 in the email).
+            if name_raw.lower().startswith("applied filter") or "\n" in name_raw or len(name_raw) > 150:
                 continue
             mapping = parse_ecomm_product(name_raw)
             if not mapping:
@@ -1723,6 +1784,15 @@ def main():
     except Exception as e:
         print(f"  [WARN] Traited/valid data unavailable: {e}")
         traited = None
+    # Prefer the weekly feed's own traited flag (current) over the June snapshot.
+    feed_traited = build_traited_from_feed(raw_store_rows_by_week)
+    if feed_traited:
+        t = feed_traited["summary"]["Total"]
+        print(f"  [traited] Using weekly feed flag from wk{feed_traited['week']}: "
+              f"{t['traited']:,} traited / {t['non_traited']:,} non-traited of {t['feed']:,} rows"
+              + (f" (snapshot file had {traited['summary']['Total']['traited']:,} traited)"
+                 if traited and traited.get('summary') else ""))
+        traited = feed_traited
     if traited and traited.get("by_sku"):
         traited_by_sku = {sku: set(lst) for sku, lst in traited["by_sku"].items()}
         n_excl = mark_oos_exclusions(all_store_weeks, store_weeks_list, traited_by_sku)

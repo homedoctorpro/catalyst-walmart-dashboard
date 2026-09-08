@@ -1352,7 +1352,8 @@
   <!-- ── Tab 7: Store Data ─────────────────────────────────────────────────── -->
   <div id="tab-storedata" class="tab-panel">
     <div class="data-table-card">
-      <h3>Store Count by State &amp; SKU</h3>
+      <h3>Traited Store Count by State &amp; SKU</h3>
+      <p id="store-data-note" style="font-size:12px;color:#666;margin:0 0 8px;"></p>
       <input class="data-table-search" id="store-data-search" type="text" placeholder="Filter by state…" oninput="filterStoreDataTable()">
       <div class="data-table-scroll">
         <table class="data-tbl" id="store-data-tbl">
@@ -2267,23 +2268,41 @@ let storeDataSortAsc = false;
 const DATA_TABLE_SKUS = ["CATALYST15ORIG","CATALYST15UNSCEN","CATALYST34LBORIGINAL","CATALYSTPET34LBUNSCE"];
 
 function initStoreDataTable() {
-  // Determine which SKUs each store carries across all weeks
+  // Count only stores currently TRAITED (authorized on the Walmart assortment)
+  // for each SKU — DATA.traited.by_sku, built from the latest weekly feed's
+  // Traited flag. A store counts toward "Total" if traited for any SKU. Falls
+  // back to "ever appeared in the feed" only when no traited data exists.
   const storeSkuSets = {};
-  DATA.store_weeks.forEach(week => {
-    const wData = DATA.weekly_stores[week] || {};
-    Object.entries(wData).forEach(([sn, sdata]) => {
-      if (!storeSkuSets[sn]) storeSkuSets[sn] = new Set();
-      Object.keys(sdata.skus || {}).forEach(sku => storeSkuSets[sn].add(sku));
+  const hasTraited = !!(DATA.traited && DATA.traited.by_sku);
+  if (hasTraited) {
+    Object.entries(DATA.traited.by_sku).forEach(([sku, stores]) => {
+      stores.forEach(sn => {
+        if (!storeSkuSets[sn]) storeSkuSets[sn] = new Set();
+        storeSkuSets[sn].add(sku);
+      });
     });
-  });
+  } else {
+    DATA.store_weeks.forEach(week => {
+      const wData = DATA.weekly_stores[week] || {};
+      Object.entries(wData).forEach(([sn, sdata]) => {
+        if (!storeSkuSets[sn]) storeSkuSets[sn] = new Set();
+        Object.keys(sdata.skus || {}).forEach(sku => storeSkuSets[sn].add(sku));
+      });
+    });
+  }
+  const note = document.getElementById("store-data-note");
+  if (note) note.textContent = hasTraited
+    ? `Traited (authorized) stores only, per the ${DATA.traited.source_file || "latest feed"} — as of ${DATA.traited.snapshot_date || ""}. A store counts toward Total if traited for any SKU.`
+    : "All stores that have ever appeared in the weekly feed (no traited data available).";
 
   // Aggregate by state
   const stateMap = {}; // state -> {total, skuCounts}
   Object.entries(DATA.stores).forEach(([sn, info]) => {
+    const skus = storeSkuSets[sn];
+    if (!skus || skus.size === 0) return;   // not traited for any SKU
     const state = info.state || "Unknown";
     if (!stateMap[state]) stateMap[state] = { total: 0, skuCounts: {} };
     stateMap[state].total++;
-    const skus = storeSkuSets[sn] || new Set();
     skus.forEach(sku => {
       stateMap[state].skuCounts[sku] = (stateMap[state].skuCounts[sku] || 0) + 1;
     });
