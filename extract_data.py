@@ -408,16 +408,99 @@ def build_endcap_status(all_store_weeks, endcap, week_dates):
                 qty[wk] = q15(wk)
             traj[wk] = round(sum(qty[wk].get(sn, 0) for sn in stores) / n, 3) if n else None
         pre_wk = max((x for x in traj if x < w["visit_week"]), default=None)
-        pre, cur = traj.get(pre_wk), traj.get(this_week)
-        base = traj.get(base_week) if base_week in traj else None
+        pre_v, cur_v = traj.get(pre_wk), traj.get(this_week)
+        base_v = traj.get(base_week) if base_week in traj else None
         wave_rows.append({
             **w, "n": n, "traj": traj,
-            "pre_week": pre_wk, "pre_usw": pre,
+            "pre_week": pre_wk, "pre_usw": pre_v,
             "visit_usw": traj.get(w["visit_week"]),
             "first_full_usw": traj.get(w["first_full_week"]),
-            "base_usw": base, "cur_usw": cur,
-            "vs_pre_pct":  round((cur - pre) / pre * 100, 1) if (pre and cur is not None) else None,
-            "vs_base_pct": round((cur - base) / base * 100, 1) if (base and cur is not None) else None,
+            "base_usw": base_v, "cur_usw": cur_v,
+            "vs_pre_pct":  round((cur_v - pre_v) / pre_v * 100, 1) if (pre_v and cur_v is not None) else None,
+            "vs_base_pct": round((cur_v - base_v) / base_v * 100, 1) if (base_v and cur_v is not None) else None,
+        })
+
+    # ── Store-level status for the Set Map sub-tab ───────────────────────────
+    reason_label = {k: l for _a, (k, l) in ENDCAP_REASONS.items()}
+    answer_key   = {a: k for a, (k, _l) in ENDCAP_REASONS.items()}
+    store_status = {}
+    for sn in roster:
+        v = survey.get(sn) or {}
+        if seg_of[sn] == "set":
+            g = "set_" + (wave_of[sn] or "wk27")
+        elif seg_of[sn] == "unvisited":
+            g = "unvisited"
+        else:
+            g = "notset"
+        store_status[sn] = {
+            "g": g, "d": v.get("date", ""), "w": v.get("where", ""),
+            "r": v.get("detail") or reason_label.get(seg_of[sn], ""),
+            "p": reason_label.get(answer_key.get(v.get("prior_reason", ""), ""), ""),
+        }
+
+    # ── Growth distribution, pre vs post ─────────────────────────────────────
+    # Per-store change in 15 lb Original units between the average of the last
+    # ENDCAP_CHART_PRE_WEEKS weeks before go-live and the average of the latest
+    # ENDCAP_CHART_PRE_WEEKS weeks, bucketed, as a SHARE of each group's stores
+    # so groups of very different size sit on the same axis. Two-week averages
+    # rather than single weeks so one lumpy delivery doesn't read as a trend.
+    pre_wks  = pre[-ENDCAP_CHART_PRE_WEEKS:] if pre else []
+    post_wks = weeks[-ENDCAP_CHART_PRE_WEEKS:]
+    for wk in pre_wks + post_wks:
+        if wk not in qty:
+            qty[wk] = q15(wk)
+
+    def _avg(sn, wks):
+        return sum(qty[w].get(sn, 0) for w in wks) / len(wks) if wks else 0
+
+    GROWTH_BINS = ["No sales either period", "Sold → 0", "−99% to −51%", "−50% to −1%",
+                   "Flat", "+1% to +50%", "+51% to +100%", "+101% to +200%",
+                   "Over +200%", "New: 0 → selling"]
+
+    def _bin(a, b):
+        if a == 0 and b == 0:
+            return 0
+        if a == 0:
+            return 9
+        if b == 0:
+            return 1
+        pct = (b - a) / a * 100
+        if pct <= -51:
+            return 2
+        if pct < 0:
+            return 3
+        if pct == 0:
+            return 4
+        if pct <= 50:
+            return 5
+        if pct <= 100:
+            return 6
+        if pct <= 200:
+            return 7
+        return 8
+
+    growth_groups = ([("set",     "Endcap — confirmed set", set_ok,  "#1a9850", False),
+                      ("notset",  "Endcap — not set",       notset,  "#d73027", False),
+                      ("control", "Non-endcap stores",      control, "#0057e7", False)]
+                     + [("set_" + w["key"], "Set on the " + w["label"], set_by_wave[w["key"]],
+                         w["color"], True) for w in waves])
+    growth_dist = {"pre_weeks": pre_wks, "post_weeks": post_wks, "bins": GROWTH_BINS, "groups": []}
+    for key, label, stores, color, extra in growth_groups:
+        stores = list(stores)
+        n = len(stores)
+        counts = [0] * len(GROWTH_BINS)
+        pre_u = post_u = 0.0
+        for sn in stores:
+            a, b = _avg(sn, pre_wks), _avg(sn, post_wks)
+            pre_u += a
+            post_u += b
+            counts[_bin(a, b)] += 1
+        growth_dist["groups"].append({
+            "key": key, "label": label, "color": color, "n": n, "extra": extra,
+            "counts": counts,
+            "pct": [round(c / n * 100, 1) if n else 0 for c in counts],
+            "pre_usw":  round(pre_u / n, 2) if n else None,
+            "post_usw": round(post_u / n, 2) if n else None,
         })
 
     inv_rows = []
@@ -456,6 +539,8 @@ def build_endcap_status(all_store_weeks, endcap, week_dates):
         "n_endcap":     len(roster),
         "n_set":        len(set_ok),
         "waves":        wave_rows,
+        "store_status": store_status,
+        "growth_dist":  growth_dist,
         "n_notset":     len(notset),
         "n_unvisited":  len(unvis),
         "n_visited":    len(visited),

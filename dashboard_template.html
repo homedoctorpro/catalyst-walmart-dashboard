@@ -1387,7 +1387,8 @@
 
     <div class="endcap-sub-tabs">
       <button class="endcap-sub-btn active" onclick="switchEndcapView('rollout',this)">📊 Rollout Status</button>
-      <button class="endcap-sub-btn"        onclick="switchEndcapView('map',this)">🗺️ Map</button>
+      <button class="endcap-sub-btn"        onclick="switchEndcapView('setmap',this)">🎯 Set Map</button>
+      <button class="endcap-sub-btn"        onclick="switchEndcapView('map',this)">🗺️ Stock Map</button>
       <button class="endcap-sub-btn"        onclick="switchEndcapView('table',this)">📋 Table</button>
       <button class="endcap-sub-btn"        onclick="switchEndcapView('cohort',this)">📈 U/S/W Lift</button>
     </div>
@@ -1398,6 +1399,11 @@
         (<code>(Walmart) Lignetics Inc. Cat Litter Endcap Set WK27.xlsx</code>) in the project folder.
       </div>
       <div id="endcap-rollout-body"></div>
+    </div>
+
+    <div id="endcap-view-setmap" class="endcap-view">
+      <div class="endcap-map-controls" id="endcap-setmap-legend" style="flex-wrap:wrap;gap:8px 18px"></div>
+      <div id="endcap-setmap" style="height:calc(100vh - 290px);min-height:480px;width:100%;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)"></div>
     </div>
 
     <div id="endcap-view-map" class="endcap-view">
@@ -6473,6 +6479,7 @@ function switchEndcapView(view, btn) {
   btn.classList.add("active");
   document.getElementById("endcap-view-" + view).classList.add("active");
   if (view === "map" && window._endcapMap) setTimeout(() => window._endcapMap.invalidateSize(), 50);
+  if (view === "setmap") renderEndcapSetMap();
   if (view === "cohort") renderEndcapCohorts();
   if (view === "rollout") renderEndcapRollout();
 }
@@ -6557,6 +6564,7 @@ function renderEndcapRollout(force) {
   // before the markup below so the chart's date-range caption can name week one.
   const S = es.series || [];
   const multiWave = !!(es.waves && es.waves.length > 1);
+  const GD = es.growth_dist && es.growth_dist.groups && es.growth_dist.groups.length ? es.growth_dist : null;
   // one dotted marker per wave at its visit week (display went up mid-week)
   const waveMarks = multiWave ? es.waves.map(w => {
     const i = S.findIndex(r => r.week === w.visit_week);
@@ -6705,7 +6713,39 @@ function renderEndcapRollout(force) {
       <div style="font-size:11.5px;color:#888;margin:0 0 6px">Starting ${weekLabel((S[0] || {}).week)} — ${es.pre_weeks || 2} weeks before the endcap was set, then every week since.</div>
       <div id="endcap-rollout-chart" class="chart-div"></div>
     </div>
+
+    ${GD ? `
+    <div class="chart-card" style="margin-top:14px;">
+      <h3 style="margin:0 0 2px">Growth distribution — pre vs post, share of stores by change in 15 lb Original units</h3>
+      <div style="font-size:11.5px;color:#888;margin:0 0 6px">
+        Pre = average of ${GD.pre_weeks.map(weekLabel).join(" and ")} (the last ${GD.pre_weeks.length} weeks before go-live) · post = average of ${GD.post_weeks.map(weekLabel).join(" and ")}.
+        Each bar is the share of that group's own stores, so the three groups compare despite different sizes. Set waves are in the legend (click to show).
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px;color:#444;margin:0 0 4px">
+        ${GD.groups.filter(g => !g.extra).map(g => `<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${g.color};margin-right:5px;"></span>${g.label}: <strong>${n(g.n)}</strong> stores, ${g.pre_usw == null ? "—" : g.pre_usw.toFixed(2)} → <strong>${g.post_usw == null ? "—" : g.post_usw.toFixed(2)}</strong> U/S/W</span>`).join("")}
+      </div>
+      <div id="endcap-growth-chart" class="chart-div"></div>
+    </div>` : ""}
   `;
+
+  if (GD && window.Plotly) {
+    Plotly.newPlot("endcap-growth-chart",
+      GD.groups.map(g => ({
+        x: GD.bins, y: g.pct, type: "bar", name: g.label + " (" + n(g.n) + ")",
+        marker: { color: g.color }, visible: g.extra ? "legendonly" : true,
+        customdata: g.counts,
+        hovertemplate: "%{x}<br>" + g.label + ": %{y:.1f}% of stores (%{customdata} stores)<extra></extra>",
+      })),
+      {
+        barmode: "group", bargap: 0.25, bargroupgap: 0.05,
+        margin: { l: 52, r: 18, t: 10, b: 90 }, height: 360,
+        yaxis: { title: "% of the group's stores", ticksuffix: "%", rangemode: "tozero", gridcolor: "#f0f0f0" },
+        xaxis: { tickangle: -30 },
+        legend: { orientation: "h", y: -0.42 },
+        plot_bgcolor: "#fff", paper_bgcolor: "#fff", hovermode: "x unified",
+      },
+      { responsive: true, displayModeBar: false });
+  }
 
   if (S.length && window.Plotly) {
     const series = [
@@ -6764,6 +6804,93 @@ const ENDCAP_COHORT_STYLE = [
   { k:"B", color:"#2e7d32" },   // no endcap + stocked before
   { k:"C", color:"#e67300" },   // endcap + not stocked before (net-new)
 ];
+// ══ Endcap Set Map ════════════════════════════════════════════════════════════
+// Every Catalyst store as a dot: endcap stores confirmed set (one colour per
+// set wave), endcap stores visited but not set (popup carries the filed reason),
+// endcap stores never visited, and every non-endcap store in the latest feed.
+// Status comes from endcap_status.store_status; units from weekly_stores.
+let _endcapSetMapDone = false;
+function renderEndcapSetMap() {
+  if (_endcapSetMapDone) {
+    if (window._endcapSetMap) setTimeout(() => window._endcapSetMap.invalidateSize(), 50);
+    return;
+  }
+  _endcapSetMapDone = true;
+  const es = DATA.endcap_status;
+  const host = document.getElementById("endcap-setmap");
+  if (!es || !es.store_status) {
+    host.innerHTML = '<div style="padding:40px;text-align:center;color:#888">The set map needs the merchandiser survey (see Rollout Status).</div>';
+    return;
+  }
+  const SKU = es.sku, base = es.base_week, cur = es.week;
+  const q = (sn, wk) => ((((DATA.weekly_stores[wk] || {})[sn] || {}).skus || {})[SKU] || {}).qty || 0;
+  const groups = (es.waves || []).map(w => ({ key: "set_" + w.key, label: "Set — " + w.label, color: w.color, kind: "set" }));
+  if (!groups.length) groups.push({ key: "set_wk27", label: "Confirmed set", color: "#1a9850", kind: "set" });
+  groups.push({ key: "notset",    label: "Endcap store, not set",     color: "#d73027", kind: "notset" },
+              { key: "unvisited", label: "Endcap store, not visited", color: "#7f8c8d", kind: "notset" },
+              { key: "other",     label: "Non-endcap Catalyst store", color: "#9aa5ad", kind: "other" });
+
+  const map = L.map("endcap-setmap", { preferCanvas: true }).setView([39.5, -98.35], 4);
+  window._endcapSetMap = map;
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap", maxZoom: 19 }).addTo(map);
+  const layers = {}, counts = {}, sums = {};
+  groups.forEach(g => { layers[g.key] = L.layerGroup(); counts[g.key] = 0; sums[g.key] = [0, 0]; });
+  [...groups].reverse().forEach(g => layers[g.key].addTo(map));   // grey background first
+
+  const td = "padding:1px 8px 1px 0;vertical-align:top";
+  const add = (sn, lat, lon, key, city, state, extraRows) => {
+    const g = groups.find(x => x.key === key);
+    if (!g || lat == null || lon == null || lat === "" || lon === "") return;
+    const a = q(sn, base), b = q(sn, cur);
+    counts[key]++; sums[key][0] += a; sums[key][1] += b;
+    const bg = g.kind === "other";
+    const m = L.circleMarker([+lat, +lon], { radius: bg ? 3 : 5, color: "#333", weight: bg ? 0 : .5,
+                                             fillColor: g.color, fillOpacity: bg ? .45 : .88 });
+    m.bindPopup(`<b>Store #${sn}</b> — ${city || ""}, ${state || ""}<br>` +
+      `<span style="color:${g.color};font-weight:600">${g.label}</span>` +
+      `<table style="font-size:12px;margin-top:4px;border-collapse:collapse">` +
+      `<tr><td style="${td}">15-lb units ${weekLabel(base)} (pre-endcap)</td><td>${a}</td></tr>` +
+      `<tr><td style="${td}">15-lb units ${weekLabel(cur)}</td><td><b>${b}</b></td></tr>${extraRows}</table>`);
+    m.addTo(layers[key]);
+  };
+
+  const roster = new Set();
+  (DATA.endcap.rows || []).forEach(r => {
+    const sn = String(r.store_number);
+    roster.add(sn);
+    const st = es.store_status[sn] || { g: "unvisited" };
+    let extra = "";
+    if (st.g.startsWith("set_")) {
+      extra = `<tr><td style="${td}">Set on</td><td>${st.d || "—"}${st.w ? " · " + st.w : ""}</td></tr>` +
+              (st.p ? `<tr><td style="${td}">Earlier visit said</td><td>${st.p}</td></tr>` : "");
+    } else if (st.g === "notset") {
+      extra = `<tr><td style="${td}">Reason (${st.d || "—"})</td><td>${st.r || "—"}</td></tr>`;
+    }
+    add(sn, r.latitude, r.longitude, st.g, r.city, r.state, extra);
+  });
+  Object.keys(DATA.weekly_stores[cur] || {}).forEach(sn => {
+    if (roster.has(sn)) return;
+    const s = DATA.stores[sn];
+    if (!s || s.lat == null) return;
+    add(sn, s.lat, s.lon, "other", s.city, s.state, "");
+  });
+
+  const leg = document.getElementById("endcap-setmap-legend");
+  leg.innerHTML = groups.map(g => {
+    const nn = counts[g.key];
+    const pre = nn ? (sums[g.key][0] / nn).toFixed(2) : "—", post = nn ? (sums[g.key][1] / nn).toFixed(2) : "—";
+    return `<label style="white-space:nowrap"><input type="checkbox" checked data-key="${g.key}"> ` +
+           `<span class="endcap-dot" style="background:${g.color}"></span> ${g.label} ` +
+           `<span style="color:#666;font-weight:400">${nn.toLocaleString()} · ${pre} → ${post}</span></label>`;
+  }).join("") +
+  `<span style="color:#888;font-size:0.78rem;margin-left:auto">15-lb Original U/S/W, ${weekLabel(base)} → ${weekLabel(cur)} · click a dot for detail</span>`;
+  leg.querySelectorAll("input[data-key]").forEach(cb => cb.addEventListener("change", e => {
+    const l = layers[e.target.dataset.key];
+    e.target.checked ? map.addLayer(l) : map.removeLayer(l);
+  }));
+  setTimeout(() => map.invalidateSize(), 50);
+}
+
 function renderEndcapCohorts() {
   const co = DATA.endcap_cohorts;
   const chartEl = document.getElementById("endcap-cohort-chart");
