@@ -27,6 +27,7 @@ MONTHS = {"January": "01", "February": "02", "March": "03", "April": "04",
           "May": "05", "June": "06", "July": "07", "August": "08",
           "September": "09", "October": "10", "November": "11",
           "December": "12"}
+MONTH_ABBR = {k[:3]: v for k, v in MONTHS.items()}
 STATES = {"AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI",
           "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI",
           "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC",
@@ -60,21 +61,45 @@ def parse_snapshot_pdf(path):
     if "Customer Sales Units" not in full:
         return None
 
-    mo = re.search(r"Month\s+(\d{2})/\d{2}/(\d{4})", full)
+    # Axis labels on the "Monthly Customer Sales Units" chart. NOTE: Chewy
+    # labels each bar with the month AFTER the one it reports (the Aug-2026
+    # export ends at "2026-09-01"), so the axis is only used to recover a
+    # truncated year, never as the month itself.
+    dates = sorted(set(re.findall(r"\b(\d{4})-(\d{2})-01\b", full)))
+    axis_max = "-".join(dates[-1]) if dates else None
+
+    mo = re.search(r"Month\s+(\d{2})/\d{2}/(\d{2,4})", full)
     mn = re.search(r"\b(January|February|March|April|May|June|July|August|"
                    r"September|October|November|December)\s+(\d{4})", full)
-    if mo:
+    fn = re.search(r"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)"
+                   r"[a-z]*\.?\s+(\d{4})\b", os.path.basename(path), re.I)
+    if mo and len(mo.group(2)) == 4:
         month = f"{mo.group(2)}-{mo.group(1)}"
+    elif mo and dates:
+        # Jul-2026+ exports truncate the header year ("08/01/202�"): take
+        # the month from the header and the latest axis year that keeps
+        # YYYY-MM at or before the last axis label.
+        mm = mo.group(1)
+        years = sorted({y for y, _ in dates}, reverse=True)
+        year = next((y for y in years if f"{y}-{mm}" <= axis_max), years[-1])
+        month = f"{year}-{mm}"
     elif mn:                                       # older format: "| March 2026"
         month = f"{mn.group(2)}-{MONTHS[mn.group(1)]}"
+    elif fn:                                       # "Catalyst Pet - Aug 2026.pdf"
+        month = f"{fn.group(2)}-{MONTH_ABBR[fn.group(1)[:3].title()]}"
+    elif axis_max:
+        # Last resort: newest axis label, which is one month AHEAD of the
+        # snapshot month whenever every bar is labelled (Aug-2026 export);
+        # the Jul-2026 export dropped its last label so the max was right.
+        nvals = len(re.findall(r"\b\d{1,3}(?:,\d{3})*\b",
+                               full.split("Monthly Customer Sales Units", 1)[1]
+                                   .split("Top 10 Products", 1)[0]))
+        y, m = int(dates[-1][0]), int(dates[-1][1])
+        if nvals >= 2 * len(dates):            # labels == bars -> shift back
+            y, m = (y, m - 1) if m > 1 else (y - 1, 12)
+        month = f"{y:04d}-{m:02d}"
     else:
-        # Jul-2026+ exports truncate the "Shipped Month" text ("07/01/20�");
-        # fall back to the newest axis date on the Monthly Customer Sales
-        # Units chart, which always ends at the snapshot month.
-        dates = re.findall(r"\b(\d{4})-(\d{2})-01\b", full)
-        if not dates:
-            return None
-        month = "-".join(max(dates))
+        return None
 
     rm = re.search(r"([\d.]+)\s*Avg Custom", full)  # "Rating" may be truncated
     rating = float(rm.group(1)) if rm else None
