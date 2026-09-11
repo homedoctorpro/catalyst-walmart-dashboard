@@ -725,6 +725,7 @@ def main():
     }
 
     html = TEMPLATE.replace("/*DATA*/", json.dumps(payload, separators=(",", ":")))
+    check_inline_js(html)
     with open(OUTPUT, "w", encoding="utf-8") as f:
         f.write(html)
     print(f"[ok] set={len(set_ok)} (" + " + ".join(f'{w["key"]} {w["n"]}' for w in wave_rows) + ") "
@@ -742,6 +743,30 @@ def main():
     with open(STANDALONE_OUTPUT, "w", encoding="utf-8") as f:
         f.write(standalone)
     print(f"[ok] wrote {STANDALONE_OUTPUT} (no gate, noindex)")
+
+
+def check_inline_js(html):
+    """Refuse to write a page whose inline script won't parse. A single stray
+    quote in the template (an apostrophe inside a '...' string) blanks the
+    whole report, and nothing else in the build notices. Needs node on PATH;
+    skipped with a warning where it isn't."""
+    import re
+    import shutil
+    import subprocess
+    import tempfile
+    node = shutil.which("node")
+    if not node:
+        print("[WARN] node not on PATH, inline JS syntax check skipped")
+        return
+    for i, m in enumerate(re.finditer(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", html, re.S)):
+        with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as t:
+            t.write(m.group(1))
+        try:
+            r = subprocess.run([node, "--check", t.name], capture_output=True, text=True)
+        finally:
+            os.unlink(t.name)
+        if r.returncode:
+            raise SystemExit(f"[err] inline <script> #{i} has a JS syntax error, not writing:\n{r.stderr[:1500]}")
 
 
 GATE_HTML = """<div id="gate"><div class="box">
@@ -1080,7 +1105,7 @@ document.getElementById('liftcallout').innerHTML =
     '<b>' + w.label + ' wave, before vs after its own visit.</b> Its ' + fmt(w.n) + ' stores were at ' +
     w.pre_usw.toFixed(2) + ' U/S/W in wk' + w.pre_week + ', the week before the visit, while unset and already holding ' +
     'the allocation; they are at ' + w.cur_usw.toFixed(2) + ' in wk' + DATA.week + ' (' + (w.pct > 0 ? '+' : '') + w.pct +
-    '%). Same stores, same inventory — the step from the pre-visit week is the display's own effect for that wave; ' +
+    '%). Same stores, same inventory — the step from the pre-visit week is the display’s own effect for that wave; ' +
     'compare it with the not-set stores over the same weeks, not with the pre-program baseline.').join('<br><br>');
 
 /* ---- histogram ---- */
