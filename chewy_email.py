@@ -40,7 +40,7 @@ STATE_FILE = os.path.join(HERE, ".chewy_last_emailed_month")
 PREVIEW = os.path.join(HERE, "chewy_email_preview.html")
 
 EMAIL_TO = [
-    "jeff@alignconsulting.com",
+    "jeff@alignsalesconsulting.com",
     "pross@lignetics.com",
     "jgallman@lignetics.com",
     "ckaminski@lignetics.com",

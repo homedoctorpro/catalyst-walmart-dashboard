@@ -22,7 +22,14 @@ from email.header import decode_header, make_header
 from datetime import date, timedelta
 
 IMAP_HOST = "imap.gmail.com"
-NAME_MATCH = "brand snapshot"   # case-insensitive substring of the PDF filename
+# PDF filenames Chewy/Jeff have used so far:
+#   "Brand Snapshot _ Catalyst Pet - Aug 2023.pdf"   (2023-25 export)
+#   "CATALYSTPET - Mar 2026.pdf" / "FELINEFRESH - Mar 2026.pdf"
+#   "Catalyst Pet - Aug 2026.pdf" / "Feline Fresh - Aug 2026.pdf"  (Jul-2026+)
+# The Jul/Aug 2026 files never matched the old "brand snapshot" substring,
+# which is why the cloud pipeline missed both months. Match on brand instead.
+NAME_MATCH = re.compile(r"brand\s*snapshot|catalyst\s*pet|feline\s*fresh",
+                        re.I)
 
 
 def _decode(s):
@@ -54,7 +61,7 @@ def snapshot_pdfs(msg):
         fname = _decode(part.get_filename())
         if not fname or not fname.lower().endswith(".pdf"):
             continue
-        if NAME_MATCH not in fname.lower():
+        if not NAME_MATCH.search(fname):
             continue
         payload = part.get_payload(decode=True)
         if payload:
