@@ -69,8 +69,25 @@ def snapshot_pdfs(msg):
             yield fname, payload
 
 
-DATA_NAME_MATCH = re.compile(r"brand\s*snapshot|catalyst|feline\s*fresh|chewy|l52w",
-                             re.I)
+def _is_chewy_sales_file(fname, payload):
+    """True only when the file really is a Chewy sales table (PRODUCT_PART_NUMBER,
+    Units Sold, month column, at least one Catalyst/Feline Fresh SKU). The same
+    inbox gets the Walmart weekly workbooks, so filenames alone aren't enough."""
+    import tempfile
+    import chewy_pos
+    suffix = os.path.splitext(fname)[1].lower()
+    fd, tmp = tempfile.mkstemp(suffix=suffix)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(payload)
+        return bool(chewy_pos.read_data_file(tmp))
+    except Exception:
+        return False
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
 
 
 def data_files(msg):
@@ -83,10 +100,8 @@ def data_files(msg):
         fname = _decode(part.get_filename())
         if not fname or not fname.lower().endswith((".csv", ".xlsx")):
             continue
-        if not DATA_NAME_MATCH.search(fname):
-            continue
         payload = part.get_payload(decode=True)
-        if payload:
+        if payload and _is_chewy_sales_file(fname, payload):
             yield fname, payload
 
 
