@@ -93,6 +93,44 @@ jobs:
             git push
           fi
 
+      # ---- POS report ($ / Units / ASP grid) -> back to whoever sent the files ----
+      - name: Rebuild Chewy POS report
+        id: pos
+        if: steps.gate.outputs.build == 'true'
+        run: |
+          python chewy_pos.py build \
+            --data-dir _data/chewy \
+            --out-dir _data/chewy/pos_reports
+
+      - name: Email POS report to the sender
+        if: steps.pos.outcome == 'success' && inputs.skip_email != true
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
+        run: |
+          TO="${{ steps.poll.outputs.senders }}"
+          if [ "${{ inputs.dev_email }}" = "true" ]; then TO="pross@lignetics.com"; fi
+          if [ -z "$TO" ]; then
+            echo "No new files from a sender this run; POS report not emailed."
+            exit 0
+          fi
+          python chewy_pos.py email \
+            --report "${{ steps.pos.outputs.report }}" \
+            --summary "${{ steps.pos.outputs.summary }}" \
+            --to "$TO"
+
+      - name: Persist POS store + report to data repo
+        if: steps.pos.outcome == 'success'
+        working-directory: _data
+        run: |
+          git config user.name  "catalyst-bot"
+          git config user.email "ligneticsdata@gmail.com"
+          git add chewy/pos_store.json chewy/pos_reports
+          if ! git diff --cached --quiet; then
+            git commit -m "Chewy POS: rebuilt report"
+            git push
+          fi
+
       - name: Stage snapshot sources for the build
         if: steps.gate.outputs.build == 'true'
         run: |

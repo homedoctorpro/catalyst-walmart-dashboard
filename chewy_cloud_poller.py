@@ -19,6 +19,7 @@ import email
 import imaplib
 import argparse
 from email.header import decode_header, make_header
+from email.utils import parseaddr
 from datetime import date, timedelta
 
 IMAP_HOST = "imap.gmail.com"
@@ -68,6 +69,27 @@ def snapshot_pdfs(msg):
             yield fname, payload
 
 
+DATA_NAME_MATCH = re.compile(r"brand\s*snapshot|catalyst|feline\s*fresh|chewy|l52w",
+                             re.I)
+
+
+def data_files(msg):
+    """Yield (filename, bytes) for Chewy sales files (.csv / .xlsx) that feed
+    the POS report (chewy_pos.py): the monthly sales CSV, the L52W Excel, or a
+    POS report sent back."""
+    for part in msg.walk():
+        if part.get_content_maintype() == "multipart":
+            continue
+        fname = _decode(part.get_filename())
+        if not fname or not fname.lower().endswith((".csv", ".xlsx")):
+            continue
+        if not DATA_NAME_MATCH.search(fname):
+            continue
+        payload = part.get_payload(decode=True)
+        if payload:
+            yield fname, payload
+
+
 def _safe(name):
     return re.sub(r"[^A-Za-z0-9._ ()-]", "_", name).strip()
 
@@ -91,6 +113,7 @@ def main():
     os.makedirs(args.inbox_dir, exist_ok=True)
     processed = load_processed(args.state_file)
     saved = []
+    senders = []
 
     M = imaplib.IMAP4_SSL(IMAP_HOST)
     try:
@@ -110,9 +133,12 @@ def main():
             msg_id = (msg.get("Message-ID") or "").strip() or f"uid:{num.decode()}"
             if msg_id in processed:
                 continue
-            pdfs = list(snapshot_pdfs(msg))
+            pdfs = list(snapshot_pdfs(msg)) + list(data_files(msg))
             if not pdfs:
                 continue
+            sender = parseaddr(msg.get("From") or "")[1].lower()
+            if sender and sender not in senders:
+                senders.append(sender)
             for fname, payload in pdfs:
                 out = os.path.join(args.inbox_dir, _safe(fname))
                 with open(out, "wb") as f:
@@ -132,16 +158,18 @@ def main():
         except Exception:
             pass
 
-    return _emit(bool(saved), saved)
+    return _emit(bool(saved), saved, senders)
 
 
-def _emit(found, files):
-    print(f"[chewy-poller] found={found} files={len(files)}")
+def _emit(found, files, senders=()):
+    print(f"[chewy-poller] found={found} files={len(files)} "
+          f"senders={','.join(senders)}")
     gh_out = os.environ.get("GITHUB_OUTPUT")
     if gh_out:
         with open(gh_out, "a", encoding="utf-8") as f:
             f.write(f"found={'true' if found else 'false'}\n")
             f.write(f"files={';'.join(files)}\n")
+            f.write(f"senders={','.join(senders)}\n")
     return 0
 
 
