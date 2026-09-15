@@ -7802,14 +7802,46 @@ function renderTrialAnalysis(tr, all, custWeeks) {
   }).filter(s => s.rate != null);
   const skuStr = skuRates.map(s => `<strong>${s.name} ${s.rate.toFixed(1)}%</strong>`).join(" · ");
 
-  // Rollback framing (15 lb $18.24 → $15.97 started 7/13/26)
-  const ROLLBACK_ISO = "2026-07-13";
-  const rollbackNote = dataEnd < ROLLBACK_ISO
+  // Only claim "fastest-growing" when 6+ really out-grew every other bucket over 2 weeks
+  const growth2 = b => { const prev = all.customers[b][Math.max(0, last-2)] || 0; return prev ? (all.customers[b][last] || 0) / prev : 0; };
+  const sixFastest = ["1","2","3","4","5"].every(b => growth2("6+") >= growth2(b));
+
+  // Weekly mix: word the story off the actual direction of repeat share and trial
+  const newPrev4 = last >= 8 ? avg4(last - 8) : null;
+  const repW = nr.repeatTxns[last] || 0, repWPrev = last >= 8 ? (nr.repeatTxns[last - 8] || 0) : null;
+  const shareUp = sharePrev == null || shareNow >= sharePrev;
+  const trialAtPeak = newNow4 >= peak4 * 0.97;
+  const trialUp = newPrev4 != null && newNow4 > newPrev4 * 1.05;
+  const newTrend = trialAtPeak
+    ? `weekly new customers are at their high: ≈${Math.round(newNow4).toLocaleString()}/wk (4-wk avg)${newPrev4 != null ? `, up from ≈${Math.round(newPrev4).toLocaleString()}/wk eight weeks ago` : ""}`
+    : `weekly new customers have eased from a ${Math.round(peak4).toLocaleString()}/wk 4-wk-avg peak (${fmtD(custWeeks[peak4i])}) to ≈${Math.round(newNow4).toLocaleString()}/wk`;
+  const volumeTail = shareUp && !trialAtPeak && !trialUp
+    ? ". Total volume is holding because repeat is backfilling the trial slowdown."
+    : !shareUp && trialUp && repWPrev != null && repW >= repWPrev
+      ? `. Repeat transactions still grew (${repWPrev.toLocaleString()} → ${repW.toLocaleString()}/wk); the share dipped because new customers grew faster.`
+      : ".";
+  const volumePara = `<strong>${shareUp ? "Repeat is becoming the volume base." : trialUp ? "Trial is growing faster than repeat right now." : "Repeat share has slipped."}</strong>
+      Repeat purchases are <strong>${shareNow != null ? shareNow.toFixed(0) : "n/a"}%</strong> of weekly transactions${sharePrev != null ? ` (vs ${sharePrev.toFixed(0)}% eight weeks ago)` : ""}, peaking at ${peakRep.toLocaleString()}/wk.
+      Meanwhile ${newTrend}${volumeTail}`;
+
+  // Rollback framing (15 lb $18.24 → $15.97 started 7/13/26). Week labels are week START (Sat–Fri),
+  // so a week is fully pre-rollback only if it ends before 7/13. Endcap went live 8/1 and overlaps.
+  const ROLLBACK_ISO = "2026-07-13", ENDCAP_ISO = "2026-08-01";
+  const weekEndIso = iso => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + 6); return d.toISOString().slice(0, 10); };
+  let preLast = -1, prePeak = 0, prePeakI = 0;
+  for (let i = 0; i <= last && weekEndIso(custWeeks[i]) < ROLLBACK_ISO; i++) {
+    preLast = i;
+    if (i >= 3 && avg4(i) > prePeak) { prePeak = avg4(i); prePeakI = i; }
+  }
+  const r100 = v => (Math.round(v / 100) * 100).toLocaleString();
+  const rollbackNote = preLast === last
     ? `This data ends <strong>${fmtD(dataEnd)}</strong> — before the 7/13 rollback ($18.24 → $15.97 on 15 lb). The rollback's thesis is trial
        acquisition, which is exactly what has been fading: the next refresh is the first clean read. Watch for weekly new customers to
        reverse off the ~${(Math.round(newNow4/100)*100).toLocaleString()}/wk level — at a ~${mNow.v.toFixed(0)}% mature repeat rate, each incremental trialer converts to ≈${(mNow.v/100).toFixed(2)} retained customers.`
-    : `The 7/13 rollback ($18.24 → $15.97 on 15 lb) is now inside this window (data thru <strong>${fmtD(dataEnd)}</strong>). Judge it on weekly
-       new customers vs the pre-rollback ~${(Math.round(peak4/100)*100).toLocaleString()}/wk peak, then on whether those cohorts mature at the same ~${mNow.v.toFixed(0)}% rate ${L} weeks later.`;
+    : `The 7/13 rollback ($18.24 → $15.97 on 15 lb) is inside this window (data thru <strong>${fmtD(dataEnd)}</strong>). Weekly new customers (4-wk avg)
+       went from ≈${r100(avg4(preLast))}/wk in the last full pre-rollback week (${fmtD(custWeeks[preLast])}) to <strong>≈${r100(newNow4)}/wk</strong>,
+       ${newNow4 > prePeak ? "above" : "still below"} the pre-rollback peak of ≈${r100(prePeak)}/wk (${fmtD(custWeeks[prePeakI])})${weekEndIso(dataEnd) >= ENDCAP_ISO ? ". The 8/1 endcap launch overlaps, so this reads the rollback and endcap together" : ""}.
+       Next test: whether those cohorts mature at the same ~${mNow.v.toFixed(0)}% rate ${L} weeks later.`;
 
   el.innerHTML = `
     <p style="margin:0 0 10px"><strong style="color:#00695c">True repeat rate is ~${mNow.v.toFixed(0)}%, and it's ${trendWord}.</strong>
@@ -7818,11 +7850,8 @@ function renderTrialAnalysis(tr, all, custWeeks) {
       <strong>${mNow.v.toFixed(1)}%</strong> and has held a ${mMin.toFixed(1)}–${mMax.toFixed(1)}% band over the last ${mWindow.length} weeks — so the climbing cumulative line is mostly cohorts maturing, not behavior changing.</p>
     ${conv3 != null ? `<p style="margin:0 0 10px"><strong>The barrier is the first repurchase, not retention after it.</strong>
       Of customers who had repeated as of ${L} weeks ago, <strong>${conv3.toFixed(0)}%</strong> have already made a third purchase, and the 6+‑transaction
-      bucket is the fastest-growing (${sixPrev2.toLocaleString()} → ${sixNow.toLocaleString()} in two weeks). Once a customer repeats once, they mostly stay.</p>` : ""}
-    <p style="margin:0 0 10px"><strong>Repeat is becoming the volume base.</strong> Repeat purchases are now
-      <strong>${shareNow != null ? shareNow.toFixed(0) : "—"}%</strong> of weekly transactions${sharePrev != null ? ` (vs ${sharePrev.toFixed(0)}% eight weeks ago)` : ""}, peaking at ${peakRep.toLocaleString()}/wk.
-      Meanwhile weekly new customers have eased from a ${Math.round(peak4).toLocaleString()}/wk 4-wk-avg peak (${fmtD(custWeeks[peak4i])}) to ≈${Math.round(newNow4).toLocaleString()}/wk —
-      total volume is holding because repeat is backfilling the trial slowdown.</p>
+      bucket ${sixFastest ? "is the fastest-growing" : "keeps growing"} (${sixPrev2.toLocaleString()} → ${sixNow.toLocaleString()} in two weeks). Once a customer repeats once, they mostly stay.</p>` : ""}
+    <p style="margin:0 0 10px">${volumePara}</p>
     <p style="margin:0 0 10px"><strong>Per-SKU mature rate (${L}-wk lag):</strong> ${skuStr}.
       The 34 lb SKUs read structurally low — a bag lasts ~2× longer, so a ${L}-wk window undercounts them. The comparison that matters is
       15U vs 15O (same bag size): the unscented gap is real.</p>

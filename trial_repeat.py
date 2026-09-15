@@ -162,7 +162,16 @@ def _build_ext(verbose: bool = True) -> dict | None:
     }
     if not candidates:
         return None
-    src = Path(max(candidates, key=lambda p: Path(p).stat().st_mtime))
+    # Pick the export whose data runs furthest, NOT the newest mtime: the cloud build
+    # `cp`s every workbook from the data repo, so mtimes there are just copy order.
+    parsed = [(r, Path(p)) for p in candidates
+              if (r := _parse_ext_file(Path(p), verbose)) and r["weeks"]]
+    if not parsed:
+        return None
+    return max(parsed, key=lambda rp: (rp[0]["weeks"][-1], rp[1].stat().st_mtime))[0]
+
+
+def _parse_ext_file(src: Path, verbose: bool = True) -> dict | None:
     wb = openpyxl.load_workbook(src, data_only=True)  # full (not read_only) — read_only mis-reports width
 
     # ── Format A: full-report layout ('Analysis Level' header) → per-SKU ──
