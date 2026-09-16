@@ -7717,23 +7717,30 @@ function renderTrialNewRepeatChart(layoutBase, cfg) {
       hovertemplate: "Repeat: %{y:.1f}% of week<extra></extra>",
     });
   }
-  Plotly.newPlot("chart-trial-newrepeat", traces, {
+  // NB: never hand Plotly `yaxis2: undefined` — cleanLayout walks every /^yaxis/ key and
+  // reads .anchor off it, so an undefined value throws and the chart never draws.
+  const nrLayout = {
     ...layoutBase,
     barmode: "stack",
-    barnorm: isPct ? "percent" : undefined,
     yaxis: {
       ...layoutBase.yaxis,
       title: isPct ? "Share of weekly purchases" : "Weekly purchases (transactions)",
       ticksuffix: isPct ? "%" : "",
       tickformat: isPct ? ".0f" : ",.0f",
-      range: isPct ? [0, 100] : undefined,
-    },
-    yaxis2: isPct ? undefined : {
-      overlaying: "y", side: "right", showgrid: false,
-      title: "Repeat % of week", ticksuffix: "%", range: [0, 100],
     },
     hovermode: "x unified",
-  }, cfg);
+  };
+  delete nrLayout.yaxis2;
+  if (isPct) {
+    nrLayout.barnorm = "percent";
+    nrLayout.yaxis.range = [0, 100];
+  } else {
+    nrLayout.yaxis2 = {
+      overlaying: "y", side: "right", showgrid: false,
+      title: "Repeat % of week", ticksuffix: "%", range: [0, 100],
+    };
+  }
+  Plotly.newPlot("chart-trial-newrepeat", traces, nrLayout, cfg);
 }
 
 function renderTrialBucketChart(layoutBase, cfg) {
