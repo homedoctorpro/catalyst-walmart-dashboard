@@ -1527,6 +1527,7 @@
         <div class="chart-card">
           <h3>Repeat Rate Over Time — All SKUs</h3>
           <div id="chart-trial-rate" class="chart-div" style="height:320px"></div>
+          <div id="trial-rate-note" style="font-size:0.72rem;color:#999;margin-top:4px"></div>
         </div>
         <div class="chart-card">
           <h3>Cumulative Customers Over Time</h3>
@@ -7293,14 +7294,23 @@ function fmtTrialDate(iso) {
   return `${parseInt(parts[1])}/${parseInt(parts[2])}`;
 }
 
+// A rate off a tiny base is noise, not signal: during the launch ramp the lagged base is a
+// few dozen customers, which sent the mature line to 750%. Require the denominator to be at
+// least 10% of the product's final base (floor 200) — relative, so small SKUs keep their rates.
+const TRIAL_RATE_MIN_BASE_FRAC = 0.10;
+function trialRateMinBase(prod) {
+  const tc = prod.total_customers;
+  return Math.max(200, (tc[tc.length - 1] || 0) * TRIAL_RATE_MIN_BASE_FRAC);
+}
 function trialRepeatRateSeries(prod) {
   // For each week i, repeat_rate = sum(buckets 2..6+ at i) / total_customers[i]
   const c = prod.customers;
   const weeksLen = prod.total_customers.length;
+  const minBase = trialRateMinBase(prod);
   const rate = [];
   for (let i = 0; i < weeksLen; i++) {
     const total = prod.total_customers[i];
-    if (!total) { rate.push(null); continue; }
+    if (!total || total < minBase) { rate.push(null); continue; }
     const repeaters = (c["2"][i]||0) + (c["3"][i]||0) + (c["4"][i]||0) + (c["5"][i]||0) + (c["6+"][i]||0);
     rate.push(repeaters / total * 100);
   }
@@ -7325,9 +7335,10 @@ function trialRepeaters(prod, i) {
 function trialMatureRateSeries(prod, lag) {
   lag = lag || TRIAL_MATURE_LAG;
   const tc = prod.total_customers, out = [];
+  const minBase = trialRateMinBase(prod);
   for (let i = 0; i < tc.length; i++) {
     const base = i >= lag ? tc[i - lag] : 0;
-    out.push(base ? trialRepeaters(prod, i) / base * 100 : null);
+    out.push(base >= minBase ? trialRepeaters(prod, i) / base * 100 : null);
   }
   return out;
 }
@@ -7571,8 +7582,19 @@ function initTrialRepeat() {
       hovertemplate: name + ": %{y:.1f}%<extra></extra>",
     })),
   ];
+  // Start the axis at the first week a rate is plottable, so the launch ramp doesn't squash the scale
+  const naiveAllSeries = trialRepeatRateSeries(all);
+  const firstRateIdx = naiveAllSeries.findIndex(v => v != null);
   Plotly.newPlot("chart-trial-rate", rateSeries,
-    { ...layoutBase, yaxis: { ...layoutBase.yaxis, ticksuffix: "%", title: "Repeat Rate" } }, cfg);
+    { ...layoutBase,
+      xaxis: { ...layoutBase.xaxis, range: [(firstRateIdx > 0 ? firstRateIdx : 0) - 0.5, xLabelsAll.length - 0.5] },
+      yaxis: { ...layoutBase.yaxis, ticksuffix: "%", title: "Repeat Rate" } }, cfg);
+  const rateNote = document.getElementById("trial-rate-note");
+  if (rateNote && firstRateIdx > 0) {
+    rateNote.textContent = `Launch-ramp weeks before ${fmtTrialDate(custWeeks[firstRateIdx])} are hidden: `
+      + `the customer base was too small for a stable rate. The mature line starts later still, once its `
+      + `${TRIAL_MATURE_LAG}-week-lagged base clears the same bar.`;
+  }
 
   // Cumulative customers
   const cumSeries = [
