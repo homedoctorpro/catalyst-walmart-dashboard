@@ -7,7 +7,7 @@
  *
  * See SETUP.md for step-by-step instructions.
  *
- * Schema (columns 1..14):
+ * Schema (columns 1..16):
  *   A retailer_id     stable ID from dashboard           (do not edit)
  *   B retailer_name   human-readable                      (gets overwritten on push)
  *   C channel         channel name                        (gets overwritten on push)
@@ -22,6 +22,11 @@
  *   L status          in / pitched / target / non-target / declined    EDIT ME
  *   M next_steps      free text                            EDIT ME
  *   N updated_at      auto-stamped on every write
+ *   O next_review     date (yyyy-mm-dd)                    EDIT ME
+ *   P priority        1-10 (1 = highest), blank = none     EDIT ME
+ *
+ * Sheets created with fewer columns (before next_review / priority existed)
+ * are migrated in place by appending the missing headers; rows are kept.
  */
 
 const SHEET_NAME = 'Retailers';
@@ -30,12 +35,14 @@ const HEADERS = [
   'us_stores', 'default_usw', 'usw_override',
   'effective_usw', 'annual_units', 'wholesale_opp', 'retail_opp',
   'rep_firm', 'status', 'next_steps', 'updated_at',
+  'next_review', 'priority',
 ];
 const COL = {
   id: 1, name: 2, channel: 3,
   usStores: 4, defaultUsw: 5, uswOverride: 6,
   effectiveUsw: 7, annualUnits: 8, wholesaleOpp: 9, retailOpp: 10,
   repFirm: 11, status: 12, nextSteps: 13, updatedAt: 14,
+  nextReview: 15, priority: 16,
 };
 const N_COLS = HEADERS.length;
 const WHOLESALE_PRICE = 10;
@@ -53,7 +60,7 @@ function formatHeader_(sh) {
 }
 
 function setColumnWidths_(sh) {
-  const widths = [110, 220, 110, 80, 90, 100, 110, 110, 130, 130, 130, 100, 320, 160];
+  const widths = [110, 220, 110, 80, 90, 100, 110, 110, 130, 130, 130, 100, 320, 160, 110, 70];
   for (let i = 0; i < widths.length; i++) sh.setColumnWidth(i + 1, widths[i]);
 }
 
@@ -68,6 +75,7 @@ function setNumberFormats_(sh, lastDataRow) {
   sh.getRange(2, COL.wholesaleOpp,nRows, 1).setNumberFormat('"$"#,##0');
   sh.getRange(2, COL.retailOpp,   nRows, 1).setNumberFormat('"$"#,##0');
   sh.getRange(2, COL.updatedAt,   nRows, 1).setNumberFormat('yyyy-mm-dd hh:mm');
+  sh.getRange(2, COL.nextReview,  nRows, 1).setNumberFormat('yyyy-mm-dd');
 }
 
 function ensureSchema_() {
@@ -83,6 +91,22 @@ function ensureSchema_() {
   // Compare current row-1 headers; if they differ, wipe and reset.
   const lastCol = Math.max(sh.getLastColumn(), N_COLS);
   const current = sh.getRange(1, 1, 1, lastCol).getValues()[0];
+  // Migrate older layouts (14 = through updated_at, 15 = through next_review):
+  // append the missing trailing headers instead of wiping data
+  for (const n of [14, 15]) {
+    let isLegacy = true;
+    for (let i = 0; i < N_COLS; i++) {
+      const want = i < n ? HEADERS[i] : '';
+      const have = current[i] == null ? '' : current[i];
+      if (have !== want) { isLegacy = false; break; }
+    }
+    if (isLegacy) {
+      sh.getRange(1, n + 1, 1, N_COLS - n).setValues([HEADERS.slice(n)]);
+      formatHeader_(sh);
+      setColumnWidths_(sh);
+      return sh;
+    }
+  }
   let ok = current.length >= N_COLS;
   if (ok) {
     for (let i = 0; i < N_COLS; i++) {
@@ -117,6 +141,14 @@ function readAll_() {
     const status = String(r[COL.status - 1] || '').trim();
     const nextSteps = String(r[COL.nextSteps - 1] || '').trim();
     const uswRaw = r[COL.uswOverride - 1];
+    const reviewRaw = r[COL.nextReview - 1];
+    const nextReview = (reviewRaw instanceof Date)
+      ? Utilities.formatDate(reviewRaw, Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      : String(reviewRaw || '').trim();
+    if (nextReview) o.nextReview = nextReview;
+    const prioRaw = r[COL.priority - 1];
+    const prio = Number(prioRaw);
+    if (prioRaw !== '' && prioRaw != null && prio >= 1 && prio <= 10) o.priority = Math.round(prio);
     if (rep) o.repFirm = rep;
     if (status) o.status = status;
     if (nextSteps) o.nextSteps = nextSteps;
@@ -169,6 +201,8 @@ function writeEditable_(sh, row, fields) {
   sh.getRange(row, COL.status).setValue(fields.status || '');
   sh.getRange(row, COL.nextSteps).setValue(fields.nextSteps || '');
   sh.getRange(row, COL.updatedAt).setValue(new Date());
+  sh.getRange(row, COL.nextReview).setValue(fields.nextReview || '');
+  sh.getRange(row, COL.priority).setValue(fields.priority || '');
 }
 
 function upsert_(item) {
@@ -247,6 +281,10 @@ function bulkReplace_(items) {
     ];
   });
   sh.getRange(2, COL.repFirm, editRows.length, 4).setValues(editRows);
+  sh.getRange(2, COL.nextReview, items.length, 2).setValues(items.map(function (it) {
+    const f = it.fields || {};
+    return [f.nextReview || '', f.priority || ''];
+  }));
 
   const lastDataRow = items.length + 1;
   setNumberFormats_(sh, lastDataRow);

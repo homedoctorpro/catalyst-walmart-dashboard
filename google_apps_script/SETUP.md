@@ -83,6 +83,8 @@ The Sheet has these columns:
 | L | `status` | ✅ | One of: `in`, `pitched`, `target`, `non-target`, `declined` (or blank). |
 | M | `next_steps` | ✅ | Free text. |
 | N | `updated_at` | ❌ | Auto-stamped on every write. |
+| O | `next_review` | ✅ | Date (`yyyy-mm-dd`). The dashboard shows it red once the date has passed. Sheets made before columns O–P existed get the headers added in place on the next read or write; no data is cleared. |
+| P | `priority` | ✅ | Whole number 1–10 (1 = highest), or blank. Anything else is ignored on pull. The dashboard sorts each channel by priority, then store count. |
 
 A `TOTAL` row at the bottom sums stores, units, wholesale $, and retail $.
 
