@@ -79,8 +79,8 @@ The Sheet has these columns:
 | H | `annual_units` | ❌ | Formula: `=D*G*52` |
 | I | `wholesale_opp` | ❌ | Formula: `=H*$10` |
 | J | `retail_opp` | ❌ | Formula: `=H*$20` |
-| K | `rep_firm` | ✅ | Free text. The dashboard dropdown shows `Unassigned / PSE / Brian Schlager`; you can type any value here and it shows in the dashboard, but only those three appear in the dropdown choices. Blank = Unassigned. |
-| L | `status` | ✅ | One of: `in`, `pitched`, `target`, `declined` (or blank). |
+| K | `rep_firm` | ✅ | Free text. The dashboard dropdown shows `Unassigned / PSE / Brian Schlager / Internal / Jeff Day`; you can type any value here and it shows in the dashboard, but only those five appear in the dropdown choices. Blank = Unassigned. |
+| L | `status` | ✅ | One of: `in`, `pitched`, `target`, `non-target`, `declined` (or blank). |
 | M | `next_steps` | ✅ | Free text. |
 | N | `updated_at` | ❌ | Auto-stamped on every write. |
 

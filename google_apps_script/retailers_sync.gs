@@ -18,8 +18,8 @@
  *   H annual_units    formula: stores × effective_usw × 52
  *   I wholesale_opp   formula: annual_units × $10
  *   J retail_opp      formula: annual_units × $20
- *   K rep_firm        Unassigned / PSE / Brian Schlager   EDIT ME
- *   L status          in / pitched / target / declined    EDIT ME
+ *   K rep_firm        Unassigned / PSE / Brian Schlager / Internal / Jeff Day   EDIT ME
+ *   L status          in / pitched / target / non-target / declined    EDIT ME
  *   M next_steps      free text                            EDIT ME
  *   N updated_at      auto-stamped on every write
  */

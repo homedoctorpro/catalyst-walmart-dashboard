@@ -1810,7 +1810,7 @@
         </div>
         <div class="rt-sync-actions">
           <button class="rt-btn" onclick="rtFetchFromSheet(true)" title="Force a pull from the Sheet now">↻ Pull from Sheet now</button>
-          <button class="rt-btn primary" onclick="rtPushAllRetailers()" title="Replace the Sheet with all 52 retailers — store counts, channels, U/S/W, opportunity formulas, and your edits">⬆ Push ALL retailers to Sheet (rebuild)</button>
+          <button class="rt-btn primary" onclick="rtPushAllRetailers()" title="Replace the Sheet with all retailers and distributors — store counts, channels, U/S/W, opportunity formulas, and your edits">⬆ Push ALL retailers to Sheet (rebuild)</button>
         </div>
         <div style="font-size:0.72rem;color:#888;margin-top:10px;line-height:1.4">
           Last-write-wins. Co-edits within the polling window can overwrite each other silently.
@@ -1929,6 +1929,15 @@
           Brookshire's, Ingles, Tops, Weis, Bashas', Smart &amp; Final, Lunds &amp; Byerlys, etc.)
           plus independent supermarkets. Cross-checked against FMI's <em>Food Industry Almanac</em>
           and Progressive Grocer's annual chain rankings.
+        </dd>
+
+        <dt>Pet Distributors</dt>
+        <dd>
+          Wholesalers that route product to independent pet, feed and natural-grocery doors, which are
+          already counted in Pet Specialty, Farm &amp; Rural and Grocery. Listed for status, rep-firm and
+          next-step tracking only, so they add no stores or $ to the totals. Pet Food Experts acquired
+          Animal Supply Company's assets in Feb 2025; Central Garden &amp; Pet folded Central Pet
+          Distribution into a Phillips-branded joint venture announced Apr 2026. Checked 2026-09.
         </dd>
 
         <dt>Channel target U/S/W</dt>
@@ -7945,8 +7954,12 @@ const RT_CHANNELS = {
               note: "Convenience-only pet aisle; low litter affinity." },
   dollar:   { name: "Dollar / Value",  color: "#f57c00", defaultUSW: 0.75,
               note: "Price-driven shoppers; bag size mismatch for 15/34 lb." },
+  distributor: { name: "Pet Distributors", color: "#00838f", defaultUSW: 0, noOpp: true,
+              note: "Route to indie pet & feed doors already counted above; tracked for account planning, excluded from opportunity totals." },
 };
-const RT_CHANNEL_ORDER = ["mass","pet","club","farm","grocery","hardware","drug","dollar"];
+const RT_CHANNEL_ORDER = ["mass","pet","club","farm","grocery","hardware","drug","dollar","distributor"];
+// Channels that size opportunity (distributors have no doors of their own)
+const RT_OPP_CHANNELS = RT_CHANNEL_ORDER.filter(ch => !RT_CHANNELS[ch].noOpp);
 
 const RT_RETAILERS = [
   // Mass
@@ -8018,6 +8031,14 @@ const RT_RETAILERS = [
   { id: "family-dollar",    name: "Family Dollar",                 channel: "dollar",   stores: 8000 },
   { id: "five-below",       name: "Five Below",                    channel: "dollar",   stores: 1800 },
   { id: "big-lots",         name: "Big Lots",                      channel: "dollar",   stores: 1300 },
+
+  // Pet Distributors (no own doors; `reach` shown under the name)
+  { id: "pet-food-experts", name: "Pet Food Experts (PFX)",        channel: "distributor", stores: 0, reach: "National · Pawtucket, RI · #1 pet specialty distributor; absorbed Animal Supply Co. assets (Feb 2025)" },
+  { id: "phillips-pet",     name: "Phillips Pet Food & Supplies",  channel: "distributor", stores: 0, reach: "National · Easton, PA · 11 DCs; JV with Central Pet Distribution announced Apr 2026" },
+  { id: "bradley-caldwell", name: "Bradley Caldwell (BCI)",        channel: "distributor", stores: 0, reach: "East & Midwest · pet, equine, farm & home to independents" },
+  { id: "kehe",             name: "KeHE Distributors",             channel: "distributor", stores: 0, reach: "National · natural/specialty grocery incl. pet" },
+  { id: "unfi",             name: "UNFI",                          channel: "distributor", stores: 0, reach: "National · natural & conventional grocery incl. pet" },
+  { id: "jeffers",          name: "Jeffers (wholesale program)",   channel: "distributor", stores: 0, reach: "National · farm/feed, pet & vet retailers" },
 ];
 
 const RT_STATUS_OPTIONS = [
@@ -8025,10 +8046,11 @@ const RT_STATUS_OPTIONS = [
   { v: "in",       label: "Currently In", cls: "rt-status-in" },
   { v: "pitched",  label: "Pitched",      cls: "rt-status-pitched" },
   { v: "target",   label: "Target",       cls: "rt-status-target" },
+  { v: "non-target", label: "Non-Target", cls: "rt-status-neutral" },
   { v: "declined", label: "Declined",     cls: "rt-status-declined" },
 ];
 
-const RT_REP_FIRM_OPTIONS = ["Unassigned", "PSE", "Brian Schlager"];
+const RT_REP_FIRM_OPTIONS = ["Unassigned", "PSE", "Brian Schlager", "Internal", "Jeff Day"];
 const RT_REP_FIRM_DEFAULT = "Unassigned";
 
 let RT_OVERRIDES = {};         // { retailerId: { usw, repFirm, nextSteps, status } }
@@ -8120,7 +8142,7 @@ function rtToggleChannel(ch, on) {
 
 function rtRenderDefaultsPanel() {
   const grid = document.getElementById("rt-defaults-grid");
-  grid.innerHTML = RT_CHANNEL_ORDER.map(ch => {
+  grid.innerHTML = RT_OPP_CHANNELS.map(ch => {
     const c = RT_CHANNELS[ch];
     const v = rtChannelDefault(ch);
     return `<div class="rt-defaults-card" style="border-left-color:${c.color}">
@@ -8179,7 +8201,7 @@ function rtRenderSummary() {
   const grid = document.getElementById("rt-summary-grid");
 
   // Sort by wholesale opp desc for the cards (visible channels first, hidden dimmed below)
-  const sorted = RT_CHANNEL_ORDER.slice().sort((a,b) => stats.byChannel[b].wholesale - stats.byChannel[a].wholesale);
+  const sorted = RT_OPP_CHANNELS.slice().sort((a,b) => stats.byChannel[b].wholesale - stats.byChannel[a].wholesale);
 
   grid.innerHTML = sorted.map(ch => {
     const c = RT_CHANNELS[ch];
@@ -8243,24 +8265,26 @@ function rtRenderTable() {
       chStores += r.stores;
       chUnits += r.stores * rtRowUsw(r) * RT_WEEKS_PER_YEAR;
     });
-    grandStores += chStores;
-    grandUnits += chUnits;
+    if (!c.noOpp) { grandStores += chStores; grandUnits += chUnits; }
 
     html += `<tr class="rt-channel-row">
       <td colspan="2">
         <span class="rt-ch-badge" style="background:${c.color}">${c.name}</span>
         <span style="font-weight:500;margin-left:8px;text-transform:none;letter-spacing:0;color:#555;font-size:0.75rem">${c.note}</span>
       </td>
-      <td>${chStores.toLocaleString()}</td>
+      <td>${c.noOpp ? "—" : chStores.toLocaleString()}</td>
       <td>—</td>
-      <td>${rtFmtUnits(chUnits)}</td>
-      <td>${rtFmt$(chUnits * RT_WHOLESALE_PRICE)}</td>
-      <td>${rtFmt$(chUnits * RT_RETAIL_PRICE)}</td>
+      <td>${c.noOpp ? "—" : rtFmtUnits(chUnits)}</td>
+      <td>${c.noOpp ? "—" : rtFmt$(chUnits * RT_WHOLESALE_PRICE)}</td>
+      <td>${c.noOpp ? "—" : rtFmt$(chUnits * RT_RETAIL_PRICE)}</td>
       <td colspan="3"></td>
     </tr>`;
 
     // Sort retailers by store count desc within channel
     rows.sort((a,b) => b.stores - a.stores).forEach(r => {
+      const oppCells = c.noOpp
+        ? `<td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>`
+        : null;
       const usw = rtRowUsw(r);
       const isOverride = RT_OVERRIDES[r.id] && RT_OVERRIDES[r.id].usw != null && RT_OVERRIDES[r.id].usw !== "";
       const annualUnits = r.stores * usw * RT_WEEKS_PER_YEAR;
@@ -8270,9 +8294,9 @@ function rtRenderTable() {
       const nextSteps = rtRowField(r, "nextSteps");
 
       html += `<tr data-rid="${r.id}">
-        <td><span class="rt-retailer-name">${r.name}</span></td>
+        <td><span class="rt-retailer-name">${r.name}</span>${r.reach ? `<div style="font-size:0.72rem;color:#777;margin-top:2px">${r.reach}</div>` : ""}</td>
         <td><span class="rt-ch-badge" style="background:${c.color}">${c.name}</span></td>
-        <td>${r.stores.toLocaleString()}</td>
+        ${oppCells || `<td>${r.stores.toLocaleString()}</td>
         <td>
           <input type="number" step="0.1" min="0" value="${usw}"
                  class="rt-usw-input ${isOverride ? 'is-override' : ''}"
@@ -8281,7 +8305,7 @@ function rtRenderTable() {
         </td>
         <td>${rtFmtUnits(annualUnits)}</td>
         <td><strong>${rtFmt$(annualUnits * RT_WHOLESALE_PRICE)}</strong></td>
-        <td>${rtFmt$(annualUnits * RT_RETAIL_PRICE)}</td>
+        <td>${rtFmt$(annualUnits * RT_RETAIL_PRICE)}</td>`}
         <td>
           <select class="rt-status-select" onchange="rtUpdateStatus('${r.id}', this.value)">
             ${RT_STATUS_OPTIONS.map(o => `<option value="${o.v}" ${o.v === status ? "selected" : ""}>${o.label}</option>`).join("")}
@@ -8318,7 +8342,7 @@ function rtRenderTable() {
 
   // KPIs
   document.getElementById("rt-kpi-retailers").textContent =
-    RT_RETAILERS.filter(r => RT_VISIBLE_CHANNELS.has(r.channel)).length.toLocaleString();
+    RT_RETAILERS.filter(r => RT_VISIBLE_CHANNELS.has(r.channel) && !RT_CHANNELS[r.channel].noOpp).length.toLocaleString();
   document.getElementById("rt-kpi-stores").textContent = grandStores.toLocaleString();
   document.getElementById("rt-kpi-units").textContent = rtFmtUnits(grandUnits);
   document.getElementById("rt-kpi-wholesale").textContent = rtFmt$(grandUnits * RT_WHOLESALE_PRICE);
