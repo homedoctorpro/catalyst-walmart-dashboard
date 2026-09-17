@@ -1819,12 +1819,20 @@
       </div>
     </details>
 
+    <!-- Status scope toggle (drives KPIs + Opportunity by Channel; table always shows everything) -->
+    <div class="rt-controls">
+      <span class="rt-controls-label">Summary scope:</span>
+      <div id="rt-scope-btns" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      <span class="rt-spacer"></span>
+      <span id="rt-scope-note" style="font-size:0.75rem;color:#888"></span>
+    </div>
+
     <!-- KPI Row -->
     <div class="rt-kpi-row">
       <div class="rt-kpi" style="border-left-color:#0057e7">
         <div class="rt-kpi-label"># Retailers Tracked</div>
         <div class="rt-kpi-value" id="rt-kpi-retailers">—</div>
-        <div class="rt-kpi-sub">Across all channels</div>
+        <div class="rt-kpi-sub" id="rt-kpi-retailers-sub">Across all channels</div>
       </div>
       <div class="rt-kpi" style="border-left-color:#1565c0">
         <div class="rt-kpi-label">Total US Stores</div>
@@ -8053,6 +8061,30 @@ const RT_STATUS_OPTIONS = [
 const RT_REP_FIRM_OPTIONS = ["Unassigned", "PSE", "Brian Schlager", "Internal", "Jeff Day"];
 const RT_REP_FIRM_DEFAULT = "Unassigned";
 
+const RT_SCOPES = [
+  { v: "in",        label: "Currently In",          test: s => s === "in" },
+  { v: "in-target", label: "Currently In + Target", test: s => s === "in" || s === "target" },
+  { v: "target",    label: "Target",                test: s => s === "target" },
+  { v: "all",       label: "Everything",            test: () => true },
+];
+const RT_SCOPE_KEY = "catalyst_retailers_scope";
+let RT_SCOPE = "all";
+try { const v = localStorage.getItem(RT_SCOPE_KEY); if (RT_SCOPES.some(o => o.v === v)) RT_SCOPE = v; } catch {}
+function rtInScope(r) {
+  return RT_SCOPES.find(o => o.v === RT_SCOPE).test(rtRowStatus(r));
+}
+function rtRenderScopeBtns() {
+  document.getElementById("rt-scope-btns").innerHTML = RT_SCOPES.map(o =>
+    `<button class="rt-btn ${o.v === RT_SCOPE ? "primary" : ""}" onclick="rtSetScope('${o.v}')">${o.label}</button>`
+  ).join("");
+}
+function rtSetScope(v) {
+  RT_SCOPE = v;
+  try { localStorage.setItem(RT_SCOPE_KEY, v); } catch {}
+  rtRenderScopeBtns();
+  rtRenderSummary();
+}
+
 let RT_OVERRIDES = {};         // { retailerId: { usw, repFirm, nextSteps, status } }
 let RT_CHANNEL_DEFAULTS = {};  // { channelKey: USW }
 const RT_VISIBLE_CHANNELS = new Set(RT_CHANNEL_ORDER);
@@ -8114,6 +8146,7 @@ function rtStatusOpt(v) {
 function initRetailers() {
   rtLoad();
   rtLoadSyncUrl();
+  rtRenderScopeBtns();
   rtRenderChannelChips();
   rtRenderDefaultsPanel();
   rtRenderTable();
@@ -8171,9 +8204,9 @@ function resetRetailerDefaults() {
 function rtChannelStats() {
   // Returns { byChannel: {ch: {stores, units, wholesale, retail, retailers}}, grand: {...} }
   const byChannel = {};
-  let gStores = 0, gUnits = 0;
-  RT_CHANNEL_ORDER.forEach(ch => {
-    const rows = RT_RETAILERS.filter(r => r.channel === ch);
+  let gStores = 0, gUnits = 0, gRetailers = 0;
+  RT_OPP_CHANNELS.forEach(ch => {
+    const rows = RT_RETAILERS.filter(r => r.channel === ch && rtInScope(r));
     let stores = 0, units = 0;
     rows.forEach(r => {
       stores += r.stores;
@@ -8186,11 +8219,11 @@ function rtChannelStats() {
       retailers: rows.length,
       visible: RT_VISIBLE_CHANNELS.has(ch),
     };
-    if (RT_VISIBLE_CHANNELS.has(ch)) { gStores += stores; gUnits += units; }
+    if (RT_VISIBLE_CHANNELS.has(ch)) { gStores += stores; gUnits += units; gRetailers += rows.length; }
   });
   return {
     byChannel,
-    grand: { stores: gStores, units: gUnits,
+    grand: { stores: gStores, units: gUnits, retailers: gRetailers,
              wholesale: gUnits * RT_WHOLESALE_PRICE, retail: gUnits * RT_RETAIL_PRICE },
   };
 }
@@ -8201,9 +8234,26 @@ function rtRenderSummary() {
   const grid = document.getElementById("rt-summary-grid");
 
   // Sort by wholesale opp desc for the cards (visible channels first, hidden dimmed below)
-  const sorted = RT_OPP_CHANNELS.slice().sort((a,b) => stats.byChannel[b].wholesale - stats.byChannel[a].wholesale);
+  const sorted = RT_OPP_CHANNELS.filter(ch => stats.byChannel[ch].retailers > 0)
+    .sort((a,b) => stats.byChannel[b].wholesale - stats.byChannel[a].wholesale);
 
-  grid.innerHTML = sorted.map(ch => {
+  // KPIs follow the scope toggle
+  const scopeLabel = RT_SCOPES.find(o => o.v === RT_SCOPE).label;
+  document.getElementById("rt-kpi-retailers").textContent = stats.grand.retailers.toLocaleString();
+  document.getElementById("rt-kpi-retailers-sub").textContent =
+    RT_SCOPE === "all" ? "Across all channels" : `Status: ${scopeLabel}`;
+  document.getElementById("rt-kpi-stores").textContent = stats.grand.stores.toLocaleString();
+  document.getElementById("rt-kpi-units").textContent = rtFmtUnits(stats.grand.units);
+  document.getElementById("rt-kpi-wholesale").textContent = rtFmt$(stats.grand.wholesale);
+  document.getElementById("rt-kpi-retail").textContent = rtFmt$(stats.grand.retail);
+  document.getElementById("rt-scope-note").textContent = RT_SCOPE === "all"
+    ? "KPIs and channel summary include every retailer"
+    : `KPIs and channel summary count only rows with status ${scopeLabel}; the table below still lists everything`;
+  if (!sorted.length) {
+    grid.innerHTML = `<div style="color:#888;font-size:0.85rem;padding:8px 0">No retailers with status ${scopeLabel} in the visible channels yet. Set Status in the table below.</div>`;
+  }
+
+  if (sorted.length) grid.innerHTML = sorted.map(ch => {
     const c = RT_CHANNELS[ch];
     const s = stats.byChannel[ch];
     const pct = stats.grand.wholesale > 0 && s.visible ? (s.wholesale / stats.grand.wholesale * 100) : 0;
@@ -8340,15 +8390,7 @@ function rtRenderTable() {
 
   tbody.innerHTML = html;
 
-  // KPIs
-  document.getElementById("rt-kpi-retailers").textContent =
-    RT_RETAILERS.filter(r => RT_VISIBLE_CHANNELS.has(r.channel) && !RT_CHANNELS[r.channel].noOpp).length.toLocaleString();
-  document.getElementById("rt-kpi-stores").textContent = grandStores.toLocaleString();
-  document.getElementById("rt-kpi-units").textContent = rtFmtUnits(grandUnits);
-  document.getElementById("rt-kpi-wholesale").textContent = rtFmt$(grandUnits * RT_WHOLESALE_PRICE);
-  document.getElementById("rt-kpi-retail").textContent = rtFmt$(grandUnits * RT_RETAIL_PRICE);
-
-  // Keep the by-channel summary in sync
+  // KPIs + by-channel summary (scope-filtered)
   if (document.getElementById("rt-summary-grid")) rtRenderSummary();
 }
 
