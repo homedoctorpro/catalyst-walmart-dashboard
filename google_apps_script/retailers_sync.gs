@@ -7,7 +7,7 @@
  *
  * See SETUP.md for step-by-step instructions.
  *
- * Schema (columns 1..16):
+ * Schema (columns 1..20):
  *   A retailer_id     stable ID from dashboard           (do not edit)
  *   B retailer_name   human-readable                      (gets overwritten on push)
  *   C channel         channel name                        (gets overwritten on push)
@@ -24,9 +24,16 @@
  *   N updated_at      auto-stamped on every write
  *   O next_review     date (yyyy-mm-dd)                    EDIT ME
  *   P priority        1-10 (1 = highest), blank = none     EDIT ME
+ *   Q sf_account_id   linked Salesforce Account           (written by Salesforce sync)
+ *   R sf_account_name Salesforce Account name             (written by Salesforce sync)
+ *   S contacts_json   up to 5 Account contacts as JSON    (written by Salesforce sync)
+ *   T sf_synced_at    last successful Salesforce sync     (written by Salesforce sync)
  *
- * Sheets created with fewer columns (before next_review / priority existed)
- * are migrated in place by appending the missing headers; rows are kept.
+ * Sheets created with fewer columns are migrated in place by appending the
+ * missing headers; rows are kept.
+ *
+ * Salesforce two-way sync (optional): see the "Salesforce" section at the
+ * bottom of this file and SETUP.md.
  */
 
 const SHEET_NAME = 'Retailers';
@@ -36,6 +43,7 @@ const HEADERS = [
   'effective_usw', 'annual_units', 'wholesale_opp', 'retail_opp',
   'rep_firm', 'status', 'next_steps', 'updated_at',
   'next_review', 'priority',
+  'sf_account_id', 'sf_account_name', 'contacts_json', 'sf_synced_at',
 ];
 const COL = {
   id: 1, name: 2, channel: 3,
@@ -43,7 +51,9 @@ const COL = {
   effectiveUsw: 7, annualUnits: 8, wholesaleOpp: 9, retailOpp: 10,
   repFirm: 11, status: 12, nextSteps: 13, updatedAt: 14,
   nextReview: 15, priority: 16,
+  sfAccountId: 17, sfAccountName: 18, contactsJson: 19, sfSyncedAt: 20,
 };
+const N_SF_COLS = 4;  // Q..T, owned by the Salesforce sync
 const N_COLS = HEADERS.length;
 const WHOLESALE_PRICE = 10;
 const RETAIL_PRICE = 20;
@@ -60,7 +70,8 @@ function formatHeader_(sh) {
 }
 
 function setColumnWidths_(sh) {
-  const widths = [110, 220, 110, 80, 90, 100, 110, 110, 130, 130, 130, 100, 320, 160, 110, 70];
+  const widths = [110, 220, 110, 80, 90, 100, 110, 110, 130, 130, 130, 100, 320, 160, 110, 70,
+                  150, 200, 300, 140];
   for (let i = 0; i < widths.length; i++) sh.setColumnWidth(i + 1, widths[i]);
 }
 
@@ -76,6 +87,7 @@ function setNumberFormats_(sh, lastDataRow) {
   sh.getRange(2, COL.retailOpp,   nRows, 1).setNumberFormat('"$"#,##0');
   sh.getRange(2, COL.updatedAt,   nRows, 1).setNumberFormat('yyyy-mm-dd hh:mm');
   sh.getRange(2, COL.nextReview,  nRows, 1).setNumberFormat('yyyy-mm-dd');
+  sh.getRange(2, COL.sfSyncedAt,  nRows, 1).setNumberFormat('yyyy-mm-dd hh:mm');
 }
 
 function ensureSchema_() {
@@ -91,9 +103,9 @@ function ensureSchema_() {
   // Compare current row-1 headers; if they differ, wipe and reset.
   const lastCol = Math.max(sh.getLastColumn(), N_COLS);
   const current = sh.getRange(1, 1, 1, lastCol).getValues()[0];
-  // Migrate older layouts (14 = through updated_at, 15 = through next_review):
-  // append the missing trailing headers instead of wiping data
-  for (const n of [14, 15]) {
+  // Migrate older layouts (14 = through updated_at, 15 = through next_review,
+  // 16 = through priority): append the missing trailing headers instead of wiping data
+  for (const n of [14, 15, 16]) {
     let isLegacy = true;
     for (let i = 0; i < N_COLS; i++) {
       const want = i < n ? HEADERS[i] : '';
@@ -155,6 +167,12 @@ function readAll_() {
     if (uswRaw !== '' && uswRaw != null && !isNaN(Number(uswRaw))) {
       o.usw = Number(uswRaw);
     }
+    const sfId = String(r[COL.sfAccountId - 1] || '').trim();
+    if (sfId) {
+      o.sfAccountId = sfId;
+      o.sfAccountName = String(r[COL.sfAccountName - 1] || '').trim();
+      try { o.contacts = JSON.parse(r[COL.contactsJson - 1] || '[]'); } catch (e) { o.contacts = []; }
+    }
     if (Object.keys(o).length) out[id] = o;
   }
   return out;
@@ -214,6 +232,11 @@ function upsert_(item) {
   writeEditable_(sh, row, item.fields);
   // Re-apply number formats around this row for new inserts
   setNumberFormats_(sh, sh.getLastRow());
+  // Linked retailers push straight to Salesforce. A failure here is not fatal:
+  // the next syncSalesforce() run sees the Sheet differs from the snapshot and retries.
+  if (sfConfigured_() && sh.getRange(row, COL.sfAccountId).getValue()) {
+    try { sfPushRow_(sh, row); } catch (err) { console.warn('SF push failed: ' + err); }
+  }
 }
 
 function writeTotalsRow_(sh, lastDataRow) {
@@ -242,6 +265,13 @@ function bulkReplace_(items) {
   const ss = SpreadsheetApp.getActive();
   let sh = ss.getSheetByName(SHEET_NAME);
   if (!sh) sh = ss.insertSheet(SHEET_NAME);
+  // Keep the Salesforce link + contacts across the wipe; the dashboard doesn't send them
+  const keptSf = {};
+  if (sh.getLastRow() >= 2 && sh.getLastColumn() >= COL.sfSyncedAt) {
+    const ids = sh.getRange(2, COL.id, sh.getLastRow() - 1, 1).getValues();
+    const sfv = sh.getRange(2, COL.sfAccountId, sh.getLastRow() - 1, N_SF_COLS).getValues();
+    ids.forEach(function (r, i) { if (r[0] && sfv[i][0]) keptSf[String(r[0]).trim()] = sfv[i]; });
+  }
   // Full wipe + reseed
   sh.clear();
   sh.appendRow(HEADERS);
@@ -285,6 +315,9 @@ function bulkReplace_(items) {
     const f = it.fields || {};
     return [f.nextReview || '', f.priority || ''];
   }));
+  sh.getRange(2, COL.sfAccountId, items.length, N_SF_COLS).setValues(items.map(function (it) {
+    return keptSf[it.retailerId] || ['', '', '', ''];
+  }));
 
   const lastDataRow = items.length + 1;
   setNumberFormats_(sh, lastDataRow);
@@ -312,7 +345,11 @@ function doGet(e) {
 }
 
 function doPost(e) {
+  // One writer at a time: dashboard saves and the 15-minute Salesforce sync
+  // both rewrite rows, and interleaving them loses edits.
+  const lock = LockService.getScriptLock();
   try {
+    lock.waitLock(30000);
     const body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     const action = String(body.action || '').toLowerCase();
     if (action === 'upsert') {
@@ -328,6 +365,10 @@ function doPost(e) {
       const count = bulkReplace_(body.items || []);
       return jsonOut_({ ok: true, count: count, data: readAll_() });
     }
+    if (action === 'sfsync') {
+      const summary = syncSalesforce_();
+      return jsonOut_({ ok: true, summary: summary, data: readAll_() });
+    }
     if (action === 'delete') {
       const sh = ensureSchema_();
       const row = findRow_(sh, body.retailerId);
@@ -337,5 +378,389 @@ function doPost(e) {
     return jsonOut_({ ok: false, error: 'unknown action: ' + action });
   } catch (err) {
     return jsonOut_({ ok: false, error: String(err && err.message || err) });
+  } finally {
+    lock.releaseLock();
   }
+}
+
+// ── Salesforce ──────────────────────────────────────────────────────────────
+//
+// Two-way sync between this Sheet and Salesforce Accounts. A retailer is
+// linked when its Account's Dashboard_Retailer_ID__c holds the retailer_id.
+//
+// Only the dashboard-owned custom fields below are ever written. Name, door
+// counts and the GUMU__ ERP fields are read-only here so the sync can't fight
+// the ERP connector.
+//
+// Credentials live in Project Settings → Script Properties:
+//   SF_CLIENT_ID, SF_CLIENT_SECRET   from the Salesforce External Client App
+//   SF_DOMAIN (optional)             defaults to SF_DEFAULT_DOMAIN
+//
+// Conflicts use a per-field snapshot of the last synced value (hidden sheet
+// SF_Sync): whichever side moved away from the snapshot wins; if both moved,
+// the later edit wins (Sheet updated_at vs Account LastModifiedDate).
+
+const SF_DEFAULT_DOMAIN = 'https://energex1.my.salesforce.com';
+const SF_API = 'v62.0';
+const SF_LINK_FIELD = 'Dashboard_Retailer_ID__c';
+const SF_FIELDS = {           // Sheet field → Account field
+  status:     'Retailer_Status__c',
+  repFirm:    'Retailer_Rep_Firm__c',
+  nextSteps:  'Retailer_Next_Steps__c',
+  nextReview: 'Retailer_Next_Review__c',
+  priority:   'Retailer_Priority__c',
+};
+// Dashboard status codes ↔ Salesforce picklist labels
+const SF_STATUS = {
+  'in': 'Currently In', 'pitched': 'Pitched', 'target': 'Target',
+  'non-target': 'Non-Target', 'declined': 'Declined',
+};
+const SF_MAX_CONTACTS = 5;
+const SF_SNAPSHOT_SHEET = 'SF_Sync';
+const SF_LINK_SHEET = 'SF_Link';
+// Aggregate rows that will never map to one Account
+const SF_UNLINKABLE = ['other-grocery', 'indie-via-distributors'];
+
+function sfProps_() { return PropertiesService.getScriptProperties(); }
+
+function sfConfigured_() {
+  const p = sfProps_();
+  return !!(p.getProperty('SF_CLIENT_ID') && p.getProperty('SF_CLIENT_SECRET'));
+}
+
+function sfDomain_() {
+  return (sfProps_().getProperty('SF_DOMAIN') || SF_DEFAULT_DOMAIN).replace(/\/+$/, '');
+}
+
+function sfToken_(forceNew) {
+  const cache = CacheService.getScriptCache();
+  if (!forceNew) {
+    const hit = cache.get('sf_token');
+    if (hit) return hit;
+  }
+  const p = sfProps_();
+  const res = UrlFetchApp.fetch(sfDomain_() + '/services/oauth2/token', {
+    method: 'post',
+    payload: {
+      grant_type: 'client_credentials',
+      client_id: p.getProperty('SF_CLIENT_ID'),
+      client_secret: p.getProperty('SF_CLIENT_SECRET'),
+    },
+    muteHttpExceptions: true,
+  });
+  const j = JSON.parse(res.getContentText() || '{}');
+  if (res.getResponseCode() !== 200 || !j.access_token) {
+    throw new Error('Salesforce login failed: ' + (j.error_description || j.error || res.getResponseCode()));
+  }
+  cache.put('sf_token', j.access_token, 1800);  // sessions last longer; 30 min is safe
+  return j.access_token;
+}
+
+function sfFetch_(method, path, body) {
+  const url = /^https?:/.test(path) ? path : sfDomain_() + path;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const opts = {
+      method: method,
+      headers: { Authorization: 'Bearer ' + sfToken_(attempt > 0) },
+      contentType: 'application/json',
+      muteHttpExceptions: true,
+    };
+    if (body != null) opts.payload = JSON.stringify(body);
+    const res = UrlFetchApp.fetch(url, opts);
+    const code = res.getResponseCode();
+    if (code === 401 && attempt === 0) continue;  // expired token, retry once
+    const text = res.getContentText();
+    if (code >= 300) throw new Error('Salesforce ' + method + ' ' + path + ' → ' + code + ': ' + text.slice(0, 300));
+    return text ? JSON.parse(text) : null;
+  }
+}
+
+function sfQuery_(soql) {
+  let j = sfFetch_('get', '/services/data/' + SF_API + '/query?q=' + encodeURIComponent(soql));
+  let rows = j.records || [];
+  while (!j.done && j.nextRecordsUrl) {
+    j = sfFetch_('get', j.nextRecordsUrl);
+    rows = rows.concat(j.records || []);
+  }
+  return rows;
+}
+
+function sfSoqlStr_(s) { return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+
+// Normalize to comparable strings so '3', 3 and 3.0 (or a Date cell and
+// '2026-10-01') don't register as edits.
+function sfNorm_(field, v) {
+  if (v == null) return '';
+  if (field === 'nextReview') {
+    if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    return String(v).trim().slice(0, 10);
+  }
+  if (field === 'priority') {
+    const n = Number(v);
+    return (v !== '' && n >= 1 && n <= 10) ? String(Math.round(n)) : '';
+  }
+  return String(v).trim();
+}
+
+function sfFromAccount_(field, v) {
+  if (field === 'status') {
+    const s = String(v || '').trim();
+    for (const code in SF_STATUS) if (SF_STATUS[code] === s) return code;
+    return s.toLowerCase();
+  }
+  return sfNorm_(field, v);
+}
+
+function sfToAccount_(field, v) {
+  if (v === '') return null;
+  if (field === 'status') return SF_STATUS[v] || v;
+  if (field === 'priority') return Number(v);
+  return v;
+}
+
+function sfSheetVals_(rowVals) {
+  const out = {};
+  for (const f in SF_FIELDS) out[f] = sfNorm_(f, rowVals[COL[f] - 1]);
+  return out;
+}
+
+function sfSnapshotSheet_() {
+  const ss = SpreadsheetApp.getActive();
+  let sh = ss.getSheetByName(SF_SNAPSHOT_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(SF_SNAPSHOT_SHEET);
+    sh.appendRow(['retailer_id', 'snapshot_json']);
+    sh.hideSheet();
+  }
+  return sh;
+}
+
+function sfReadSnapshots_() {
+  const sh = sfSnapshotSheet_();
+  const out = {};
+  if (sh.getLastRow() < 2) return out;
+  sh.getRange(2, 1, sh.getLastRow() - 1, 2).getValues().forEach(function (r) {
+    if (!r[0]) return;
+    try { out[String(r[0])] = JSON.parse(r[1] || '{}'); } catch (e) { /* treat as unsynced */ }
+  });
+  return out;
+}
+
+function sfWriteSnapshots_(snaps) {
+  const sh = sfSnapshotSheet_();
+  if (sh.getLastRow() >= 2) sh.getRange(2, 1, sh.getLastRow() - 1, 2).clearContent();
+  const rows = Object.keys(snaps).map(function (id) { return [id, JSON.stringify(snaps[id])]; });
+  if (rows.length) sh.getRange(2, 1, rows.length, 2).setValues(rows);
+}
+
+// Push one row's dashboard fields to its Account right after a dashboard save.
+function sfPushRow_(sh, row) {
+  const vals = sh.getRange(row, 1, 1, N_COLS).getValues()[0];
+  const accountId = String(vals[COL.sfAccountId - 1] || '').trim();
+  if (!accountId) return;
+  const cur = sfSheetVals_(vals);
+  const body = {};
+  for (const f in SF_FIELDS) body[SF_FIELDS[f]] = sfToAccount_(f, cur[f]);
+  sfFetch_('patch', '/services/data/' + SF_API + '/sobjects/Account/' + accountId, body);
+  const snaps = sfReadSnapshots_();
+  snaps[String(vals[COL.id - 1]).trim()] = cur;
+  sfWriteSnapshots_(snaps);
+  sh.getRange(row, COL.sfSyncedAt).setValue(new Date());
+}
+
+// Time-driven entry point (see installSalesforceTrigger).
+function syncSalesforce() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try { return syncSalesforce_(); } finally { lock.releaseLock(); }
+}
+
+function syncSalesforce_() {
+  if (!sfConfigured_()) return { skipped: 'Salesforce credentials not set in Script Properties' };
+  const sh = ensureSchema_();
+  const last = sh.getLastRow();
+  if (last < 2) return { skipped: 'Sheet is empty' };
+
+  const selectFields = ['Id', 'Name', 'LastModifiedDate', SF_LINK_FIELD]
+    .concat(Object.keys(SF_FIELDS).map(function (f) { return SF_FIELDS[f]; }));
+  const accounts = sfQuery_(
+    'SELECT ' + selectFields.join(', ') +
+    ', (SELECT Name, Title, Email, Phone, MobilePhone FROM Contacts' +
+    ' ORDER BY LastModifiedDate DESC LIMIT ' + SF_MAX_CONTACTS + ')' +
+    ' FROM Account WHERE ' + SF_LINK_FIELD + ' != null');
+  const byRetailer = {};
+  accounts.forEach(function (a) { byRetailer[String(a[SF_LINK_FIELD]).trim()] = a; });
+
+  const data = sh.getRange(2, 1, last - 1, N_COLS).getValues();
+  const snaps = sfReadSnapshots_();
+  const now = new Date();
+  const patches = [];
+  const summary = { linked: 0, pulled: 0, pushed: 0, conflicts: 0, unlinked: 0 };
+
+  data.forEach(function (r) {
+    const id = String(r[COL.id - 1] || '').trim();
+    if (!id || id === 'TOTAL') return;
+    const a = byRetailer[id];
+    if (!a) {
+      if (r[COL.sfAccountId - 1]) {   // link was removed in Salesforce
+        for (let k = 0; k < N_SF_COLS; k++) r[COL.sfAccountId - 1 + k] = '';
+        delete snaps[id];
+        summary.unlinked++;
+      }
+      return;
+    }
+    summary.linked++;
+    const sheet = sfSheetVals_(r);
+    const snap = snaps[id];
+    const sheetEditedAt = r[COL.updatedAt - 1] instanceof Date ? r[COL.updatedAt - 1].getTime() : 0;
+    const sfEditedAt = new Date(a.LastModifiedDate).getTime();
+    const merged = {};
+    const push = {};
+    let pulledAny = false;
+    for (const f in SF_FIELDS) {
+      const sv = sheet[f];
+      const fv = sfFromAccount_(f, a[SF_FIELDS[f]]);
+      let winner;
+      if (sv === fv) winner = 'same';
+      else if (!snap) winner = sv !== '' ? 'sheet' : 'sf';  // first link: keep whichever side has data, Sheet first
+      else if (fv === snap[f]) winner = 'sheet';
+      else if (sv === snap[f]) winner = 'sf';
+      else { summary.conflicts++; winner = sheetEditedAt >= sfEditedAt ? 'sheet' : 'sf'; }
+      if (winner === 'sf') {
+        merged[f] = fv;
+        r[COL[f] - 1] = f === 'priority' && fv !== '' ? Number(fv) : fv;
+        pulledAny = true;
+      } else {
+        merged[f] = sv;
+        if (winner === 'sheet') push[SF_FIELDS[f]] = sfToAccount_(f, sv);
+      }
+    }
+    if (pulledAny) { r[COL.updatedAt - 1] = now; summary.pulled++; }
+    if (Object.keys(push).length) {
+      push.attributes = { type: 'Account' };
+      push.id = a.Id;
+      patches.push({ id: id, record: push });
+    }
+    snaps[id] = merged;
+
+    const contacts = ((a.Contacts && a.Contacts.records) || []).map(function (c) {
+      return { name: c.Name || '', title: c.Title || '', email: c.Email || '',
+               phone: c.Phone || c.MobilePhone || '' };
+    });
+    r[COL.sfAccountId - 1] = a.Id;
+    r[COL.sfAccountName - 1] = a.Name || '';
+    r[COL.contactsJson - 1] = JSON.stringify(contacts);
+    r[COL.sfSyncedAt - 1] = now;
+  });
+
+  // Composite PATCH, 200 records per call. Failed records drop their snapshot
+  // so the next run retries them instead of pulling the stale SF value back.
+  for (let i = 0; i < patches.length; i += 200) {
+    const chunk = patches.slice(i, i + 200);
+    const res = sfFetch_('patch', '/services/data/' + SF_API + '/composite/sobjects',
+      { allOrNone: false, records: chunk.map(function (p) { return p.record; }) });
+    (res || []).forEach(function (rr, k) {
+      if (rr.success) summary.pushed++;
+      else {
+        delete snaps[chunk[k].id];
+        console.warn('SF push failed for ' + chunk[k].id + ': ' + JSON.stringify(rr.errors));
+      }
+    });
+  }
+
+  // Write back only the editable + Salesforce columns; G–J are formulas.
+  sh.getRange(2, COL.repFirm, data.length, 4).setValues(data.map(function (r) {
+    return r.slice(COL.repFirm - 1, COL.updatedAt);
+  }));
+  sh.getRange(2, COL.nextReview, data.length, 2 + N_SF_COLS).setValues(data.map(function (r) {
+    return r.slice(COL.nextReview - 1, COL.sfSyncedAt);
+  }));
+  sfWriteSnapshots_(snaps);
+  return summary;
+}
+
+// ── Linking retailers to Accounts (run from the Apps Script editor) ─────────
+
+// Step 1: lists candidate Accounts for every unlinked retailer on an SF_Link
+// sheet. Tick "confirm" on the right Account for each retailer.
+function suggestSalesforceLinks() {
+  const sh = ensureSchema_();
+  const last = sh.getLastRow();
+  const rows = last < 2 ? [] : sh.getRange(2, 1, last - 1, N_COLS).getValues();
+  const out = [['retailer_id', 'retailer_name', 'confirm', 'account_id', 'account_name',
+                'billing_city', 'billing_state', 'account_type', 'contacts']];
+  rows.forEach(function (r) {
+    const id = String(r[COL.id - 1] || '').trim();
+    if (!id || id === 'TOTAL' || r[COL.sfAccountId - 1] || SF_UNLINKABLE.indexOf(id) >= 0) return;
+    const name = String(r[COL.name - 1] || '');
+    const full = name.replace(/\(.*?\)/g, '').split('/')[0].trim();
+    const word = full.split(/\s+/).filter(function (w) { return w.length >= 4; })
+      .sort(function (x, y) { return y.length - x.length; })[0];
+    let hits = [];
+    [full, word].forEach(function (term) {
+      if (hits.length || !term) return;
+      hits = sfQuery_("SELECT Id, Name, BillingCity, BillingState, Account_Type__c," +
+        " (SELECT Id FROM Contacts) FROM Account WHERE Name LIKE '%" + sfSoqlStr_(term) + "%'" +
+        ' ORDER BY Name LIMIT 8');
+    });
+    if (!hits.length) out.push([id, name, false, '', '(no match: paste an Account Id here)', '', '', '', '']);
+    hits.forEach(function (a) {
+      out.push([id, name, hits.length === 1, a.Id, a.Name, a.BillingCity || '', a.BillingState || '',
+                a.Account_Type__c || '', (a.Contacts && a.Contacts.totalSize) || 0]);
+    });
+  });
+  const ss = SpreadsheetApp.getActive();
+  let ls = ss.getSheetByName(SF_LINK_SHEET);
+  if (ls) ls.clear(); else ls = ss.insertSheet(SF_LINK_SHEET);
+  ls.getRange(1, 1, out.length, out[0].length).setValues(out);
+  if (out.length > 1) ls.getRange(2, 3, out.length - 1, 1).insertCheckboxes();
+  ls.getRange(1, 1, 1, out[0].length).setFontWeight('bold');
+  ls.setFrozenRows(1);
+  return out.length - 1;
+}
+
+// Step 2: writes the retailer_id onto each confirmed Account, then syncs.
+function applySalesforceLinks() {
+  const ls = SpreadsheetApp.getActive().getSheetByName(SF_LINK_SHEET);
+  if (!ls || ls.getLastRow() < 2) throw new Error('Run suggestSalesforceLinks first');
+  const rows = ls.getRange(2, 1, ls.getLastRow() - 1, 4).getValues();
+  const seen = {};
+  const records = [];
+  rows.forEach(function (r) {
+    const id = String(r[0] || '').trim();
+    const acct = String(r[3] || '').trim();
+    if (r[2] !== true || !id || !acct) return;
+    if (seen[id]) throw new Error(id + ' is confirmed on more than one Account');
+    seen[id] = true;
+    const rec = { attributes: { type: 'Account' }, id: acct };
+    rec[SF_LINK_FIELD] = id;
+    records.push(rec);
+  });
+  const errors = [];
+  for (let i = 0; i < records.length; i += 200) {
+    const res = sfFetch_('patch', '/services/data/' + SF_API + '/composite/sobjects',
+      { allOrNone: false, records: records.slice(i, i + 200) });
+    (res || []).forEach(function (rr, k) {
+      if (!rr.success) errors.push(records[i + k][SF_LINK_FIELD] + ': ' + JSON.stringify(rr.errors));
+    });
+  }
+  const summary = syncSalesforce();
+  console.log('Linked ' + (records.length - errors.length) + ' of ' + records.length +
+              (errors.length ? '. Errors: ' + errors.join('; ') : '') + ' · sync: ' + JSON.stringify(summary));
+  return { linked: records.length - errors.length, errors: errors, sync: summary };
+}
+
+// Run once from the editor: syncs every 15 minutes.
+function installSalesforceTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'syncSalesforce') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('syncSalesforce').timeBased().everyMinutes(15).create();
+}
+
+// Run from the editor to check credentials.
+function testSalesforceConnection() {
+  const rows = sfQuery_('SELECT Id FROM Account WHERE ' + SF_LINK_FIELD + ' != null LIMIT 200');
+  console.log('Connected to ' + sfDomain_() + ' · ' + rows.length + ' linked Accounts');
+  return rows.length;
 }

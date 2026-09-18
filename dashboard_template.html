@@ -545,6 +545,18 @@
   .rt-tbl td:nth-child(8), .rt-tbl td:nth-child(9), .rt-tbl td:nth-child(10) { text-align:left; }
   .rt-tbl tr:hover td { background:#f8f9ff; }
   .rt-tbl .rt-retailer-name { font-weight:600; color:#1a1a2e; }
+  .rt-contact { display:inline-block; margin-top:3px; font-size:0.74rem; color:#0057e7; cursor:default;
+                border-bottom:1px dotted #9db4e8; }
+  .rt-contact:focus { outline:none; }
+  .rt-contact-none { color:#999; border-bottom:none; }
+  #rt-contact-card { display:none; position:fixed; z-index:1000; width:290px; max-width:calc(100vw - 32px);
+                     background:#fff; border:1px solid #d0d8f0; border-radius:8px; padding:8px 12px;
+                     box-shadow:0 6px 20px rgba(0,0,0,0.14); font-size:0.78rem; color:#333; }
+  #rt-contact-card .rt-cc-acct { font-size:0.72rem; color:#777; padding-bottom:4px; }
+  #rt-contact-card .rt-cc { padding:6px 0; border-top:1px solid #f0f0f0; line-height:1.45; }
+  #rt-contact-card .rt-cc-title { color:#777; }
+  #rt-contact-card a { color:#0057e7; text-decoration:none; }
+  #rt-contact-card a:hover { text-decoration:underline; }
   .rt-tbl .rt-channel-row td { background:#f0f4ff; color:#0057e7; font-weight:700; font-size:0.78rem;
                                padding:7px 10px; border-top:2px solid #d0d8f0; text-transform:uppercase;
                                letter-spacing:0.05em; text-align:right; }
@@ -1817,6 +1829,7 @@
         </div>
         <div class="rt-sync-actions">
           <button class="rt-btn" onclick="rtFetchFromSheet(true)" title="Force a pull from the Sheet now">↻ Pull from Sheet now</button>
+          <button class="rt-btn" onclick="rtSyncSalesforce()" title="Run the Sheet ⇄ Salesforce sync now (it also runs every 15 minutes)">☁ Sync Salesforce now</button>
           <button class="rt-btn primary" onclick="rtPushAllRetailers()" title="Replace the Sheet with all retailers and distributors — store counts, channels, U/S/W, opportunity formulas, and your edits">⬆ Push ALL retailers to Sheet (rebuild)</button>
         </div>
         <div style="font-size:0.72rem;color:#888;margin-top:10px;line-height:1.4">
@@ -8405,7 +8418,7 @@ function rtRowHtml(r, dimmed) {
             ${RT_PRIORITY_OPTIONS.map(n => `<option value="${n}" ${String(n) === String(priority) ? "selected" : ""}>${n}</option>`).join("")}
           </select>
         </td>
-        <td><span class="rt-retailer-name">${r.name}</span>${r.reach ? `<div style="font-size:0.72rem;color:#777;margin-top:2px">${r.reach}</div>` : ""}</td>
+        <td><span class="rt-retailer-name">${r.name}</span>${r.reach ? `<div style="font-size:0.72rem;color:#777;margin-top:2px">${r.reach}</div>` : ""}${rtContactHtml(r)}</td>
         <td><span class="rt-ch-badge" style="background:${c.color}">${c.name}</span></td>
         ${oppCells || `<td>${r.stores.toLocaleString()}</td>
         <td>
@@ -8441,6 +8454,58 @@ function rtRowHtml(r, dimmed) {
                  onchange="rtUpdateText('${r.id}', 'nextReview', this.value, this); rtRenderTable()">
         </td>
       </tr>`;
+}
+
+// Salesforce contacts arrive with the Sheet pull (Apps Script syncs them from the
+// linked Account). One floating card for the whole table: the table wrapper
+// scrolls, so a card nested in the cell would get clipped.
+const RT_SF_LIGHTNING = "https://energex1.lightning.force.com";
+let RT_CONTACT_HIDE_T = null;
+
+function rtContactHtml(r) {
+  const o = RT_OVERRIDES[r.id] || {};
+  if (!o.sfAccountId) return "";
+  const cs = o.contacts || [];
+  if (!cs.length) return `<div class="rt-contact rt-contact-none" title="Linked to Salesforce Account ${rtEsc(o.sfAccountName)}">No Salesforce contacts</div>`;
+  const more = cs.length > 1 ? ` +${cs.length - 1}` : "";
+  return `<div class="rt-contact" tabindex="0"
+      onmouseenter="rtShowContacts('${r.id}', this)" onmouseleave="rtHideContactsSoon()"
+      onfocus="rtShowContacts('${r.id}', this)" onblur="rtHideContactsSoon()">👤 ${rtEsc(cs[0].name)}${more}</div>`;
+}
+
+function rtShowContacts(id, anchor) {
+  const o = RT_OVERRIDES[id] || {};
+  let card = document.getElementById("rt-contact-card");
+  if (!card) {
+    card = document.createElement("div");
+    card.id = "rt-contact-card";
+    card.addEventListener("mouseenter", () => clearTimeout(RT_CONTACT_HIDE_T));
+    card.addEventListener("mouseleave", rtHideContactsSoon);
+    document.body.appendChild(card);
+  }
+  clearTimeout(RT_CONTACT_HIDE_T);
+  const acctUrl = `${RT_SF_LIGHTNING}/lightning/r/Account/${encodeURIComponent(o.sfAccountId)}/view`;
+  card.innerHTML =
+    `<div class="rt-cc-acct">Salesforce: <a href="${acctUrl}" target="_blank" rel="noopener">${rtEsc(o.sfAccountName || "Account")}</a></div>` +
+    (o.contacts || []).map(c => `<div class="rt-cc">
+      <strong>${rtEsc(c.name)}</strong>${c.title ? ` <span class="rt-cc-title">· ${rtEsc(c.title)}</span>` : ""}
+      ${c.email ? `<div>✉ <a href="mailto:${rtEsc(c.email)}">${rtEsc(c.email)}</a></div>` : ""}
+      ${c.phone ? `<div>☎ <a href="tel:${rtEsc(c.phone.replace(/[^0-9+]/g, ""))}">${rtEsc(c.phone)}</a></div>` : ""}
+    </div>`).join("");
+  card.style.display = "block";
+  const a = anchor.getBoundingClientRect();
+  const h = card.offsetHeight, w = card.offsetWidth;
+  const top = (a.bottom + 4 + h > window.innerHeight) ? Math.max(8, a.top - h - 4) : a.bottom + 4;
+  card.style.top = top + "px";
+  card.style.left = Math.max(8, Math.min(a.left, window.innerWidth - w - 8)) + "px";
+}
+
+function rtHideContactsSoon() {
+  clearTimeout(RT_CONTACT_HIDE_T);
+  RT_CONTACT_HIDE_T = setTimeout(() => {
+    const card = document.getElementById("rt-contact-card");
+    if (card) card.style.display = "none";
+  }, 250);
 }
 
 function rtUpdatePriority(id, val) {
@@ -8703,6 +8768,36 @@ async function rtPushAllRetailers() {
     alert("Push failed: " + err.message +
           "\n\nIf you just updated the Apps Script code, make sure you also did " +
           "Deploy → Manage deployments → pencil-edit → Version: New version → Deploy.");
+  }
+}
+
+async function rtSyncSalesforce() {
+  if (!rtSyncEnabled()) { alert("Connect a Google Sheet first."); return; }
+  RT_INFLIGHT++;
+  rtSetSyncStatus("syncing", "Syncing with Salesforce…");
+  try {
+    const res = await fetch(RT_SYNC_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "sfsync" }),
+      redirect: "follow",
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const j = await res.json();
+    if (!j.ok) throw new Error(j.error || "unknown error");
+    if (j.data) {
+      RT_OVERRIDES = j.data;
+      localStorage.setItem(RT_STORAGE_KEY, JSON.stringify(RT_OVERRIDES));
+      rtRenderTable();
+    }
+    RT_LAST_SYNC_AT = new Date();
+    RT_INFLIGHT = Math.max(0, RT_INFLIGHT - 1);
+    const s = j.summary || {};
+    rtSetSyncStatus("saved", s.skipped ? "Salesforce: " + s.skipped
+      : `Salesforce · ${s.linked} linked, ${s.pulled} pulled, ${s.pushed} pushed`);
+  } catch (err) {
+    RT_INFLIGHT = Math.max(0, RT_INFLIGHT - 1);
+    rtSetSyncStatus("error", "Salesforce sync failed: " + err.message);
   }
 }
 
