@@ -1931,13 +1931,15 @@
           Fleet Farm, Murdoch's, etc.).
         </dd>
 
-        <dt>"Remaining Pet Specialty" (~7,000 doors)</dt>
+        <dt>"Independent + regional pet doors" (~7,000 doors, under Pet Distributors)</dt>
         <dd>
           Long-tail estimate of regional pet specialty chains (Pet Food Express, Mud Bay, Pet Club,
           Bentley's Pet Stuff, Centinela Feed, Healthy Spot, Pet Pros, Bark Avenue, etc.) plus
           independent pet stores. Reconciled against APPA industry overviews, Pet Industry
           Distributors Association tallies, and independent-pet-retailer trade groups (~9,000–12,000
-          total US pet specialty doors).
+          total US pet specialty doors). These doors sit under Pet Distributors rather than Pet
+          Specialty, because wholesalers are how Catalyst would reach them; the named distributor
+          rows carry no doors of their own, so nothing is counted twice.
         </dd>
 
         <dt>"Remaining Grocery" (~10,000 doors)</dt>
@@ -1950,9 +1952,10 @@
 
         <dt>Pet Distributors</dt>
         <dd>
-          Wholesalers that route product to independent pet, feed and natural-grocery doors, which are
-          already counted in Pet Specialty, Farm &amp; Rural and Grocery. Listed for status, rep-firm and
-          next-step tracking only, so they add no stores or $ to the totals. Pet Food Experts acquired
+          The channel holds the ~7,000 independent and regional pet doors that wholesalers serve,
+          moved out of Pet Specialty so they are counted once. The named distributor rows below it are
+          the routes in, for status, rep-firm and next-step tracking, and carry no stores or $ of their
+          own. Independent grocery and farm doors stay in their own channels. Pet Food Experts acquired
           Animal Supply Company's assets in Feb 2025; Central Garden &amp; Pet folded Central Pet
           Distribution into a Phillips-branded joint venture announced Apr 2026. Checked 2026-09.
         </dd>
@@ -7971,12 +7974,12 @@ const RT_CHANNELS = {
               note: "Convenience-only pet aisle; low litter affinity." },
   dollar:   { name: "Dollar / Value",  color: "#f57c00", defaultUSW: 0.75,
               note: "Price-driven shoppers; bag size mismatch for 15/34 lb." },
-  distributor: { name: "Pet Distributors", color: "#00838f", defaultUSW: 0, noOpp: true,
-              note: "Route to indie pet & feed doors already counted above; tracked for account planning, excluded from opportunity totals." },
+  distributor: { name: "Pet Distributors", color: "#00838f", defaultUSW: 4.0,
+              note: "Independent pet doors reached through wholesalers — the doors sit here, the distributor rows are the route in." },
 };
 const RT_CHANNEL_ORDER = ["mass","pet","club","farm","grocery","hardware","drug","dollar","distributor"];
 // Channels that size opportunity (distributors have no doors of their own)
-const RT_OPP_CHANNELS = RT_CHANNEL_ORDER.filter(ch => !RT_CHANNELS[ch].noOpp);
+const RT_OPP_CHANNELS = RT_CHANNEL_ORDER;
 
 const RT_RETAILERS = [
   // Mass
@@ -7995,7 +7998,6 @@ const RT_RETAILERS = [
   { id: "kahoots",          name: "Kahoot's Pet Store",            channel: "pet",      stores: 30 },
   { id: "tomlinsons",       name: "Tomlinson's Feed",              channel: "pet",      stores: 25 },
   { id: "kriser",           name: "Kriser's Natural Pet",          channel: "pet",      stores: 25 },
-  { id: "other-pet",        name: "Remaining Pet Specialty (regional + indie)", channel: "pet", stores: 7000 },
 
   // Club
   { id: "costco",           name: "Costco",                        channel: "club",     stores: 600 },
@@ -8049,7 +8051,8 @@ const RT_RETAILERS = [
   { id: "five-below",       name: "Five Below",                    channel: "dollar",   stores: 1800 },
   { id: "big-lots",         name: "Big Lots",                      channel: "dollar",   stores: 1300 },
 
-  // Pet Distributors (no own doors; `reach` shown under the name)
+  // Pet Distributors — the ~7,000 regional + indie doors they serve, then the routes in
+  { id: "indie-via-distributors", name: "Independent + regional pet doors (served via distributors)", channel: "distributor", stores: 7000, reach: "Moved out of Pet Specialty so the doors are counted once; the rows below are the routes to them, not extra doors" },
   { id: "pet-food-experts", name: "Pet Food Experts (PFX)",        channel: "distributor", stores: 0, reach: "National · Pawtucket, RI · #1 pet specialty distributor; absorbed Animal Supply Co. assets (Feb 2025)" },
   { id: "phillips-pet",     name: "Phillips Pet Food & Supplies",  channel: "distributor", stores: 0, reach: "National · Easton, PA · 11 DCs; JV with Central Pet Distribution announced Apr 2026" },
   { id: "bradley-caldwell", name: "Bradley Caldwell (BCI)",        channel: "distributor", stores: 0, reach: "East & Midwest · pet, equine, farm & home to independents" },
@@ -8329,18 +8332,19 @@ function rtRenderTable() {
       chStores += r.stores;
       chUnits += r.stores * rtRowUsw(r) * RT_WEEKS_PER_YEAR;
     });
-    if (!c.noOpp) { grandStores += chStores; grandUnits += chUnits; }
+    grandStores += chStores;
+    grandUnits += chUnits;
 
     html += `<tr class="rt-channel-row">
       <td colspan="3">
         <span class="rt-ch-badge" style="background:${c.color}">${c.name}</span>
         <span style="font-weight:500;margin-left:8px;text-transform:none;letter-spacing:0;color:#555;font-size:0.75rem">${c.note}</span>
       </td>
-      <td>${c.noOpp ? "—" : chStores.toLocaleString()}</td>
+      <td>${chStores.toLocaleString()}</td>
       <td>—</td>
-      <td>${c.noOpp ? "—" : rtFmtUnits(chUnits)}</td>
-      <td>${c.noOpp ? "—" : rtFmt$(chUnits * RT_WHOLESALE_PRICE)}</td>
-      <td>${c.noOpp ? "—" : rtFmt$(chUnits * RT_RETAIL_PRICE)}</td>
+      <td>${rtFmtUnits(chUnits)}</td>
+      <td>${rtFmt$(chUnits * RT_WHOLESALE_PRICE)}</td>
+      <td>${rtFmt$(chUnits * RT_RETAIL_PRICE)}</td>
       <td colspan="4"></td>
     </tr>`;
 
@@ -8380,7 +8384,7 @@ function rtRenderTable() {
 
 function rtRowHtml(r, dimmed) {
       const c = RT_CHANNELS[r.channel];
-      const oppCells = c.noOpp
+      const oppCells = r.stores === 0
         ? `<td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>`
         : null;
       const usw = rtRowUsw(r);
