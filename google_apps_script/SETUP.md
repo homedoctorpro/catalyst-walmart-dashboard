@@ -140,7 +140,37 @@ Field-level security must be **Edit** for the integration user in step 2.
      Tick **confirm** on the right Account for each one; paste an Account Id for any with no match.
      Aggregate rows (`other-grocery`, `indie-via-distributors`) are skipped.
    - `applySalesforceLinks`: stamps the retailer ID onto those Accounts and runs the first sync.
-   - `installSalesforceTrigger`: syncs every 15 minutes from then on.
+   - `installAllTriggers`: turns on the 15-minute sync **and** the instant push
+     when someone types into the Sheet.
+
+### Auto-sync
+
+Three paths keep the two sides together, all on by default once `installAllTriggers` has run:
+
+| Change made in | Reaches the other side |
+|---|---|
+| Dashboard | Immediately (the dashboard pushes on every save) |
+| The Sheet | Within seconds (`sfOnSheetEdit`, an installable onEdit trigger) |
+| Salesforce | Within 15 minutes (`syncSalesforce`), or on the next dashboard pull |
+
+The dashboard pulls when you open the Retailers tab, when you come back to the
+browser window, and every 60 seconds while that tab is open.
+
+### Overwrite warnings
+
+Before any push, the script reads the Account and compares each field against the
+last synced value. Anything it is about to replace that somebody changed in
+Salesforce gets a row on the **SF_Log** tab, newest first: when, retailer, account,
+field, the value kept, the value overwritten, which side won and what triggered it.
+Scheduled syncs log the same way, including both-sides-changed conflicts and
+first-link overwrites. The tab keeps the most recent 500 rows.
+
+Add a Script Property `SF_ALERT_EMAIL` to also get an email each time one happens.
+Leave it unset for no email.
+
+`previewSalesforceSync` is a dry run: it logs every field the next sync would write,
+and flags conflicts, without sending anything to Salesforce. Worth running before a
+big round of edits.
 
 ### How conflicts resolve
 

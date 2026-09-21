@@ -417,6 +417,8 @@ const SF_STATUS = {
 };
 const SF_MAX_CONTACTS = 5;
 const SF_SNAPSHOT_SHEET = 'SF_Sync';
+const SF_LOG_SHEET = 'SF_Log';       // overwrite / conflict warnings, newest first
+const SF_LOG_KEEP = 500;
 const SF_LINK_SHEET = 'SF_Link';
 // Aggregate rows that will never map to one Account
 const SF_UNLINKABLE = ['other-grocery', 'indie-via-distributors'];
@@ -524,6 +526,51 @@ function sfSheetVals_(rowVals) {
   return out;
 }
 
+// Every write that lands on top of a value someone else had in Salesforce
+// gets a row here, newest first. Set the Script Property SF_ALERT_EMAIL to
+// also get an email when one happens.
+function sfLogSheet_() {
+  const ss = SpreadsheetApp.getActive();
+  let sh = ss.getSheetByName(SF_LOG_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(SF_LOG_SHEET);
+    sh.appendRow(['when', 'retailer_id', 'account', 'field', 'kept', 'overwrote', 'winner', 'source']);
+    sh.getRange(1, 1, 1, 8).setFontWeight('bold').setBackground('#1a1a2e').setFontColor('#ffffff');
+    sh.setFrozenRows(1);
+    sh.setColumnWidths(1, 8, 130);
+  }
+  return sh;
+}
+
+function sfLog_(entries) {
+  if (!entries || !entries.length) return;
+  const sh = sfLogSheet_();
+  const now = new Date();
+  const rows = entries.map(function (e) {
+    return [now, e.id, e.account || '', e.field,
+            e.kept === '' ? '(blank)' : e.kept,
+            e.overwrote === '' ? '(blank)' : e.overwrote,
+            e.winner, e.source];
+  });
+  sh.insertRowsAfter(1, rows.length);
+  sh.getRange(2, 1, rows.length, 8).setValues(rows);
+  sh.getRange(2, 1, rows.length, 1).setNumberFormat('yyyy-mm-dd hh:mm');
+  const last = sh.getLastRow();
+  if (last > SF_LOG_KEEP + 1) sh.deleteRows(SF_LOG_KEEP + 2, last - SF_LOG_KEEP - 1);
+
+  const to = sfProps_().getProperty('SF_ALERT_EMAIL');
+  if (!to) return;
+  const body = entries.map(function (e) {
+    return e.id + ' · ' + e.field + ': kept "' + e.kept + '", overwrote "' + e.overwrote +
+           '" (' + e.winner + ' won, via ' + e.source + ')';
+  }).join('\n');
+  try {
+    MailApp.sendEmail(to, 'Catalyst Retailers sync: ' + entries.length + ' overwrite' +
+      (entries.length === 1 ? '' : 's'),
+      body + '\n\nFull history: ' + SpreadsheetApp.getActive().getUrl() + ' → ' + SF_LOG_SHEET + ' tab');
+  } catch (err) { console.warn('alert email failed: ' + err); }
+}
+
 function sfSnapshotSheet_() {
   const ss = SpreadsheetApp.getActive();
   let sh = ss.getSheetByName(SF_SNAPSHOT_SHEET);
@@ -554,18 +601,40 @@ function sfWriteSnapshots_(snaps) {
 }
 
 // Push one row's dashboard fields to its Account right after a dashboard save.
-function sfPushRow_(sh, row) {
+function sfPushRow_(sh, row, source) {
   const vals = sh.getRange(row, 1, 1, N_COLS).getValues()[0];
   const accountId = String(vals[COL.sfAccountId - 1] || '').trim();
   if (!accountId) return;
+  const id = String(vals[COL.id - 1]).trim();
   const cur = sfSheetVals_(vals);
+  const snaps = sfReadSnapshots_();
+  const snap = snaps[id];
+
+  // Read the Account first so we can warn about anything we are about to
+  // replace that someone else changed in Salesforce since the last sync.
+  const fieldNames = Object.keys(SF_FIELDS).map(function (f) { return SF_FIELDS[f]; });
+  const found = sfQuery_('SELECT Id, Name, ' + fieldNames.join(', ') +
+                         " FROM Account WHERE Id = '" + sfSoqlStr_(accountId) + "'");
+  const a = found[0];
+  const warnings = [];
+  if (a) {
+    for (const f in SF_FIELDS) {
+      const fv = sfFromAccount_(f, a[SF_FIELDS[f]]);
+      if (fv === '' || fv === cur[f]) continue;          // nothing lost
+      if (snap && fv === snap[f]) continue;              // unchanged since last sync
+      warnings.push({ id: id, account: a.Name || '', field: f, kept: cur[f],
+                      overwrote: fv, winner: 'dashboard', source: source || 'dashboard edit' });
+    }
+  }
+
   const body = {};
   for (const f in SF_FIELDS) body[SF_FIELDS[f]] = sfToAccount_(f, cur[f]);
   sfFetch_('patch', '/services/data/' + SF_API + '/sobjects/Account/' + accountId, body);
-  const snaps = sfReadSnapshots_();
-  snaps[String(vals[COL.id - 1]).trim()] = cur;
+  snaps[id] = cur;
   sfWriteSnapshots_(snaps);
   sh.getRange(row, COL.sfSyncedAt).setValue(new Date());
+  sfLog_(warnings);
+  return warnings.length;
 }
 
 // Time-driven entry point (see installSalesforceTrigger).
@@ -595,7 +664,8 @@ function syncSalesforce_() {
   const snaps = sfReadSnapshots_();
   const now = new Date();
   const patches = [];
-  const summary = { linked: 0, pulled: 0, pushed: 0, conflicts: 0, unlinked: 0 };
+  const warnings = [];
+  const summary = { linked: 0, pulled: 0, pushed: 0, conflicts: 0, unlinked: 0, warned: 0 };
 
   data.forEach(function (r) {
     const id = String(r[COL.id - 1] || '').trim();
@@ -620,12 +690,26 @@ function syncSalesforce_() {
     for (const f in SF_FIELDS) {
       const sv = sheet[f];
       const fv = sfFromAccount_(f, a[SF_FIELDS[f]]);
-      let winner;
+      let winner, why = '';
       if (sv === fv) winner = 'same';
-      else if (!snap) winner = sv !== '' ? 'sheet' : 'sf';  // first link: keep whichever side has data, Sheet first
+      else if (!snap) {                                    // first link: keep whichever side has data, Sheet first
+        winner = sv !== '' ? 'sheet' : 'sf';
+        if (winner === 'sheet' && fv !== '') why = 'first link';
+      }
       else if (fv === snap[f]) winner = 'sheet';
       else if (sv === snap[f]) winner = 'sf';
-      else { summary.conflicts++; winner = sheetEditedAt >= sfEditedAt ? 'sheet' : 'sf'; }
+      else {
+        summary.conflicts++;
+        winner = sheetEditedAt >= sfEditedAt ? 'sheet' : 'sf';
+        why = 'both sides changed, later edit won';
+      }
+      if (why) {
+        warnings.push({ id: id, account: a.Name || '', field: f,
+                        kept: winner === 'sheet' ? sv : fv,
+                        overwrote: winner === 'sheet' ? fv : sv,
+                        winner: winner === 'sheet' ? 'dashboard/sheet' : 'salesforce',
+                        source: 'scheduled sync (' + why + ')' });
+      }
       if (winner === 'sf') {
         merged[f] = fv;
         r[COL[f] - 1] = f === 'priority' && fv !== '' ? Number(fv) : fv;
@@ -676,6 +760,8 @@ function syncSalesforce_() {
     return r.slice(COL.nextReview - 1, COL.sfSyncedAt);
   }));
   sfWriteSnapshots_(snaps);
+  summary.warned = warnings.length;
+  sfLog_(warnings);
   return summary;
 }
 
@@ -756,6 +842,91 @@ function installSalesforceTrigger() {
     if (t.getHandlerFunction() === 'syncSalesforce') ScriptApp.deleteTrigger(t);
   });
   ScriptApp.newTrigger('syncSalesforce').timeBased().everyMinutes(15).create();
+}
+
+// Run once from the editor: pushes an edit typed straight into the Sheet to
+// Salesforce within seconds, instead of waiting for the 15-minute sync.
+function installSheetEditTrigger() {
+  const ss = SpreadsheetApp.getActive();
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'sfOnSheetEdit') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('sfOnSheetEdit').forSpreadsheet(ss).onEdit().create();
+}
+
+// Both triggers in one go.
+function installAllTriggers() {
+  installSalesforceTrigger();
+  installSheetEditTrigger();
+  console.log('Installed: 15-minute sync + instant push on Sheet edits');
+}
+
+// Installable onEdit handler. Fires only for edits a person makes; writes the
+// script itself makes (a pull, a dashboard push) never re-trigger it.
+function sfOnSheetEdit(e) {
+  if (!e || !e.range || !sfConfigured_()) return;
+  const sh = e.range.getSheet();
+  if (sh.getName() !== SHEET_NAME) return;
+
+  const editable = {};
+  editable[COL.repFirm] = 1; editable[COL.status] = 1; editable[COL.nextSteps] = 1;
+  editable[COL.nextReview] = 1; editable[COL.priority] = 1; editable[COL.uswOverride] = 1;
+
+  const c1 = e.range.getColumn(), c2 = e.range.getLastColumn();
+  let touched = false;
+  for (let c = c1; c <= c2 && !touched; c++) if (editable[c]) touched = true;
+  if (!touched) return;
+
+  const r1 = Math.max(e.range.getRow(), 2), r2 = e.range.getLastRow();
+  for (let row = r1; row <= r2; row++) {
+    const id = String(sh.getRange(row, COL.id).getValue() || '').trim();
+    if (!id || id === 'TOTAL') continue;
+    sh.getRange(row, COL.updatedAt).setValue(new Date());
+    try {
+      sfPushRow_(sh, row, 'sheet edit');
+    } catch (err) {
+      console.warn('sheet-edit push failed for ' + id + ': ' + err);
+      sfLog_([{ id: id, account: '', field: '(push failed)', kept: String(err).slice(0, 120),
+                overwrote: '', winner: 'none', source: 'sheet edit' }]);
+    }
+  }
+}
+
+// Dry run: logs what the next sync would write, without sending anything.
+function previewSalesforceSync() {
+  if (!sfConfigured_()) throw new Error('Salesforce credentials not set in Script Properties');
+  const sh = ensureSchema_();
+  const last = sh.getLastRow();
+  if (last < 2) return 'Sheet is empty';
+
+  const selectFields = ['Id', 'Name', 'LastModifiedDate', SF_LINK_FIELD]
+    .concat(Object.keys(SF_FIELDS).map(function (f) { return SF_FIELDS[f]; }));
+  const accounts = sfQuery_('SELECT ' + selectFields.join(', ') +
+    ' FROM Account WHERE ' + SF_LINK_FIELD + ' != null');
+  const byRetailer = {};
+  accounts.forEach(function (a) { byRetailer[String(a[SF_LINK_FIELD]).trim()] = a; });
+
+  const snaps = sfReadSnapshots_();
+  const lines = [];
+  sh.getRange(2, 1, last - 1, N_COLS).getValues().forEach(function (r) {
+    const id = String(r[COL.id - 1] || '').trim();
+    const a = byRetailer[id];
+    if (!id || id === 'TOTAL' || !a) return;
+    const sheet = sfSheetVals_(r);
+    const snap = snaps[id];
+    for (const f in SF_FIELDS) {
+      const sv = sheet[f], fv = sfFromAccount_(f, a[SF_FIELDS[f]]);
+      if (sv === fv) continue;
+      let winner;
+      if (!snap) winner = sv !== '' ? 'sheet' : 'sf';
+      else if (fv === snap[f]) winner = 'sheet';
+      else if (sv === snap[f]) winner = 'sf';
+      else winner = 'CONFLICT';
+      lines.push(id + ' · ' + f + ': sheet "' + sv + '" vs salesforce "' + fv + '" → ' + winner);
+    }
+  });
+  console.log(lines.length ? lines.join('\n') : 'Nothing to write — both sides match');
+  return lines;
 }
 
 // Run from the editor to check credentials.

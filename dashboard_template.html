@@ -8808,6 +8808,17 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 
+// ...and every 60s while the Retailers tab is open, so edits made in the Sheet
+// or in Salesforce show up without a reload.
+const RT_POLL_MS = 60000;
+setInterval(() => {
+  const onTab = document.getElementById("tab-retailers");
+  if (!retailersInit || !rtSyncEnabled() || RT_INFLIGHT !== 0) return;
+  if (document.visibilityState !== "visible") return;
+  if (!onTab || !onTab.classList.contains("active")) return;
+  rtFetchFromSheet(false);
+}, RT_POLL_MS);
+
 
 // ── Reviews tab ───────────────────────────────────────────────────────────────
 // DATA.reviews is built by walmart_reviews.py (Reviews/reviews_summary.json) and
