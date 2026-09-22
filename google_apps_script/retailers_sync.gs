@@ -28,6 +28,8 @@
  *   R sf_account_name Salesforce Account name             (written by Salesforce sync)
  *   S contacts_json   up to 5 Account contacts as JSON    (written by Salesforce sync)
  *   T sf_synced_at    last successful Salesforce sync     (written by Salesforce sync)
+ *   U sf_opportunity_id     Catalyst litter Opportunity   (written by Salesforce sync)
+ *   V sf_opportunity_stage  its current stage             (written by Salesforce sync)
  *
  * Sheets created with fewer columns are migrated in place by appending the
  * missing headers; rows are kept.
@@ -44,6 +46,7 @@ const HEADERS = [
   'rep_firm', 'status', 'next_steps', 'updated_at',
   'next_review', 'priority',
   'sf_account_id', 'sf_account_name', 'contacts_json', 'sf_synced_at',
+  'sf_opportunity_id', 'sf_opportunity_stage',
 ];
 const COL = {
   id: 1, name: 2, channel: 3,
@@ -52,8 +55,9 @@ const COL = {
   repFirm: 11, status: 12, nextSteps: 13, updatedAt: 14,
   nextReview: 15, priority: 16,
   sfAccountId: 17, sfAccountName: 18, contactsJson: 19, sfSyncedAt: 20,
+  sfOppId: 21, sfOppStage: 22,
 };
-const N_SF_COLS = 4;  // Q..T, owned by the Salesforce sync
+const N_SF_COLS = 6;  // Q..V, owned by the Salesforce sync
 const N_COLS = HEADERS.length;
 const WHOLESALE_PRICE = 10;
 const RETAIL_PRICE = 20;
@@ -71,7 +75,7 @@ function formatHeader_(sh) {
 
 function setColumnWidths_(sh) {
   const widths = [110, 220, 110, 80, 90, 100, 110, 110, 130, 130, 130, 100, 320, 160, 110, 70,
-                  150, 200, 300, 140];
+                  150, 200, 300, 140, 190, 130];
   for (let i = 0; i < widths.length; i++) sh.setColumnWidth(i + 1, widths[i]);
 }
 
@@ -105,7 +109,7 @@ function ensureSchema_() {
   const current = sh.getRange(1, 1, 1, lastCol).getValues()[0];
   // Migrate older layouts (14 = through updated_at, 15 = through next_review,
   // 16 = through priority): append the missing trailing headers instead of wiping data
-  for (const n of [14, 15, 16]) {
+  for (const n of [14, 15, 16, 20]) {
     let isLegacy = true;
     for (let i = 0; i < N_COLS; i++) {
       const want = i < n ? HEADERS[i] : '';
@@ -172,6 +176,11 @@ function readAll_() {
       o.sfAccountId = sfId;
       o.sfAccountName = String(r[COL.sfAccountName - 1] || '').trim();
       try { o.contacts = JSON.parse(r[COL.contactsJson - 1] || '[]'); } catch (e) { o.contacts = []; }
+      const oppId = String(r[COL.sfOppId - 1] || '').trim();
+      if (oppId) {
+        o.sfOppId = oppId;
+        o.sfOppStage = String(r[COL.sfOppStage - 1] || '').trim();
+      }
     }
     if (Object.keys(o).length) out[id] = o;
   }
@@ -419,6 +428,27 @@ const SF_STATUS = {
 // else stays in the dashboard and the Sheet: the Account keeps its link and
 // whatever it already had, and we never blank a field we stopped syncing.
 const SF_PUSH_STATUSES = { 'target': 1, 'pitched': 1 };
+// ── Opportunities ───────────────────────────────────────────────────────────
+// One Catalyst cat-litter Opportunity per retailer, created the first time a
+// retailer reaches Target or Pitched. Tagged with the org's own picklists:
+// Product_Category__c = Pet Litter, Product_Label__c = Catalyst. Never created
+// twice, never created when the Account already carries a litter Opportunity
+// (open or closed), and never closed automatically — a retailer dropping off
+// the target list leaves its Opportunity for a human to close.
+const SF_OPP_CATEGORY = 'Pet Litter';
+const SF_OPP_LABEL = 'Catalyst';
+const SF_OPP_TYPE = 'New Business';
+const SF_OPP_FORECAST = 'Omitted';        // keeps sizing estimates out of forecast totals
+const SF_OPP_STAGE = { 'target': 'Qualification', 'pitched': 'Proposal' };
+// Stages we set ourselves; anything past these is a human's call and is left alone.
+const SF_OPP_OURS = { 'Qualification': 1, 'Proposal': 1 };
+const SF_OPP_DEFAULT_DAYS = 90;           // close date when the row has no next review
+// Dashboard channel → the org's Sales_Channel__c. Unmapped channels stay blank.
+const SF_OPP_CHANNEL = {
+  'Mass': 'Big Box', 'Club': 'Big Box',
+  'Pet Specialty': 'Pet Specialty', 'Grocery': 'Grocery',
+};
+
 const SF_MAX_CONTACTS = 5;
 
 function sfRowEligible_(statusCode) {
@@ -801,12 +831,153 @@ function syncSalesforce_() {
     return r.slice(COL.repFirm - 1, COL.updatedAt);
   }));
   sh.getRange(2, COL.nextReview, data.length, 2 + N_SF_COLS).setValues(data.map(function (r) {
-    return r.slice(COL.nextReview - 1, COL.sfSyncedAt);
+    return r.slice(COL.nextReview - 1, COL.sfOppStage);
   }));
   sfWriteSnapshots_(snaps);
+
+  // Opportunities: create for Target/Pitched, keep our own stages in step.
+  try {
+    warnings.push.apply(warnings, sfSyncOpportunities_(data, byRetailer, summary) || []);
+    sh.getRange(2, COL.sfOppId, data.length, 2).setValues(data.map(function (r) {
+      return [r[COL.sfOppId - 1] || '', r[COL.sfOppStage - 1] || ''];
+    }));
+  } catch (err) {
+    console.warn('opportunity sync failed: ' + err);
+    warnings.push({ id: '(all)', account: '', field: '(opportunity sync failed)',
+                    kept: String(err).slice(0, 200), overwrote: '', winner: 'none',
+                    source: 'scheduled sync' });
+  }
+
   summary.warned = warnings.length;
   sfLog_(warnings);
   return summary;
+}
+
+// ── Opportunities ──────────────────────────────────────────────────────────
+
+function sfOppDate_(v) {
+  const d = (v instanceof Date) ? v : (String(v || '').trim() ? new Date(String(v).trim()) : null);
+  if (d && !isNaN(d.getTime())) return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const fallback = new Date();
+  fallback.setDate(fallback.getDate() + SF_OPP_DEFAULT_DAYS);
+  return Utilities.formatDate(fallback, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+
+// Runs at the end of every sync. `rows` is the Retailers grid, already merged.
+function sfSyncOpportunities_(rows, byRetailer, summary) {
+  const existing = {};
+  sfQuery_('SELECT Id, Name, StageName, IsClosed, CloseDate, Account.' + SF_LINK_FIELD +
+    ' FROM Opportunity WHERE Account.' + SF_LINK_FIELD + " != null" +
+    " AND Product_Category__c INCLUDES ('" + sfSoqlStr_(SF_OPP_CATEGORY) + "')" +
+    ' ORDER BY CreatedDate DESC').forEach(function (o) {
+      const rid = String(o.Account[SF_LINK_FIELD] || '').trim();
+      if (rid && !existing[rid]) existing[rid] = o;   // newest wins
+    });
+
+  const creates = [], stageMoves = [], notes = [];
+
+  rows.forEach(function (r) {
+    const id = String(r[COL.id - 1] || '').trim();
+    const a = byRetailer[id];
+    if (!id || id === 'TOTAL' || !a) return;
+    const status = sfNorm_('status', r[COL.status - 1]);
+    const opp = existing[id];
+
+    if (opp) {                                  // remember it, keep the stage honest
+      r[COL.sfOppId - 1] = opp.Id;
+      r[COL.sfOppStage - 1] = opp.StageName + (opp.IsClosed ? '' : '');
+      if (!opp.IsClosed && sfRowEligible_(status)) {
+        const want = SF_OPP_STAGE[status];
+        if (want && opp.StageName !== want && SF_OPP_OURS[opp.StageName]) {
+          stageMoves.push({ attributes: { type: 'Opportunity' }, id: opp.Id, StageName: want });
+          r[COL.sfOppStage - 1] = want;
+        }
+      }
+      return;
+    }
+
+    if (!sfRowEligible_(status)) return;        // only Target/Pitched create one
+
+    const amount = Number(r[COL.wholesaleOpp - 1]);
+    const rec = {
+      attributes: { type: 'Opportunity' },
+      Name: 'Catalyst Cat Litter - ' + String(r[COL.name - 1] || id).trim() + ' ' +
+            sfOppDate_(r[COL.nextReview - 1]).slice(0, 4),
+      AccountId: a.Id,
+      StageName: SF_OPP_STAGE[status],
+      CloseDate: sfOppDate_(r[COL.nextReview - 1]),
+      Type: SF_OPP_TYPE,
+      ForecastCategoryName: SF_OPP_FORECAST,
+      Product_Category__c: SF_OPP_CATEGORY,
+      Product_Label__c: SF_OPP_LABEL,
+    };
+    if (isFinite(amount) && amount > 0) rec.Amount = amount;
+    const channel = SF_OPP_CHANNEL[String(r[COL.channel - 1] || '').trim()];
+    if (channel) rec.Sales_Channel__c = channel;
+    const steps = sfNorm_('nextSteps', r[COL.nextSteps - 1]);
+    if (steps) rec.Problem_Statement__c = steps;
+    creates.push({ id: id, row: r, record: rec });
+  });
+
+  for (let i = 0; i < stageMoves.length; i += 200) {
+    sfFetch_('patch', '/services/data/' + SF_API + '/composite/sobjects',
+      { allOrNone: false, records: stageMoves.slice(i, i + 200) });
+  }
+
+  for (let i = 0; i < creates.length; i += 200) {
+    const chunk = creates.slice(i, i + 200);
+    const res = sfFetch_('post', '/services/data/' + SF_API + '/composite/sobjects',
+      { allOrNone: false, records: chunk.map(function (c) { return c.record; }) });
+    (res || []).forEach(function (rr, k) {
+      const c = chunk[k];
+      if (rr.success) {
+        c.row[COL.sfOppId - 1] = rr.id;
+        c.row[COL.sfOppStage - 1] = c.record.StageName;
+        notes.push({ id: c.id, account: c.record.Name, field: '(opportunity created)',
+                     kept: c.record.StageName + ' · closes ' + c.record.CloseDate +
+                           (c.record.Amount ? ' · $' + c.record.Amount.toLocaleString() : ' · no amount'),
+                     overwrote: '', winner: 'dashboard', source: 'opportunity sync' });
+      } else {
+        notes.push({ id: c.id, account: c.record.Name, field: '(opportunity FAILED)',
+                     kept: JSON.stringify(rr.errors).slice(0, 200), overwrote: '',
+                     winner: 'none', source: 'opportunity sync' });
+      }
+    });
+  }
+
+  summary.oppsCreated = creates.length;
+  summary.oppsRestaged = stageMoves.length;
+  return notes;
+}
+
+// Run by hand to see what the next sync would create, without writing.
+function previewOpportunities() {
+  if (!sfConfigured_()) throw new Error('Salesforce credentials not set in Script Properties');
+  const sh = ensureSchema_();
+  const rows = sh.getRange(2, 1, sh.getLastRow() - 1, N_COLS).getValues();
+  const linked = {};
+  sfQuery_('SELECT Id, Name, ' + SF_LINK_FIELD + ' FROM Account WHERE ' + SF_LINK_FIELD + ' != null')
+    .forEach(function (a) { linked[String(a[SF_LINK_FIELD]).trim()] = a; });
+  const has = {};
+  sfQuery_('SELECT Id, Name, StageName, Account.' + SF_LINK_FIELD + ' FROM Opportunity WHERE Account.' +
+    SF_LINK_FIELD + " != null AND Product_Category__c INCLUDES ('" + sfSoqlStr_(SF_OPP_CATEGORY) + "')")
+    .forEach(function (o) { has[String(o.Account[SF_LINK_FIELD]).trim()] = o; });
+
+  const lines = [];
+  rows.forEach(function (r) {
+    const id = String(r[COL.id - 1] || '').trim();
+    if (!id || id === 'TOTAL') return;
+    const status = sfNorm_('status', r[COL.status - 1]);
+    if (!sfRowEligible_(status)) return;
+    if (!linked[id]) { lines.push(id + ': ' + status + ' but no linked Account — skipped'); return; }
+    if (has[id]) { lines.push(id + ': already has ' + has[id].Name + ' (' + has[id].StageName + ')'); return; }
+    const amt = Number(r[COL.wholesaleOpp - 1]);
+    lines.push('CREATE  ' + id + ' · ' + SF_OPP_STAGE[status] + ' · closes ' +
+      sfOppDate_(r[COL.nextReview - 1]) + ' · ' + (amt > 0 ? '$' + amt.toLocaleString() : 'no amount') +
+      ' · ' + linked[id].Name);
+  });
+  console.log(lines.length ? lines.join('\n') : 'No Target/Pitched retailers yet — nothing to create');
+  return lines;
 }
 
 // ── Linking retailers to Accounts (run from the Apps Script editor) ─────────

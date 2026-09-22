@@ -573,6 +573,10 @@
                            border-radius:4px; font-size:0.82rem; font-family:inherit; }
   .rt-tbl .rt-text-input:focus { outline:none; border-color:#0057e7; }
   .rt-tbl .rt-text-input.has-value { background:#f0fdf4; border-color:#a5d6a7; }
+  .rt-opp-chip { display:inline-block; margin-top:3px; padding:1px 7px; border-radius:10px;
+                 font-size:0.68rem; font-weight:700; color:#fff; text-decoration:none;
+                 letter-spacing:0.02em; }
+  .rt-opp-chip:hover { filter:brightness(1.12); }
   .rt-tbl .rt-prio-select { padding:3px 4px; border:1px solid #e0e0e0; border-radius:4px; font-family:inherit;
                             font-size:0.78rem; color:#666; }
   .rt-tbl .rt-prio-select.has-value { background:#fff3cd; border-color:#ffd54f; color:#6d4c00; font-weight:700; }
@@ -8084,6 +8088,11 @@ const RT_STATUS_OPTIONS = [
 ];
 
 const RT_PRIORITY_OPTIONS = [1,2,3,4,5,6,7,8,9,10];
+// Salesforce Opportunity badge (populated by the Sheet sync for Target/Pitched rows)
+const RT_OPP_STAGE_COLOR = {
+  "Qualification": "#1565c0", "Proposal": "#6a1b9a", "Negotiation": "#e67300",
+  "Documentation": "#00838f", "Closed Won": "#1b5e20", "Closed Lost": "#b71c1c",
+};
 const RT_REP_FIRM_OPTIONS = ["Unassigned", "PSE", "Brian Schlager", "Internal", "Jeff Day"];
 const RT_REP_FIRM_DEFAULT = "Unassigned";
 
@@ -8418,7 +8427,7 @@ function rtRowHtml(r, dimmed) {
             ${RT_PRIORITY_OPTIONS.map(n => `<option value="${n}" ${String(n) === String(priority) ? "selected" : ""}>${n}</option>`).join("")}
           </select>
         </td>
-        <td><span class="rt-retailer-name">${r.name}</span>${r.reach ? `<div style="font-size:0.72rem;color:#777;margin-top:2px">${r.reach}</div>` : ""}${rtContactHtml(r)}</td>
+        <td><span class="rt-retailer-name">${r.name}</span>${r.reach ? `<div style="font-size:0.72rem;color:#777;margin-top:2px">${r.reach}</div>` : ""}${rtContactHtml(r)}${rtOppChip(r.id)}</td>
         <td><span class="rt-ch-badge" style="background:${c.color}">${c.name}</span></td>
         ${oppCells || `<td>${r.stores.toLocaleString()}</td>
         <td>
@@ -8511,6 +8520,16 @@ function rtHideContactsSoon() {
 function rtUpdatePriority(id, val) {
   rtSetOverride(id, "priority", val ? Number(val) : null);
   rtRenderTable();
+}
+// Salesforce Opportunity badge, present once the sync has created or found one.
+function rtOppChip(id) {
+  const o = RT_OVERRIDES[id];
+  if (!o || !o.sfOppId) return "";
+  const stage = o.sfOppStage || "Opportunity";
+  const color = RT_OPP_STAGE_COLOR[stage] || "#607d8b";
+  return `<div><a class="rt-opp-chip" style="background:${color}" target="_blank" rel="noopener"
+             href="${RT_SF_LIGHTNING}/lightning/r/Opportunity/${rtEsc(o.sfOppId)}/view"
+             title="Catalyst cat litter Opportunity in Salesforce">SF · ${rtEsc(stage)}</a></div>`;
 }
 function rtTodayIso() {
   const d = new Date();

@@ -168,6 +168,36 @@ When a retailer drops out of Target/Pitched, the sync stops writing and logs one
 hold a stale status. Run `clearUnsyncedFields` by hand to blank those five fields on every
 Account whose retailer is no longer Target/Pitched; it logs each value it clears.
 
+### Opportunities
+
+A retailer reaching **Target** or **Pitched** gets one Catalyst cat-litter Opportunity on its
+Account, created by the next sync:
+
+| Field | Value |
+|---|---|
+| Name | `Catalyst Cat Litter - {Retailer} {close year}` |
+| StageName | Target → Qualification, Pitched → Proposal |
+| CloseDate | the retailer's Next Review, or 90 days out when that's blank |
+| Amount | the dashboard's annual wholesale sizing (blank when the row has no stores) |
+| ForecastCategoryName | Omitted, so a top-down estimate never lands in a forecast total |
+| Type | New Business |
+| Product_Category__c | Pet Litter |
+| Product_Label__c | Catalyst |
+| Sales_Channel__c | Mass and Club → Big Box, Pet Specialty → Pet Specialty, Grocery → Grocery; blank otherwise |
+| Problem_Statement__c | the row's Next Steps at creation |
+
+Never more than one per retailer. If the Account already carries an Opportunity tagged Pet
+Litter, open or closed, the sync adopts that one instead of creating another. The Opportunity's
+Id and stage come back into the Sheet (columns U–V) and show as a badge on the dashboard row,
+linking straight to the record.
+
+Stage moves in one direction only: the sync nudges Qualification ↔ Proposal to match the
+retailer's status, and never touches an Opportunity someone has advanced to Negotiation,
+Documentation or a closed stage. Dropping a retailer off the target list leaves its Opportunity
+alone for a human to close. Amount is set once at creation and never rewritten.
+
+`previewOpportunities` lists what the next sync would create, without writing.
+
 ### Overwrite warnings
 
 Before any push, the script reads the Account and compares each field against the
