@@ -156,6 +156,18 @@ Three paths keep the two sides together, all on by default once `installAllTrigg
 The dashboard pulls when you open the Retailers tab, when you come back to the
 browser window, and every 60 seconds while that tab is open.
 
+### What reaches Salesforce
+
+Only retailers whose status is **Target** or **Pitched** put field values into Salesforce.
+Every other row (Currently In, Non-Target, Declined, blank) stays in the dashboard and the
+Sheet: no push, no pull, and the Account keeps its link plus whatever it already held. Account
+names and contacts still refresh for every linked row, so the dashboard hover card stays current.
+
+When a retailer drops out of Target/Pitched, the sync stops writing and logs one
+`(left synced set)` row on SF_Log. It never blanks what it already wrote, so the Account can
+hold a stale status. Run `clearUnsyncedFields` by hand to blank those five fields on every
+Account whose retailer is no longer Target/Pitched; it logs each value it clears.
+
 ### Overwrite warnings
 
 Before any push, the script reads the Account and compares each field against the

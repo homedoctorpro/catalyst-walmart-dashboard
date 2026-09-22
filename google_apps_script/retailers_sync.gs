@@ -415,7 +415,15 @@ const SF_STATUS = {
   'in': 'Currently In', 'pitched': 'Pitched', 'target': 'Target',
   'non-target': 'Non-Target', 'declined': 'Declined',
 };
+// Only these statuses put a retailer's fields into Salesforce. Everything
+// else stays in the dashboard and the Sheet: the Account keeps its link and
+// whatever it already had, and we never blank a field we stopped syncing.
+const SF_PUSH_STATUSES = { 'target': 1, 'pitched': 1 };
 const SF_MAX_CONTACTS = 5;
+
+function sfRowEligible_(statusCode) {
+  return !!SF_PUSH_STATUSES[String(statusCode || '').trim()];
+}
 const SF_SNAPSHOT_SHEET = 'SF_Sync';
 const SF_LOG_SHEET = 'SF_Log';       // overwrite / conflict warnings, newest first
 const SF_LOG_KEEP = 500;
@@ -610,6 +618,20 @@ function sfPushRow_(sh, row, source) {
   const snaps = sfReadSnapshots_();
   const snap = snaps[id];
 
+  // Not Target/Pitched → nothing goes to Salesforce. If the row used to be
+  // synced, say so once in the log so the stale Account values are visible.
+  if (!sfRowEligible_(cur.status)) {
+    if (snap) {
+      delete snaps[id];
+      sfWriteSnapshots_(snaps);
+      sfLog_([{ id: id, account: String(vals[COL.sfAccountName - 1] || ''), field: '(left synced set)',
+                kept: 'status ' + (cur.status || 'blank') + ' — dashboard only from here',
+                overwrote: 'Salesforce keeps its last synced values',
+                winner: 'none', source: source || 'dashboard edit' }]);
+    }
+    return 0;
+  }
+
   // Read the Account first so we can warn about anything we are about to
   // replace that someone else changed in Salesforce since the last sync.
   const fieldNames = Object.keys(SF_FIELDS).map(function (f) { return SF_FIELDS[f]; });
@@ -665,7 +687,7 @@ function syncSalesforce_() {
   const now = new Date();
   const patches = [];
   const warnings = [];
-  const summary = { linked: 0, pulled: 0, pushed: 0, conflicts: 0, unlinked: 0, warned: 0 };
+  const summary = { linked: 0, pulled: 0, pushed: 0, conflicts: 0, unlinked: 0, warned: 0, skipped: 0 };
 
   data.forEach(function (r) {
     const id = String(r[COL.id - 1] || '').trim();
@@ -682,6 +704,28 @@ function syncSalesforce_() {
     summary.linked++;
     const sheet = sfSheetVals_(r);
     const snap = snaps[id];
+
+    // Not Target/Pitched: no push, no pull. Account name and contacts still
+    // refresh below so the dashboard hover card stays current.
+    if (!sfRowEligible_(sheet.status)) {
+      if (snap) {
+        delete snaps[id];
+        warnings.push({ id: id, account: a.Name || '', field: '(left synced set)',
+                        kept: 'status ' + (sheet.status || 'blank') + ' — dashboard only from here',
+                        overwrote: 'Salesforce keeps its last synced values',
+                        winner: 'none', source: 'scheduled sync' });
+      }
+      summary.skipped++;
+      r[COL.sfAccountId - 1] = a.Id;
+      r[COL.sfAccountName - 1] = a.Name || '';
+      r[COL.contactsJson - 1] = JSON.stringify(
+        ((a.Contacts && a.Contacts.records) || []).map(function (c) {
+          return { name: c.Name || '', title: c.Title || '', email: c.Email || '',
+                   phone: c.Phone || c.MobilePhone || '' };
+        }));
+      r[COL.sfSyncedAt - 1] = now;
+      return;
+    }
     const sheetEditedAt = r[COL.updatedAt - 1] instanceof Date ? r[COL.updatedAt - 1].getTime() : 0;
     const sfEditedAt = new Date(a.LastModifiedDate).getTime();
     const merged = {};
@@ -890,6 +934,50 @@ function sfOnSheetEdit(e) {
                 overwrote: '', winner: 'none', source: 'sheet edit' }]);
     }
   }
+}
+
+// Optional: blank the five dashboard fields on linked Accounts whose retailer
+// is no longer Target/Pitched, so Salesforce doesn't keep a stale status.
+// Run by hand — the sync never does this on its own. Logs every clear.
+function clearUnsyncedFields() {
+  if (!sfConfigured_()) throw new Error('Salesforce credentials not set in Script Properties');
+  const sh = ensureSchema_();
+  const last = sh.getLastRow();
+  if (last < 2) return 0;
+
+  const fieldNames = Object.keys(SF_FIELDS).map(function (f) { return SF_FIELDS[f]; });
+  const accounts = sfQuery_('SELECT Id, Name, ' + SF_LINK_FIELD + ', ' + fieldNames.join(', ') +
+    ' FROM Account WHERE ' + SF_LINK_FIELD + ' != null');
+  const byRetailer = {};
+  accounts.forEach(function (a) { byRetailer[String(a[SF_LINK_FIELD]).trim()] = a; });
+
+  const records = [], entries = [];
+  sh.getRange(2, 1, last - 1, N_COLS).getValues().forEach(function (r) {
+    const id = String(r[COL.id - 1] || '').trim();
+    const a = byRetailer[id];
+    if (!id || id === 'TOTAL' || !a) return;
+    if (sfRowEligible_(sfNorm_('status', r[COL.status - 1]))) return;
+
+    const rec = { attributes: { type: 'Account' }, id: a.Id };
+    let any = false;
+    for (const f in SF_FIELDS) {
+      const fv = sfFromAccount_(f, a[SF_FIELDS[f]]);
+      if (fv === '') continue;
+      rec[SF_FIELDS[f]] = null;
+      any = true;
+      entries.push({ id: id, account: a.Name || '', field: f, kept: '(blank)',
+                     overwrote: fv, winner: 'dashboard', source: 'clearUnsyncedFields' });
+    }
+    if (any) records.push(rec);
+  });
+
+  for (let i = 0; i < records.length; i += 200) {
+    sfFetch_('patch', '/services/data/' + SF_API + '/composite/sobjects',
+      { allOrNone: false, records: records.slice(i, i + 200) });
+  }
+  sfLog_(entries);
+  console.log('Cleared ' + entries.length + ' field value(s) on ' + records.length + ' Account(s)');
+  return entries.length;
 }
 
 // Read-only survey of how this org models Opportunities, so Opportunity
