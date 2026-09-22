@@ -892,6 +892,78 @@ function sfOnSheetEdit(e) {
   }
 }
 
+// Read-only survey of how this org models Opportunities, so Opportunity
+// creation can be designed against what is actually there. Writes nothing.
+function describeOpportunitySetup() {
+  if (!sfConfigured_()) throw new Error('Salesforce credentials not set in Script Properties');
+  const out = [];
+
+  const d = sfFetch_('get', '/services/data/' + SF_API + '/sobjects/Opportunity/describe');
+
+  out.push('— Record types —');
+  (d.recordTypeInfos || []).forEach(function (rt) {
+    if (rt.available) out.push('  ' + rt.name + (rt.defaultRecordTypeMapping ? '  (default)' : ''));
+  });
+
+  out.push('— Required fields on create —');
+  (d.fields || []).forEach(function (f) {
+    if (f.createable && !f.nillable && !f.defaultedOnCreate) out.push('  ' + f.name + ' (' + f.type + ')');
+  });
+
+  ['StageName', 'Type', 'ForecastCategoryName', 'LeadSource'].forEach(function (name) {
+    const f = (d.fields || []).filter(function (x) { return x.name === name; })[0];
+    if (!f) return;
+    out.push('— ' + name + ' values —');
+    (f.picklistValues || []).forEach(function (v) {
+      if (v.active) out.push('  ' + v.label + (v.defaultValue ? '  (default)' : ''));
+    });
+  });
+
+  out.push('— Custom fields (non-GUMU) —');
+  (d.fields || []).forEach(function (f) {
+    if (!f.custom || /^GUMU__/.test(f.name)) return;
+    out.push('  ' + f.name + ' (' + f.type + (f.picklistValues && f.picklistValues.length
+      ? ': ' + f.picklistValues.filter(function (v) { return v.active; })
+          .map(function (v) { return v.label; }).slice(0, 12).join(' | ')
+      : '') + ')');
+  });
+  const gumu = (d.fields || []).filter(function (f) { return /^GUMU__/.test(f.name); });
+  out.push('  [' + gumu.length + ' GUMU__ fields — never written]');
+
+  out.push('— Products matching litter / catalyst —');
+  const prods = sfQuery_("SELECT Id, Name, ProductCode, Family, IsActive FROM Product2 " +
+    "WHERE Name LIKE '%litter%' OR Name LIKE '%Catalyst%' OR ProductCode LIKE '%CATALYST%' " +
+    "OR Family LIKE '%itter%' ORDER BY Name LIMIT 50");
+  if (!prods.length) out.push('  (none)');
+  prods.forEach(function (pr) {
+    out.push('  ' + pr.Name + ' · code ' + (pr.ProductCode || '—') + ' · family ' +
+             (pr.Family || '—') + (pr.IsActive ? '' : ' · INACTIVE'));
+  });
+
+  out.push('— Product families in use —');
+  const fams = sfQuery_('SELECT Family, COUNT(Id) n FROM Product2 WHERE Family != null GROUP BY Family ORDER BY COUNT(Id) DESC LIMIT 25');
+  fams.forEach(function (f) { out.push('  ' + f.Family + ' · ' + f.n); });
+
+  out.push('— Price books —');
+  sfQuery_('SELECT Id, Name, IsActive, IsStandard FROM Pricebook2 ORDER BY Name LIMIT 25')
+    .forEach(function (b) {
+      out.push('  ' + b.Name + (b.IsStandard ? ' (standard)' : '') + (b.IsActive ? '' : ' INACTIVE'));
+    });
+
+  out.push('— Open Opportunities on the 36 linked Accounts —');
+  const opps = sfQuery_('SELECT Id, Name, StageName, Amount, CloseDate, Account.Name, ' +
+    'Account.' + SF_LINK_FIELD + ' FROM Opportunity WHERE IsClosed = false AND Account.' +
+    SF_LINK_FIELD + ' != null ORDER BY Account.Name LIMIT 100');
+  if (!opps.length) out.push('  (none)');
+  opps.forEach(function (o) {
+    out.push('  ' + o.Account.Name + ' · ' + o.Name + ' · ' + o.StageName + ' · ' +
+             (o.Amount == null ? 'no amount' : o.Amount) + ' · closes ' + o.CloseDate);
+  });
+
+  console.log(out.join('\n'));
+  return out.length;
+}
+
 // Dry run: logs what the next sync would write, without sending anything.
 function previewSalesforceSync() {
   if (!sfConfigured_()) throw new Error('Salesforce credentials not set in Script Properties');
