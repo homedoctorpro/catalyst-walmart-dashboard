@@ -588,6 +588,7 @@
                            border-radius:4px; font-size:0.82rem; font-family:inherit; }
   .rt-tbl .rt-text-input:focus { outline:none; border-color:#0057e7; }
   .rt-tbl .rt-text-input.has-value { background:#f0fdf4; border-color:#a5d6a7; }
+  .rt-tbl.rt-lean .rt-size-col { display:none; }
   .rt-opp-chip { display:inline-block; margin-top:3px; padding:1px 7px; border-radius:10px;
                  font-size:0.68rem; font-weight:700; color:#fff; text-decoration:none;
                  letter-spacing:0.02em; }
@@ -1924,6 +1925,10 @@
     <div class="rt-controls">
       <span class="rt-controls-label">Channels:</span>
       <div id="rt-channel-chips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      <label class="rt-ch-chip" title="Hide US Stores, U/S/W, Annual Units and the two $ columns">
+        <input type="checkbox" id="rt-lean-toggle" onchange="rtToggleSizingCols(this.checked)">
+        <span>Hide sizing columns</span>
+      </label>
       <span class="rt-spacer"></span>
       <button class="rt-btn" onclick="exportRetailerData()" title="Download your edits as JSON">⬇ Export JSON</button>
       <button class="rt-btn" onclick="document.getElementById('rt-import-file').click()" title="Restore edits from a JSON file">⬆ Import JSON</button>
@@ -1940,11 +1945,11 @@
               <th title="1 = highest">Priority</th>
               <th>Retailer</th>
               <th>Channel</th>
-              <th title="Approx. US store count">US Stores</th>
-              <th title="Units per store per week — channel default unless overridden">U/S/W</th>
-              <th title="Stores × U/S/W × 52">Annual Units</th>
-              <th title="Annual Units × $10/unit">Wholesale $ Opp</th>
-              <th title="Annual Units × $20/unit">Retail $ Opp</th>
+              <th class="rt-size-col" title="Approx. US store count">US Stores</th>
+              <th class="rt-size-col" title="Units per store per week — channel default unless overridden">U/S/W</th>
+              <th class="rt-size-col" title="Stores × U/S/W × 52">Annual Units</th>
+              <th class="rt-size-col" title="Annual Units × $10/unit">Wholesale $ Opp</th>
+              <th class="rt-size-col" title="Annual Units × $20/unit">Retail $ Opp</th>
               <th>Status</th>
               <th>Rep Firm</th>
               <th>Next Steps</th>
@@ -8202,6 +8207,22 @@ function rtStatusOpt(v) {
   return RT_STATUS_OPTIONS.find(o => o.v === v) || RT_STATUS_OPTIONS[0];
 }
 
+// Hide the five sizing columns in the table (stores, U/S/W, units, $ opp × 2)
+const RT_LEAN_KEY = "catalyst_retailers_lean_cols";
+let RT_LEAN = false;
+try { RT_LEAN = localStorage.getItem(RT_LEAN_KEY) === "1"; } catch {}
+function rtApplySizingCols() {
+  const tbl = document.getElementById("rt-tbl");
+  if (tbl) tbl.classList.toggle("rt-lean", RT_LEAN);
+  const box = document.getElementById("rt-lean-toggle");
+  if (box) box.checked = RT_LEAN;
+}
+function rtToggleSizingCols(on) {
+  RT_LEAN = !!on;
+  try { localStorage.setItem(RT_LEAN_KEY, RT_LEAN ? "1" : "0"); } catch {}
+  rtApplySizingCols();
+}
+
 const RT_SIZING_KEY = "catalyst_retailers_sizing_open";
 function rtSizingToggled() {
   const el = document.getElementById("rt-sizing");
@@ -8227,6 +8248,7 @@ function initRetailers() {
   rtRenderChannelChips();
   rtRenderDefaultsPanel();
   rtRenderTable();
+  rtApplySizingCols();
   rtRenderSummary();
   rtRenderSyncUI();
   if (rtSyncEnabled()) rtFetchFromSheet(false);
@@ -8408,11 +8430,11 @@ function rtRenderTable() {
         <span class="rt-ch-badge" style="background:${c.color}">${c.name}</span>
         <span style="font-weight:500;margin-left:8px;text-transform:none;letter-spacing:0;color:#555;font-size:0.75rem">${c.note}</span>
       </td>
-      <td>${chStores.toLocaleString()}</td>
-      <td>—</td>
-      <td>${rtFmtUnits(chUnits)}</td>
-      <td>${rtFmt$(chUnits * RT_WHOLESALE_PRICE)}</td>
-      <td>${rtFmt$(chUnits * RT_RETAIL_PRICE)}</td>
+      <td class="rt-size-col">${chStores.toLocaleString()}</td>
+      <td class="rt-size-col">—</td>
+      <td class="rt-size-col">${rtFmtUnits(chUnits)}</td>
+      <td class="rt-size-col">${rtFmt$(chUnits * RT_WHOLESALE_PRICE)}</td>
+      <td class="rt-size-col">${rtFmt$(chUnits * RT_RETAIL_PRICE)}</td>
       <td colspan="4"></td>
     </tr>`;
 
@@ -8423,11 +8445,11 @@ function rtRenderTable() {
   // Grand total row
   html += `<tr class="rt-grand-row">
     <td colspan="3">TOTAL (visible channels, excl. Non-Target)</td>
-    <td>${grandStores.toLocaleString()}</td>
-    <td>—</td>
-    <td>${rtFmtUnits(grandUnits)}</td>
-    <td>${rtFmt$(grandUnits * RT_WHOLESALE_PRICE)}</td>
-    <td>${rtFmt$(grandUnits * RT_RETAIL_PRICE)}</td>
+    <td class="rt-size-col">${grandStores.toLocaleString()}</td>
+    <td class="rt-size-col">—</td>
+    <td class="rt-size-col">${rtFmtUnits(grandUnits)}</td>
+    <td class="rt-size-col">${rtFmt$(grandUnits * RT_WHOLESALE_PRICE)}</td>
+    <td class="rt-size-col">${rtFmt$(grandUnits * RT_RETAIL_PRICE)}</td>
     <td colspan="4"></td>
   </tr>`;
 
@@ -8453,7 +8475,7 @@ function rtRenderTable() {
 function rtRowHtml(r, dimmed) {
       const c = RT_CHANNELS[r.channel];
       const oppCells = r.stores === 0
-        ? `<td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>`
+        ? `<td class="rt-size-col">—</td><td class="rt-size-col">—</td><td class="rt-size-col">—</td><td class="rt-size-col">—</td><td class="rt-size-col">—</td>`
         : null;
       const usw = rtRowUsw(r);
       const isOverride = RT_OVERRIDES[r.id] && RT_OVERRIDES[r.id].usw != null && RT_OVERRIDES[r.id].usw !== "";
@@ -8475,16 +8497,16 @@ function rtRowHtml(r, dimmed) {
         </td>
         <td><span class="rt-retailer-name">${r.name}</span>${r.reach ? `<div style="font-size:0.72rem;color:#777;margin-top:2px">${r.reach}</div>` : ""}${rtContactHtml(r)}${rtOppChip(r.id)}</td>
         <td><span class="rt-ch-badge" style="background:${c.color}">${c.name}</span></td>
-        ${oppCells || `<td>${r.stores.toLocaleString()}</td>
-        <td>
+        ${oppCells || `<td class="rt-size-col">${r.stores.toLocaleString()}</td>
+        <td class="rt-size-col">
           <input type="number" step="0.1" min="0" value="${usw}"
                  class="rt-usw-input ${isOverride ? 'is-override' : ''}"
                  onchange="rtUpdateUsw('${r.id}', this.value, this)"
                  ${isOverride ? `title="Overridden (channel default ${rtChannelDefault(r.channel)}). Clear to revert."` : `title="Channel default. Edit to override."`}>
         </td>
-        <td>${rtFmtUnits(annualUnits)}</td>
-        <td><strong>${rtFmt$(annualUnits * RT_WHOLESALE_PRICE)}</strong></td>
-        <td>${rtFmt$(annualUnits * RT_RETAIL_PRICE)}</td>`}
+        <td class="rt-size-col">${rtFmtUnits(annualUnits)}</td>
+        <td class="rt-size-col"><strong>${rtFmt$(annualUnits * RT_WHOLESALE_PRICE)}</strong></td>
+        <td class="rt-size-col">${rtFmt$(annualUnits * RT_RETAIL_PRICE)}</td>`}
         <td>
           <select class="rt-status-select" onchange="rtUpdateStatus('${r.id}', this.value)">
             ${RT_STATUS_OPTIONS.map(o => `<option value="${o.v}" ${o.v === status ? "selected" : ""}>${o.label}</option>`).join("")}
