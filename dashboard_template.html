@@ -502,6 +502,21 @@
   .rt-btn.primary:hover { background:#0041b5; border-color:#0041b5; color:#fff; }
   .rt-btn.danger:hover { border-color:#d32f2f; color:#d32f2f; }
 
+  .rt-sizing { background:#fff; border-radius:12px; margin-bottom:14px;
+               box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+  .rt-sizing[open] { padding-bottom:4px; }
+  .rt-sizing-summary { cursor:pointer; list-style:none; padding:13px 18px; display:flex;
+                       align-items:center; gap:9px; font-size:0.8rem; font-weight:700; color:#444;
+                       text-transform:uppercase; letter-spacing:0.05em; }
+  .rt-sizing-summary::-webkit-details-marker { display:none; }
+  .rt-sizing-summary:hover { color:#0057e7; }
+  .rt-sizing-caret { display:inline-block; transition:transform 0.15s; color:#999; }
+  .rt-sizing[open] .rt-sizing-caret { transform:rotate(90deg); }
+  .rt-sizing-hint { margin-left:auto; font-weight:600; text-transform:none; letter-spacing:0;
+                    color:#888; font-size:0.76rem; }
+  .rt-sizing > .rt-controls, .rt-sizing > .rt-kpi-row,
+  .rt-sizing > .rt-summary, .rt-sizing > .rt-defaults { margin:0 14px 14px; box-shadow:none;
+                    border:1px solid #f0f0f0; }
   .rt-summary { background:#fff; border-radius:12px; padding:16px 18px; margin-bottom:14px;
                 box-shadow:0 2px 8px rgba(0,0,0,0.08); }
   .rt-summary > h3 { font-size:0.8rem; font-weight:700; color:#666; text-transform:uppercase;
@@ -669,6 +684,7 @@
   <div class="tab-bar">
     <button class="tab-btn active" onclick="switchTab('metrics',this)">📈 Metrics</button>
     <button class="tab-btn"        onclick="switchTab('monthly',this)">📅 By Date</button>
+    <button class="tab-btn"        onclick="switchTab('retailers',this)">🤝 Retailers</button>
     <button class="tab-btn"        onclick="switchTab('sales',this)">🗺️ Sales Map</button>
     <button class="tab-btn"        onclick="switchTab('oos',this)">⚠️ OOS Map</button>
     <button class="tab-btn"        onclick="switchTab('statestats',this)">🏛️ State Stats</button>
@@ -684,7 +700,6 @@
     <button class="tab-btn"        onclick="switchTab('endcap',this)">🎯 Endcap</button>
     <button class="tab-btn"        onclick="switchTab('trial',this)">🔁 Trial &amp; Repeat</button>
     <button class="tab-btn"        onclick="switchTab('forecast',this)">🔮 Forecast</button>
-    <button class="tab-btn"        onclick="switchTab('retailers',this)">🤝 Retailers</button>
     <button class="tab-btn"        onclick="switchTab('reviews',this)">⭐ Reviews</button>
     <button class="tab-btn"        onclick="switchTab('recap',this)">🔬 Deep Analysis</button>
   </div>
@@ -1843,6 +1858,14 @@
       </div>
     </details>
 
+    <!-- Opportunity sizing: collapsible, state remembered per browser -->
+    <details class="rt-sizing" id="rt-sizing" ontoggle="rtSizingToggled()">
+      <summary class="rt-sizing-summary">
+        <span class="rt-sizing-caret">▸</span>
+        <span>Opportunity sizing — doors, U/S/W and $</span>
+        <span class="rt-sizing-hint" id="rt-sizing-hint"></span>
+      </summary>
+
     <!-- Status scope toggle (drives KPIs + Opportunity by Channel; table always shows everything) -->
     <div class="rt-controls">
       <span class="rt-controls-label">Summary scope:</span>
@@ -1895,6 +1918,7 @@
       </div>
       <div class="rt-defaults-grid" id="rt-defaults-grid"></div>
     </div>
+    </details>
 
     <!-- Controls -->
     <div class="rt-controls">
@@ -8178,10 +8202,28 @@ function rtStatusOpt(v) {
   return RT_STATUS_OPTIONS.find(o => o.v === v) || RT_STATUS_OPTIONS[0];
 }
 
+const RT_SIZING_KEY = "catalyst_retailers_sizing_open";
+function rtSizingToggled() {
+  const el = document.getElementById("rt-sizing");
+  if (!el) return;
+  try { localStorage.setItem(RT_SIZING_KEY, el.open ? "1" : "0"); } catch {}
+  document.getElementById("rt-sizing-hint").textContent = el.open ? "" : rtSizingDigest();
+  // Plotly can't measure a hidden div, so redraw once the section is visible again
+  if (el.open) rtRenderSummary();
+}
+function rtSizingDigest() {
+  const g = rtChannelStats().grand;
+  return `${g.stores.toLocaleString()} doors · ${rtFmtUnits(g.units)} units/yr · ${rtFmt$(g.wholesale)} wholesale`;
+}
+
 function initRetailers() {
   rtLoad();
   rtLoadSyncUrl();
   rtRenderScopeBtns();
+  const sizing = document.getElementById("rt-sizing");
+  let sizingOpen = true;
+  try { sizingOpen = localStorage.getItem(RT_SIZING_KEY) !== "0"; } catch {}
+  if (sizing) sizing.open = sizingOpen;
   rtRenderChannelChips();
   rtRenderDefaultsPanel();
   rtRenderTable();
@@ -8331,6 +8373,10 @@ function rtRenderSummary() {
     plot_bgcolor: "rgba(0,0,0,0)",
   };
   Plotly.react("chart-rt-channel-opp", [trace], layout, { displayModeBar: false, responsive: true });
+
+  const sizingEl = document.getElementById("rt-sizing");
+  const hint = document.getElementById("rt-sizing-hint");
+  if (sizingEl && hint) hint.textContent = sizingEl.open ? "" : rtSizingDigest();
 }
 
 function rtRenderTable() {
