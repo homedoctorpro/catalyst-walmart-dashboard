@@ -554,12 +554,12 @@
                cursor:pointer; user-select:none; }
   .rt-tbl th:hover { background:#eaeaea; }
   .rt-tbl th:nth-child(1), .rt-tbl th:nth-child(2), .rt-tbl th:nth-child(3),
-  .rt-tbl th:nth-child(9), .rt-tbl th:nth-child(10),
-  .rt-tbl th:nth-child(11), .rt-tbl th:nth-child(12) { text-align:left; }
+  .rt-tbl th:nth-child(9), .rt-tbl th:nth-child(10), .rt-tbl th:nth-child(11),
+  .rt-tbl th:nth-child(12), .rt-tbl th:nth-child(13) { text-align:left; }
   .rt-tbl td { padding:6px 10px; border-bottom:1px solid #f0f0f0; text-align:right; vertical-align:middle; }
   .rt-tbl td:nth-child(1), .rt-tbl td:nth-child(2), .rt-tbl td:nth-child(3),
-  .rt-tbl td:nth-child(9), .rt-tbl td:nth-child(10),
-  .rt-tbl td:nth-child(11), .rt-tbl td:nth-child(12) { text-align:left; }
+  .rt-tbl td:nth-child(9), .rt-tbl td:nth-child(10), .rt-tbl td:nth-child(11),
+  .rt-tbl td:nth-child(12), .rt-tbl td:nth-child(13) { text-align:left; }
   .rt-tbl tr:hover td { background:#f8f9ff; }
   .rt-tbl .rt-retailer-name { font-weight:600; color:#1a1a2e; }
   .rt-contact { display:inline-block; margin-top:3px; font-size:0.74rem; color:#0057e7; cursor:default;
@@ -596,8 +596,17 @@
   .rt-tbl.rt-lean th:nth-child(2) { width:210px; }
   .rt-tbl.rt-lean td:nth-child(2) { max-width:210px; white-space:normal; }
   .rt-tbl.rt-lean .rt-retailer-name { font-size:0.78rem; font-weight:600; }
-  .rt-tbl.rt-lean th:nth-child(11) { width:48%; }
-  .rt-tbl.rt-lean td:nth-child(11) .rt-text-input { min-width:100%; }
+  .rt-tbl.rt-lean th:nth-child(12) { width:46%; }
+  .rt-tbl.rt-lean td:nth-child(12) .rt-text-input { min-width:100%; }
+  .rt-dist-cell { position:relative; }
+  .rt-dist-flag { display:inline-flex; align-items:center; gap:5px; font-size:0.76rem; color:#888;
+                  cursor:pointer; white-space:nowrap; }
+  .rt-dist-flag.is-on { color:#00838f; font-weight:700; }
+  .rt-dist-pop { display:none; position:absolute; z-index:5; left:0; top:100%; margin-top:2px;
+                 background:#fff; border:1px solid #d8d8d8; border-radius:8px; padding:7px;
+                 box-shadow:0 4px 14px rgba(0,0,0,0.14); }
+  .rt-dist-cell:hover .rt-dist-pop, .rt-dist-cell:focus-within .rt-dist-pop { display:block; }
+  .rt-dist-pop .rt-text-input { min-width:200px; }
   .rt-opp-chip { display:inline-block; margin-top:3px; padding:1px 7px; border-radius:10px;
                  font-size:0.68rem; font-weight:700; color:#fff; text-decoration:none;
                  letter-spacing:0.02em; }
@@ -1961,6 +1970,7 @@
               <th class="rt-size-col" title="Annual Units × $20/unit">Retail $ Opp</th>
               <th>Status</th>
               <th>Rep Firm</th>
+              <th title="Tick when this retailer buys through a distributor; hover the cell to name it">Distributor</th>
               <th>Next Steps</th>
               <th title="Date to revisit this account">Next Review</th>
             </tr>
@@ -1983,7 +1993,8 @@
           Private chains and co-ops use the most recent published number from company websites or
           trade press (Wegmans, H-E-B, Hy-Vee, Hollywood Feed, Pet Supermarket, Earthwise Pet,
           Ace Hardware, Do it Best, True Value, Menards, Meijer, Rural King, Bomgaars, Atwoods,
-          Fleet Farm, Murdoch's, etc.).
+          Fleet Farm, Murdoch's, etc.). Feeders Pet Supply (23 stores across KY, IN and OH) is a
+          Houchens Industries company; count from the chain's own site, Sept 2026.
         </dd>
 
         <dt>"Independent + regional pet doors" (~7,000 doors, under Pet Distributors)</dt>
@@ -8049,7 +8060,7 @@ const RT_RETAILERS = [
   { id: "pet-supermarket",  name: "Pet Supermarket",               channel: "pet",      stores: 215 },
   { id: "earthwise-pet",    name: "Earthwise Pet",                 channel: "pet",      stores: 200 },
   { id: "hollywood-feed",   name: "Hollywood Feed",                channel: "pet",      stores: 150 },
-  { id: "pet-people",       name: "Pet People / Healthy Pet",      channel: "pet",      stores: 45 },
+  { id: "feeders",          name: "Feeders Pet Supply",            channel: "pet",      stores: 23 },
   { id: "kahoots",          name: "Kahoot's Pet Store",            channel: "pet",      stores: 30 },
   { id: "tomlinsons",       name: "Tomlinson's Feed",              channel: "pet",      stores: 25 },
   { id: "kriser",           name: "Kriser's Natural Pet",          channel: "pet",      stores: 25 },
@@ -8444,7 +8455,7 @@ function rtRenderTable() {
       <td class="rt-size-col">${rtFmtUnits(chUnits)}</td>
       <td class="rt-size-col">${rtFmt$(chUnits * RT_WHOLESALE_PRICE)}</td>
       <td class="rt-size-col">${rtFmt$(chUnits * RT_RETAIL_PRICE)}</td>
-      <td colspan="4"></td>
+      <td colspan="5"></td>
     </tr>`;
 
     // Sort by priority (1 first, blanks last), then store count desc
@@ -8459,7 +8470,7 @@ function rtRenderTable() {
     <td class="rt-size-col">${rtFmtUnits(grandUnits)}</td>
     <td class="rt-size-col">${rtFmt$(grandUnits * RT_WHOLESALE_PRICE)}</td>
     <td class="rt-size-col">${rtFmt$(grandUnits * RT_RETAIL_PRICE)}</td>
-    <td colspan="4"></td>
+    <td colspan="5"></td>
   </tr>`;
 
   // Non-Target section at the bottom (visible channels only, not in totals)
@@ -8467,7 +8478,7 @@ function rtRenderTable() {
     .sort((a,b) => (RT_CHANNEL_ORDER.indexOf(a.channel) - RT_CHANNEL_ORDER.indexOf(b.channel)) || byPrio(a,b));
   if (nonTarget.length) {
     html += `<tr class="rt-channel-row">
-      <td colspan="12">
+      <td colspan="13">
         <span class="rt-ch-badge" style="background:#9e9e9e">Non-Target</span>
         <span style="font-weight:500;margin-left:8px;text-transform:none;letter-spacing:0;color:#555;font-size:0.75rem">${nonTarget.length} retailer${nonTarget.length === 1 ? "" : "s"} marked Non-Target; excluded from totals. Change Status to move a row back to its channel.</span>
       </td>
@@ -8495,6 +8506,8 @@ function rtRowHtml(r, dimmed) {
       const nextSteps = rtRowField(r, "nextSteps");
       const nextReview = rtRowField(r, "nextReview");
       const priority = rtRowField(r, "priority");
+      const needsDist = rtRowField(r, "needsDistributor") === "1";
+      const distName = rtRowField(r, "distributorName");
       const reviewOverdue = nextReview && nextReview < rtTodayIso();
 
       return `<tr data-rid="${r.id}"${dimmed ? ' style="opacity:0.6"' : ""}>
@@ -8506,7 +8519,7 @@ function rtRowHtml(r, dimmed) {
         </td>
         <td><span class="rt-retailer-name">${r.name}</span>${r.reach ? `<div style="font-size:0.72rem;color:#777;margin-top:2px">${r.reach}</div>` : ""}${rtContactHtml(r)}${rtOppChip(r.id)}</td>
         <td><span class="rt-ch-badge" style="background:${c.color}">${c.name}</span></td>
-        ${oppCells || `<td class="rt-size-col">${r.stores.toLocaleString()}</td>
+        ${oppCells || `<td class="rt-size-col" title="${rtEsc(rtStateTooltip(r))}">${r.stores.toLocaleString()}</td>
         <td class="rt-size-col">
           <input type="number" step="0.1" min="0" value="${usw}"
                  class="rt-usw-input ${isOverride ? 'is-override' : ''}"
@@ -8527,6 +8540,18 @@ function rtRowHtml(r, dimmed) {
                   onchange="rtUpdateRepFirm('${r.id}', this.value, this)">
             ${RT_REP_FIRM_OPTIONS.map(o => `<option value="${o}" ${o === (repFirm || RT_REP_FIRM_DEFAULT) ? "selected" : ""}>${o}</option>`).join("")}
           </select>
+        </td>
+        <td class="rt-dist-cell">
+          <label class="rt-dist-flag ${needsDist ? 'is-on' : ''}">
+            <input type="checkbox" ${needsDist ? "checked" : ""}
+                   onchange="rtUpdateNeedsDist('${r.id}', this.checked)">
+            <span>${needsDist ? (distName ? rtEsc(distName) : "needed") : "—"}</span>
+          </label>
+          <span class="rt-dist-pop">
+            <input type="text" placeholder="Distributor name…" value="${rtEsc(distName)}"
+                   class="rt-text-input ${distName ? 'has-value' : ''}"
+                   onchange="rtUpdateText('${r.id}', 'distributorName', this.value, this); rtRenderTable()">
+          </span>
         </td>
         <td>
           <input type="text" placeholder="Next steps…" value="${rtEsc(nextSteps)}"
@@ -8594,6 +8619,10 @@ function rtHideContactsSoon() {
   }, 250);
 }
 
+function rtUpdateNeedsDist(id, on) {
+  rtSetOverride(id, "needsDistributor", on ? "1" : null);
+  rtRenderTable();
+}
 function rtUpdatePriority(id, val) {
   rtSetOverride(id, "priority", val ? Number(val) : null);
   rtRenderTable();
@@ -8608,6 +8637,43 @@ function rtOppChip(id) {
              href="${RT_SF_LIGHTNING}/lightning/r/Opportunity/${rtEsc(o.sfOppId)}/view"
              title="Catalyst cat litter Opportunity in Salesforce">SF · ${rtEsc(stage)}</a></div>`;
 }
+// State split behind the store-count cell. Walmart is real (this week's store
+// feed); every other retailer is modeled by spreading its door count across
+// Walmart's own state footprint, which is the closest proxy we have. Labeled
+// as modeled so nobody reads it as a store list.
+let RT_STATE_FOOTPRINT = null;
+function rtStateFootprint() {
+  if (RT_STATE_FOOTPRINT) return RT_STATE_FOOTPRINT;
+  const counts = {};
+  let total = 0;
+  Object.values((typeof DATA !== "undefined" && DATA.stores) || {}).forEach(st => {
+    const k = (st && st.state) || "";
+    if (!k) return;
+    counts[k] = (counts[k] || 0) + 1;
+    total++;
+  });
+  RT_STATE_FOOTPRINT = { counts, total };
+  return RT_STATE_FOOTPRINT;
+}
+function rtStateTooltip(r) {
+  const fp = rtStateFootprint();
+  if (!fp.total || !r.stores) return "";
+  const real = r.id === "walmart";
+  const rows = Object.entries(fp.counts)
+    .map(([st, n]) => [st, real ? n : Math.round(n / fp.total * r.stores)])
+    .filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1]);
+  if (!rows.length) return "";
+  const top = rows.slice(0, 10);
+  const rest = rows.slice(10).reduce((t, [, n]) => t + n, 0);
+  const lines = top.map(([st, n]) => `${st} ${n.toLocaleString()}`);
+  if (rest > 0) lines.push(`+${rows.length - 10} more states ${rest.toLocaleString()}`);
+  const head = real
+    ? `${r.name}: stores by state (Walmart store feed, ${fp.total.toLocaleString()} stores)`
+    : `${r.name}: estimated split of ${r.stores.toLocaleString()} doors — MODELED from Walmart's state footprint, not a store list`;
+  return head + "\n" + lines.join(" · ");
+}
+
 function rtTodayIso() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -8797,6 +8863,8 @@ function rtBuildSheetItem(r) {
       nextSteps: o.nextSteps != null ? o.nextSteps : null,
       nextReview: o.nextReview != null ? o.nextReview : null,
       priority:  o.priority  != null ? o.priority  : null,
+      needsDistributor: o.needsDistributor != null ? o.needsDistributor : null,
+      distributorName:  o.distributorName  != null ? o.distributorName  : null,
       usw:       (o.usw != null && o.usw !== "") ? o.usw : null,
     },
   };

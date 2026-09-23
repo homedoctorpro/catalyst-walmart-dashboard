@@ -7,7 +7,7 @@
  *
  * See SETUP.md for step-by-step instructions.
  *
- * Schema (columns 1..20):
+ * Schema (columns 1..24):
  *   A retailer_id     stable ID from dashboard           (do not edit)
  *   B retailer_name   human-readable                      (gets overwritten on push)
  *   C channel         channel name                        (gets overwritten on push)
@@ -30,6 +30,8 @@
  *   T sf_synced_at    last successful Salesforce sync     (written by Salesforce sync)
  *   U sf_opportunity_id     Catalyst litter Opportunity   (written by Salesforce sync)
  *   V sf_opportunity_stage  its current stage             (written by Salesforce sync)
+ *   W needs_distributor  1 = buys through a distributor       EDIT ME
+ *   X distributor_name   which distributor                    EDIT ME
  *
  * Sheets created with fewer columns are migrated in place by appending the
  * missing headers; rows are kept.
@@ -47,6 +49,7 @@ const HEADERS = [
   'next_review', 'priority',
   'sf_account_id', 'sf_account_name', 'contacts_json', 'sf_synced_at',
   'sf_opportunity_id', 'sf_opportunity_stage',
+  'needs_distributor', 'distributor_name',
 ];
 const COL = {
   id: 1, name: 2, channel: 3,
@@ -56,6 +59,7 @@ const COL = {
   nextReview: 15, priority: 16,
   sfAccountId: 17, sfAccountName: 18, contactsJson: 19, sfSyncedAt: 20,
   sfOppId: 21, sfOppStage: 22,
+  needsDistributor: 23, distributorName: 24,
 };
 const N_SF_COLS = 6;  // Q..V, owned by the Salesforce sync
 const N_COLS = HEADERS.length;
@@ -75,7 +79,7 @@ function formatHeader_(sh) {
 
 function setColumnWidths_(sh) {
   const widths = [110, 220, 110, 80, 90, 100, 110, 110, 130, 130, 130, 100, 320, 160, 110, 70,
-                  150, 200, 300, 140, 190, 130];
+                  150, 200, 300, 140, 190, 130, 120, 180];
   for (let i = 0; i < widths.length; i++) sh.setColumnWidth(i + 1, widths[i]);
 }
 
@@ -107,9 +111,10 @@ function ensureSchema_() {
   // Compare current row-1 headers; if they differ, wipe and reset.
   const lastCol = Math.max(sh.getLastColumn(), N_COLS);
   const current = sh.getRange(1, 1, 1, lastCol).getValues()[0];
-  // Migrate older layouts (14 = through updated_at, 15 = through next_review,
-  // 16 = through priority): append the missing trailing headers instead of wiping data
-  for (const n of [14, 15, 16, 20]) {
+  // Migrate older layouts (14 = through updated_at, 15 = next_review, 16 = priority,
+  // 20 = the Account sync block, 22 = the Opportunity columns): append the
+  // missing trailing headers instead of wiping data
+  for (const n of [14, 15, 16, 20, 22]) {
     let isLegacy = true;
     for (let i = 0; i < N_COLS; i++) {
       const want = i < n ? HEADERS[i] : '';
@@ -165,6 +170,9 @@ function readAll_() {
     const prioRaw = r[COL.priority - 1];
     const prio = Number(prioRaw);
     if (prioRaw !== '' && prioRaw != null && prio >= 1 && prio <= 10) o.priority = Math.round(prio);
+    if (String(r[COL.needsDistributor - 1] || '').trim()) o.needsDistributor = '1';
+    const distName = String(r[COL.distributorName - 1] || '').trim();
+    if (distName) o.distributorName = distName;
     if (rep) o.repFirm = rep;
     if (status) o.status = status;
     if (nextSteps) o.nextSteps = nextSteps;
@@ -230,6 +238,8 @@ function writeEditable_(sh, row, fields) {
   sh.getRange(row, COL.updatedAt).setValue(new Date());
   sh.getRange(row, COL.nextReview).setValue(fields.nextReview || '');
   sh.getRange(row, COL.priority).setValue(fields.priority || '');
+  sh.getRange(row, COL.needsDistributor).setValue(fields.needsDistributor ? '1' : '');
+  sh.getRange(row, COL.distributorName).setValue(fields.distributorName || '');
 }
 
 function upsert_(item) {
@@ -323,6 +333,10 @@ function bulkReplace_(items) {
   sh.getRange(2, COL.nextReview, items.length, 2).setValues(items.map(function (it) {
     const f = it.fields || {};
     return [f.nextReview || '', f.priority || ''];
+  }));
+  sh.getRange(2, COL.needsDistributor, items.length, 2).setValues(items.map(function (it) {
+    const f = it.fields || {};
+    return [f.needsDistributor ? '1' : '', f.distributorName || ''];
   }));
   sh.getRange(2, COL.sfAccountId, items.length, N_SF_COLS).setValues(items.map(function (it) {
     return keptSf[it.retailerId] || ['', '', '', ''];
@@ -1086,6 +1100,7 @@ function sfOnSheetEdit(e) {
   const editable = {};
   editable[COL.repFirm] = 1; editable[COL.status] = 1; editable[COL.nextSteps] = 1;
   editable[COL.nextReview] = 1; editable[COL.priority] = 1; editable[COL.uswOverride] = 1;
+  editable[COL.needsDistributor] = 1; editable[COL.distributorName] = 1;
 
   const c1 = e.range.getColumn(), c2 = e.range.getLastColumn();
   let touched = false;

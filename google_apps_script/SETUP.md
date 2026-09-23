@@ -85,6 +85,8 @@ The Sheet has these columns:
 | N | `updated_at` | ❌ | Auto-stamped on every write. |
 | O | `next_review` | ✅ | Date (`yyyy-mm-dd`). The dashboard shows it red once the date has passed. Sheets made before columns O–P existed get the headers added in place on the next read or write; no data is cleared. |
 | P | `priority` | ✅ | Whole number 1–10 (1 = highest), or blank. Anything else is ignored on pull. The dashboard sorts each channel by priority, then store count. |
+| W | `needs_distributor` | ✅ | `1` when the retailer buys through a distributor, blank otherwise. Dashboard-only; not sent to Salesforce. |
+| X | `distributor_name` | ✅ | Free text — which distributor. Dashboard-only. |
 | Q | `sf_account_id` | ❌ | Linked Salesforce Account (written by the Salesforce sync). |
 | R | `sf_account_name` | ❌ | Account name from Salesforce. |
 | S | `contacts_json` | ❌ | Up to 5 Account contacts (name, title, email, phone); shown on hover in the dashboard. |
