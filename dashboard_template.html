@@ -598,6 +598,8 @@
   .rt-tbl .rt-text-input:focus { outline:none; border-color:#0057e7; }
   .rt-tbl .rt-text-input.has-value { background:#f0fdf4; border-color:#a5d6a7; }
   .rt-tbl.rt-lean .rt-size-col { display:none; }
+  .rt-tbl .rt-reset-col { display:none; }
+  .rt-tbl.rt-show-reset .rt-reset-col { display:table-cell; }
   /* With the sizing columns gone, give the width back to Next Steps rather
      than letting the retailer name sprawl. */
   .rt-tbl.rt-lean th:nth-child(2) { width:210px; }
@@ -1954,6 +1956,10 @@
         <input type="checkbox" id="rt-lean-toggle" onchange="rtToggleSizingCols(this.checked)">
         <span>Hide sizing columns</span>
       </label>
+      <label class="rt-ch-chip" title="Show the shelf reset / modular date column">
+        <input type="checkbox" id="rt-reset-toggle" onchange="rtToggleResetCol(this.checked)">
+        <span>Show reset date</span>
+      </label>
       <span class="rt-spacer"></span>
       <button class="rt-btn" onclick="exportRetailerData()" title="Download your edits as JSON">⬇ Export JSON</button>
       <button class="rt-btn" onclick="document.getElementById('rt-import-file').click()" title="Restore edits from a JSON file">⬆ Import JSON</button>
@@ -1981,6 +1987,7 @@
               <th>Next Steps</th>
               <th title="Date to revisit this account">Next Review</th>
               <th title="Hard date this has to land by — turns red once it passes">Deadline</th>
+              <th class="rt-reset-col" title="Shelf reset / modular date for this retailer">Reset Date</th>
             </tr>
           </thead>
           <tbody id="rt-tbody"></tbody>
@@ -8069,6 +8076,8 @@ const RT_RETAILERS = [
   // Mass
   { id: "walmart",          name: "Walmart",                       channel: "mass",     stores: 4615, defaultStatus: "in" },
   { id: "target",           name: "Target",                        channel: "mass",     stores: 1950 },
+  { id: "walmart-canada",   name: "Walmart Canada",                channel: "mass",     stores: 403,
+    reach: "344 supercentres + 59 discount stores · separate buying team from Walmart US" },
 
   // Pet Specialty
   { id: "petsmart",         name: "PetSmart",                      channel: "pet",      stores: 1650 },
@@ -8272,6 +8281,22 @@ function rtToggleSizingCols(on) {
   rtApplySizingCols();
 }
 
+// Reset-date column: off by default, the table is wide enough already
+const RT_RESET_KEY = "catalyst_retailers_reset_col";
+let RT_SHOW_RESET = false;
+try { RT_SHOW_RESET = localStorage.getItem(RT_RESET_KEY) === "1"; } catch {}
+function rtApplyResetCol() {
+  const tbl = document.getElementById("rt-tbl");
+  if (tbl) tbl.classList.toggle("rt-show-reset", RT_SHOW_RESET);
+  const box = document.getElementById("rt-reset-toggle");
+  if (box) box.checked = RT_SHOW_RESET;
+}
+function rtToggleResetCol(on) {
+  RT_SHOW_RESET = !!on;
+  try { localStorage.setItem(RT_RESET_KEY, RT_SHOW_RESET ? "1" : "0"); } catch {}
+  rtApplyResetCol();
+}
+
 const RT_SIZING_KEY = "catalyst_retailers_sizing_open";
 function rtSizingToggled() {
   const el = document.getElementById("rt-sizing");
@@ -8298,6 +8323,7 @@ function initRetailers() {
   rtRenderDefaultsPanel();
   rtRenderTable();
   rtApplySizingCols();
+  rtApplyResetCol();
   rtRenderSummary();
   rtRenderSyncUI();
   if (rtSyncEnabled()) rtFetchFromSheet(false);
@@ -8485,6 +8511,7 @@ function rtRenderTable() {
       <td class="rt-size-col">${rtFmt$(chUnits * RT_WHOLESALE_PRICE)}</td>
       <td class="rt-size-col">${rtFmt$(chUnits * RT_RETAIL_PRICE)}</td>
       <td colspan="6"></td>
+      <td class="rt-reset-col"></td>
     </tr>`;
 
     // Sort by priority (1 first, blanks last), then store count desc
@@ -8500,6 +8527,7 @@ function rtRenderTable() {
     <td class="rt-size-col">${rtFmt$(grandUnits * RT_WHOLESALE_PRICE)}</td>
     <td class="rt-size-col">${rtFmt$(grandUnits * RT_RETAIL_PRICE)}</td>
     <td colspan="6"></td>
+    <td class="rt-reset-col"></td>
   </tr>`;
 
   // Non-Target section at the bottom (visible channels only, not in totals)
@@ -8507,7 +8535,7 @@ function rtRenderTable() {
     .sort((a,b) => (RT_CHANNEL_ORDER.indexOf(a.channel) - RT_CHANNEL_ORDER.indexOf(b.channel)) || byPrio(a,b));
   if (nonTarget.length) {
     html += `<tr class="rt-channel-row">
-      <td colspan="14">
+      <td colspan="15">
         <span class="rt-ch-badge" style="background:#9e9e9e">Non-Target</span>
         <span style="font-weight:500;margin-left:8px;text-transform:none;letter-spacing:0;color:#555;font-size:0.75rem">${nonTarget.length} retailer${nonTarget.length === 1 ? "" : "s"} marked Non-Target; excluded from totals. Change Status to move a row back to its channel.</span>
       </td>
@@ -8536,6 +8564,7 @@ function rtRowHtml(r, dimmed) {
       const nextReview = rtRowField(r, "nextReview");
       const deadline = rtRowField(r, "deadline");
       const deadlineOverdue = deadline && deadline < rtTodayIso();
+      const resetDate = rtRowField(r, "resetDate");
       const priority = rtRowField(r, "priority");
       const needsDist = rtRowField(r, "needsDistributor") === "1";
       const distName = rtRowField(r, "distributorName");
@@ -8600,6 +8629,11 @@ function rtRowHtml(r, dimmed) {
                  class="rt-date-input ${deadline ? 'has-value' : ''} ${deadlineOverdue ? 'is-overdue' : ''}"
                  ${deadlineOverdue ? 'title="Deadline has passed"' : ''}
                  onchange="rtUpdateText('${r.id}', 'deadline', this.value, this); rtRenderTable()">
+        </td>
+        <td class="rt-reset-col">
+          <input type="date" value="${rtEsc(resetDate)}"
+                 class="rt-date-input ${resetDate ? 'has-value' : ''}"
+                 onchange="rtUpdateText('${r.id}', 'resetDate', this.value, this); rtRenderTable()">
         </td>
       </tr>`;
 }
@@ -8926,6 +8960,7 @@ function rtBuildSheetItem(r) {
       nextReview: o.nextReview != null ? o.nextReview : null,
       priority:  o.priority  != null ? o.priority  : null,
       deadline:  o.deadline  != null ? o.deadline  : null,
+      resetDate: o.resetDate != null ? o.resetDate : null,
       keyContact: o.keyContact != null ? o.keyContact : null,
       needsDistributor: o.needsDistributor != null ? o.needsDistributor : null,
       distributorName:  o.distributorName  != null ? o.distributorName  : null,

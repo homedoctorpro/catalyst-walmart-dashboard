@@ -87,6 +87,7 @@ The Sheet has these columns:
 | P | `priority` | ✅ | Whole number 1–10 (1 = highest), or blank. Anything else is ignored on pull. The dashboard sorts each channel by priority, then store count. |
 | W | `needs_distributor` | ✅ | `1` when the retailer buys through a distributor, blank otherwise. Dashboard-only; not sent to Salesforce. |
 | X | `distributor_name` | ✅ | Free text — which distributor. Dashboard-only. |
+| AA | `reset_date` | ✅ | Date (`yyyy-mm-dd`) of the retailer's shelf reset / modular. Hidden in the dashboard until you tick "Show reset date". |
 | Z | `key_contact` | ✅ | Email (or name) of the Account contact marked as our key contact in the dashboard. Dashboard-only; Salesforce contacts themselves are never written. |
 | Y | `deadline` | ✅ | Date (`yyyy-mm-dd`) the deal has to land by; shows red in the dashboard once it passes. Used as the Opportunity's CloseDate when set. |
 | Q | `sf_account_id` | ❌ | Linked Salesforce Account (written by the Salesforce sync). |

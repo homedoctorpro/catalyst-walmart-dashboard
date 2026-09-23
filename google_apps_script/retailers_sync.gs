@@ -7,7 +7,7 @@
  *
  * See SETUP.md for step-by-step instructions.
  *
- * Schema (columns 1..26):
+ * Schema (columns 1..27):
  *   A retailer_id     stable ID from dashboard           (do not edit)
  *   B retailer_name   human-readable                      (gets overwritten on push)
  *   C channel         channel name                        (gets overwritten on push)
@@ -34,6 +34,7 @@
  *   X distributor_name   which distributor                    EDIT ME
  *   Y deadline           hard date (yyyy-mm-dd)                EDIT ME
  *   Z key_contact        email (or name) of the key contact    EDIT ME
+ *   AA reset_date        shelf reset / modular date            EDIT ME
  *
  * Sheets created with fewer columns are migrated in place by appending the
  * missing headers; rows are kept.
@@ -51,7 +52,7 @@ const HEADERS = [
   'next_review', 'priority',
   'sf_account_id', 'sf_account_name', 'contacts_json', 'sf_synced_at',
   'sf_opportunity_id', 'sf_opportunity_stage',
-  'needs_distributor', 'distributor_name', 'deadline', 'key_contact',
+  'needs_distributor', 'distributor_name', 'deadline', 'key_contact', 'reset_date',
 ];
 const COL = {
   id: 1, name: 2, channel: 3,
@@ -62,6 +63,7 @@ const COL = {
   sfAccountId: 17, sfAccountName: 18, contactsJson: 19, sfSyncedAt: 20,
   sfOppId: 21, sfOppStage: 22,
   needsDistributor: 23, distributorName: 24, deadline: 25, keyContact: 26,
+  resetDate: 27,
 };
 const N_SF_COLS = 6;  // Q..V, owned by the Salesforce sync
 const N_COLS = HEADERS.length;
@@ -81,7 +83,7 @@ function formatHeader_(sh) {
 
 function setColumnWidths_(sh) {
   const widths = [110, 220, 110, 80, 90, 100, 110, 110, 130, 130, 130, 100, 320, 160, 110, 70,
-                  150, 200, 300, 140, 190, 130, 120, 180, 110, 220];
+                  150, 200, 300, 140, 190, 130, 120, 180, 110, 220, 110];
   for (let i = 0; i < widths.length; i++) sh.setColumnWidth(i + 1, widths[i]);
 }
 
@@ -98,6 +100,7 @@ function setNumberFormats_(sh, lastDataRow) {
   sh.getRange(2, COL.updatedAt,   nRows, 1).setNumberFormat('yyyy-mm-dd hh:mm');
   sh.getRange(2, COL.nextReview,  nRows, 1).setNumberFormat('yyyy-mm-dd');
   sh.getRange(2, COL.deadline,    nRows, 1).setNumberFormat('yyyy-mm-dd');
+  sh.getRange(2, COL.resetDate,   nRows, 1).setNumberFormat('yyyy-mm-dd');
   sh.getRange(2, COL.sfSyncedAt,  nRows, 1).setNumberFormat('yyyy-mm-dd hh:mm');
 }
 
@@ -117,7 +120,7 @@ function ensureSchema_() {
   // Migrate older layouts (14 = through updated_at, 15 = next_review, 16 = priority,
   // 20 = the Account sync block, 22 = the Opportunity columns): append the
   // missing trailing headers instead of wiping data
-  for (const n of [14, 15, 16, 20, 22, 24, 25]) {
+  for (const n of [14, 15, 16, 20, 22, 24, 25, 26]) {
     let isLegacy = true;
     for (let i = 0; i < N_COLS; i++) {
       const want = i < n ? HEADERS[i] : '';
@@ -180,6 +183,11 @@ function readAll_() {
     if (deadline) o.deadline = deadline;
     const keyContact = String(r[COL.keyContact - 1] || '').trim();
     if (keyContact) o.keyContact = keyContact;
+    const resetRaw = r[COL.resetDate - 1];
+    const resetDate = (resetRaw instanceof Date)
+      ? Utilities.formatDate(resetRaw, Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      : String(resetRaw || '').trim();
+    if (resetDate) o.resetDate = resetDate;
     if (String(r[COL.needsDistributor - 1] || '').trim()) o.needsDistributor = '1';
     const distName = String(r[COL.distributorName - 1] || '').trim();
     if (distName) o.distributorName = distName;
@@ -252,6 +260,7 @@ function writeEditable_(sh, row, fields) {
   sh.getRange(row, COL.distributorName).setValue(fields.distributorName || '');
   sh.getRange(row, COL.deadline).setValue(fields.deadline || '');
   sh.getRange(row, COL.keyContact).setValue(fields.keyContact || '');
+  sh.getRange(row, COL.resetDate).setValue(fields.resetDate || '');
 }
 
 function upsert_(item) {
@@ -346,9 +355,10 @@ function bulkReplace_(items) {
     const f = it.fields || {};
     return [f.nextReview || '', f.priority || ''];
   }));
-  sh.getRange(2, COL.needsDistributor, items.length, 4).setValues(items.map(function (it) {
+  sh.getRange(2, COL.needsDistributor, items.length, 5).setValues(items.map(function (it) {
     const f = it.fields || {};
-    return [f.needsDistributor ? '1' : '', f.distributorName || '', f.deadline || '', f.keyContact || ''];
+    return [f.needsDistributor ? '1' : '', f.distributorName || '', f.deadline || '',
+            f.keyContact || '', f.resetDate || ''];
   }));
   sh.getRange(2, COL.sfAccountId, items.length, N_SF_COLS).setValues(items.map(function (it) {
     return keptSf[it.retailerId] || ['', '', '', ''];
@@ -1113,7 +1123,7 @@ function sfOnSheetEdit(e) {
   editable[COL.repFirm] = 1; editable[COL.status] = 1; editable[COL.nextSteps] = 1;
   editable[COL.nextReview] = 1; editable[COL.priority] = 1; editable[COL.uswOverride] = 1;
   editable[COL.needsDistributor] = 1; editable[COL.distributorName] = 1;
-  editable[COL.deadline] = 1; editable[COL.keyContact] = 1;
+  editable[COL.deadline] = 1; editable[COL.keyContact] = 1; editable[COL.resetDate] = 1;
 
   const c1 = e.range.getColumn(), c2 = e.range.getLastColumn();
   let touched = false;
