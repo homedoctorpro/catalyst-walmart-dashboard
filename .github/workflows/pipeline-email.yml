@@ -1,0 +1,56 @@
+name: Retailer pipeline daily email
+
+# Weekday mornings: read the Retailers sheet, compare with the committed
+# snapshot, and email the group only if something moved or a deadline passed.
+# GitHub's cron is best-effort, so this runs hourly across the morning window
+# and the script itself keeps it to one send a day.
+
+on:
+  schedule:
+    - cron: "22 11-15 * * 1-5"    # 7:22-11:22 ET, weekdays
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Send even if nothing changed"
+        type: boolean
+        default: false
+      dev:
+        description: "Send to the dev address only"
+        type: boolean
+        default: false
+
+concurrency:
+  group: pipeline-email
+  cancel-in-progress: false
+
+permissions:
+  contents: write     # commit the refreshed snapshot
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Send the pipeline email if anything changed
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
+          RETAILERS_SYNC_URL: ${{ secrets.RETAILERS_SYNC_URL }}
+        run: |
+          python pipeline_email.py --once-per-day \
+            ${{ inputs.force && '--force' || '' }} \
+            ${{ inputs.dev && '--dev' || '' }}
+
+      - name: Commit the snapshot
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Reports/pipeline_state.json
+          git diff --cached --quiet && echo "snapshot unchanged" && exit 0
+          git commit -m "Pipeline snapshot $(date -u +%Y-%m-%d)"
+          git push

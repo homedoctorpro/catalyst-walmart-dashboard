@@ -563,6 +563,9 @@
   .rt-tbl td:nth-child(12), .rt-tbl td:nth-child(13),
   .rt-tbl td:nth-child(14) { text-align:left; }
   .rt-tbl tr:hover td { background:#f8f9ff; }
+  .rt-tbl tr.rt-row-overdue td { background:#fff2f2; }
+  .rt-tbl tr.rt-row-overdue:hover td { background:#ffe9e9; }
+  .rt-tbl tr.rt-row-overdue .rt-retailer-name { color:#b71c1c; }
   .rt-tbl .rt-retailer-name { font-weight:600; color:#1a1a2e; }
   .rt-contact { display:inline-block; margin-top:3px; font-size:0.74rem; color:#0057e7; cursor:default;
                 border-bottom:1px dotted #9db4e8; }
@@ -8641,7 +8644,7 @@ function rtRowHtml(r, dimmed) {
       const distName = rtRowField(r, "distributorName");
       const reviewOverdue = nextReview && nextReview < rtTodayIso();
 
-      return `<tr data-rid="${r.id}"${dimmed ? ' style="opacity:0.6"' : ""}>
+      return `<tr data-rid="${r.id}" class="${deadlineOverdue && !dimmed ? "rt-row-overdue" : ""}"${dimmed ? ' style="opacity:0.6"' : ""}>
         <td>
           <select class="rt-prio-select ${priority ? 'has-value' : ''}" onchange="rtUpdatePriority('${r.id}', this.value)">
             <option value="">—</option>

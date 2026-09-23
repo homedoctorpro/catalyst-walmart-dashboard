@@ -1,0 +1,281 @@
+{
+ "lastSentOn": null,
+ "overdueSeen": [],
+ "rows": {
+  "ace": {
+   "status": "target"
+  },
+  "albertsons": {
+   "nextSteps": "Reach out to buyer",
+   "priority": 3,
+   "repFirm": "Internal",
+   "sfOppStage": "Qualification",
+   "status": "target"
+  },
+  "aldi": {
+   "nextSteps": "Reach out to buyer - PL",
+   "priority": 4,
+   "repFirm": "Internal",
+   "status": "target"
+  },
+  "atwoods": {
+   "nextSteps": "Try again, price sensitive",
+   "priority": 3,
+   "repFirm": "Internal",
+   "sfOppStage": "Closed Lost",
+   "status": "target"
+  },
+  "big-lots": {
+   "status": "non-target"
+  },
+  "big-r": {
+   "nextSteps": "Annamarie",
+   "priority": 6,
+   "repFirm": "Internal",
+   "sfOppStage": "Qualification",
+   "status": "target"
+  },
+  "bjs": {
+   "status": "non-target"
+  },
+  "bomgaars": {
+   "nextSteps": "Have FF, price sensitive",
+   "priority": 3,
+   "repFirm": "Internal",
+   "sfOppStage": "Qualification",
+   "status": "target"
+  },
+  "bradley-caldwell": {
+   "nextSteps": "Annamarie",
+   "priority": 2,
+   "repFirm": "Internal",
+   "sfOppStage": "Qualification",
+   "status": "target"
+  },
+  "cal-ranch": {
+   "nextSteps": "Annamarie",
+   "priority": 6,
+   "repFirm": "Internal",
+   "sfOppStage": "Qualification",
+   "status": "target"
+  },
+  "costco": {
+   "status": "non-target"
+  },
+  "cvs": {
+   "status": "non-target"
+  },
+  "db-supply": {
+   "priority": 3,
+   "repFirm": "Internal",
+   "status": "target"
+  },
+  "do-it-best": {
+   "status": "target"
+  },
+  "dollar-general": {
+   "nextSteps": "In BBQ",
+   "priority": 5,
+   "repFirm": "Internal",
+   "sfOppStage": "Qualification",
+   "status": "target"
+  },
+  "dollar-tree": {
+   "status": "non-target"
+  },
+  "earthwise-pet": {
+   "nextSteps": "Reach out to understand how they order?",
+   "priority": 3,
+   "repFirm": "Internal",
+   "status": "target"
+  },
+  "family-dollar": {
+   "priority": 6,
+   "repFirm": "Internal",
+   "sfOppStage": "Qualification",
+   "status": "target"
+  },
+  "farm-fleet": {
+   "nextSteps": "Not happy with Shavings",
+   "priority": 7,
+   "repFirm": "Internal",
+   "sfOppStage": "Qualification",
+   "status": "target"
+  },
+  "five-below": {
+   "status": "non-target"
+  },
+  "fleet-farm": {
+   "nextSteps": "Feline Fresh already there, not responsive",
+   "repFirm": "Internal",
+   "status": "in"
+  },
+  "food-lion": {
+   "repFirm": "PSE"
+  },
+  "giant-eagle": {},
+  "heb": {
+   "nextSteps": "Cindee to reach out / Lori / Skyler",
+   "priority": 1,
+   "repFirm": "Internal",
+   "status": "target"
+  },
+  "hollywood-feed": {
+   "repFirm": "Internal",
+   "status": "in"
+  },
+  "home-depot": {
+   "status": "non-target"
+  },
+  "hyvee": {
+   "status": "in"
+  },
+  "kahoots": {
+   "nextSteps": "Need distributor",
+   "priority": 4,
+   "repFirm": "Internal",
+   "status": "target"
+  },
+  "kehe": {
+   "nextSteps": "Reach out",
+   "priority": 3,
+   "repFirm": "Internal",
+   "status": "target"
+  },
+  "kriser": {
+   "nextSteps": "Need distributor",
+   "priority": 4,
+   "repFirm": "Internal",
+   "status": "target"
+  },
+  "kroger": {
+   "nextSteps": "Reach out to buyer",
+   "priority": 3,
+   "repFirm": "Internal",
+   "sfOppStage": "Qualification",
+   "status": "target"
+  },
+  "lowes": {
+   "status": "non-target"
+  },
+  "meijer": {
+   "nextSteps": "Cindee to reach out / wait for Mike's response",
+   "priority": 1,
+   "repFirm": "PSE",
+   "sfOppStage": "Qualification",
+   "status": "target"
+  },
+  "menards": {
+   "status": "non-target"
+  },
+  "murdochs": {
+   "nextSteps": "Annamarie",
+   "priority": 6,
+   "repFirm": "Internal",
+   "sfOppStage": "Qualification",
+   "status": "target"
+  },
+  "pet-food-experts": {
+   "priority": 2,
+   "repFirm": "Internal",
+   "sfOppStage": "Closed Lost",
+   "status": "target"
+  },
+  "pet-supermarket": {
+   "nextReview": "2027-01-01",
+   "nextSteps": "New Buyer - hear back from Tim Evans",
+   "priority": 2,
+   "repFirm": "PSE",
+   "status": "target"
+  },
+  "pet-supplies-plus": {
+   "nextSteps": "Sent Teaser deck - hear back from Tim Evans",
+   "priority": 2,
+   "repFirm": "PSE",
+   "status": "target"
+  },
+  "petco": {
+   "nextSteps": "Follow up in October",
+   "priority": 1,
+   "repFirm": "PSE",
+   "sfOppStage": "Proposal",
+   "status": "pitched"
+  },
+  "petsmart": {
+   "nextSteps": "Follow up in October",
+   "priority": 1,
+   "repFirm": "PSE",
+   "sfOppStage": "Proposal",
+   "status": "pitched"
+  },
+  "phillips-pet": {
+   "priority": 2,
+   "repFirm": "Internal",
+   "sfOppStage": "Closed Lost",
+   "status": "target"
+  },
+  "publix": {},
+  "rite-aid": {
+   "status": "non-target"
+  },
+  "rural-king": {
+   "nextSteps": "Will try, but price sensitive",
+   "priority": 6,
+   "repFirm": "Internal",
+   "sfOppStage": "Qualification",
+   "status": "target"
+  },
+  "sams-club": {
+   "status": "non-target"
+  },
+  "sprouts": {
+   "nextSteps": "See response",
+   "priority": 6,
+   "repFirm": "PSE",
+   "sfOppStage": "Qualification",
+   "status": "target"
+  },
+  "target": {
+   "nextSteps": "Wait until next year",
+   "repFirm": "PSE",
+   "status": "declined"
+  },
+  "tractor-supply": {
+   "nextSteps": "Talk to Mark - Catalyst + Private Label",
+   "priority": 2,
+   "repFirm": "Internal",
+   "sfOppStage": "Closed Won",
+   "status": "target"
+  },
+  "trader-joes": {
+   "nextSteps": "Reach out to buyer - PL",
+   "priority": 4,
+   "repFirm": "Internal",
+   "status": "target"
+  },
+  "true-value": {
+   "status": "target"
+  },
+  "unfi": {
+   "nextSteps": "Reach out",
+   "priority": 3,
+   "repFirm": "Internal",
+   "sfOppStage": "Qualification",
+   "status": "target"
+  },
+  "walgreens": {
+   "priority": 8,
+   "status": "target"
+  },
+  "walmart": {
+   "repFirm": "StoR"
+  },
+  "walmart-canada": {
+   "repFirm": "StoR",
+   "status": "target"
+  },
+  "wegmans": {},
+  "winco": {}
+ },
+ "savedAt": "2026-09-23T13:58:44"
+}
