@@ -8227,7 +8227,7 @@ const RT_SCOPES = [
   { v: "in",        label: "Currently In",          test: s => s === "in" },
   { v: "in-target", label: "Currently In + Target", test: s => s === "in" || s === "target" },
   { v: "target",    label: "Target",                test: s => s === "target" },
-  { v: "all",       label: "Everything",            test: s => s !== "non-target" && s !== "in" },
+  { v: "all",       label: "Everything",            test: s => s !== "non-target" && s !== "in" && s !== "declined" },
 ];
 const RT_SCOPE_KEY = "catalyst_retailers_scope";
 let RT_SCOPE = "all";
@@ -8456,13 +8456,13 @@ function rtRenderSummary() {
   const scopeLabel = RT_SCOPES.find(o => o.v === RT_SCOPE).label;
   document.getElementById("rt-kpi-retailers").textContent = stats.grand.retailers.toLocaleString();
   document.getElementById("rt-kpi-retailers-sub").textContent =
-    RT_SCOPE === "all" ? "Working list, excl. Currently In & Non-Target" : `Status: ${scopeLabel}`;
+    RT_SCOPE === "all" ? "Working list, excl. Currently In, Non-Target & Declined" : `Status: ${scopeLabel}`;
   document.getElementById("rt-kpi-stores").textContent = stats.grand.stores.toLocaleString();
   document.getElementById("rt-kpi-units").textContent = rtFmtUnits(stats.grand.units);
   document.getElementById("rt-kpi-wholesale").textContent = rtFmt$(stats.grand.wholesale);
   document.getElementById("rt-kpi-retail").textContent = rtFmt$(stats.grand.retail);
   document.getElementById("rt-scope-note").textContent = RT_SCOPE === "all"
-    ? "KPIs and channel summary cover the working list; Currently In and Non-Target sit at the bottom of the table"
+    ? "KPIs and channel summary cover the working list; Currently In, Non-Target and Declined sit at the bottom of the table"
     : `KPIs and channel summary count only rows with status ${scopeLabel}; the table below still lists everything`;
   if (!sorted.length) {
     grid.innerHTML = `<div style="color:#888;font-size:0.85rem;padding:8px 0">No retailers with status ${scopeLabel} in the visible channels yet. Set Status in the table below.</div>`;
@@ -8545,7 +8545,9 @@ function rtRenderTable() {
   const PARKED = { "non-target": { label: "Non-Target", color: "#9e9e9e",
                      note: "ruled out; excluded from the totals. Change Status to bring one back." },
                    "in": { label: "Currently In", color: "#1b5e20",
-                     note: "already selling; excluded from the opportunity totals." } };
+                     note: "already selling; excluded from the opportunity totals." },
+                   "declined": { label: "Declined", color: "#b71c1c",
+                     note: "they said no; excluded from the totals." } };
   const isParked = r => !!PARKED[rtRowStatus(r)];
   const prio = r => { const p = Number(rtRowField(r, "priority")); return p > 0 ? p : Infinity; };
   const byPrio = (a,b) => (prio(a) - prio(b)) || (b.stores - a.stores);
@@ -8585,7 +8587,7 @@ function rtRenderTable() {
 
   // Grand total row
   html += `<tr class="rt-grand-row">
-    <td colspan="3">TOTAL (visible channels, excl. Currently In &amp; Non-Target)</td>
+    <td colspan="3">TOTAL (visible channels, excl. Currently In, Non-Target &amp; Declined)</td>
     <td class="rt-size-col">${grandStores.toLocaleString()}</td>
     <td class="rt-size-col">—</td>
     <td class="rt-size-col">${rtFmtUnits(grandUnits)}</td>
@@ -8596,7 +8598,7 @@ function rtRenderTable() {
   </tr>`;
 
   // Parked sections at the bottom (visible channels only, not in totals)
-  ["in", "non-target"].forEach(code => {
+  ["in", "non-target", "declined"].forEach(code => {
     const meta = PARKED[code];
     const parked = RT_RETAILERS
       .filter(r => RT_VISIBLE_CHANNELS.has(r.channel) && rtRowStatus(r) === code)
