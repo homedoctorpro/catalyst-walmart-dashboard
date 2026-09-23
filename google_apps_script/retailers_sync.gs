@@ -213,6 +213,19 @@ function readAll_() {
   return out;
 }
 
+function readOrphanOpps_() {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SF_OPPS_SHEET);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, 7).getValues().map(function (r) {
+    return { account: String(r[0] || ''), name: String(r[1] || ''), stage: String(r[2] || ''),
+             amount: r[3] === '' ? null : Number(r[3]),
+             closeDate: r[4] instanceof Date
+               ? Utilities.formatDate(r[4], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+               : String(r[4] || ''),
+             id: String(r[6] || '') };
+  }).filter(function (o) { return o.id; });
+}
+
 // ── Write ───────────────────────────────────────────────────────────────────
 
 function findRow_(sh, retailerId) {
@@ -381,7 +394,7 @@ function jsonOut_(obj) {
 function doGet(e) {
   try {
     const action = ((e && e.parameter && e.parameter.action) || 'get').toLowerCase();
-    if (action === 'get')    return jsonOut_({ ok: true, data: readAll_() });
+    if (action === 'get')    return jsonOut_({ ok: true, data: readAll_(), unlinkedOpps: readOrphanOpps_() });
     if (action === 'health') return jsonOut_({ ok: true, status: 'ok', schema: HEADERS });
     return jsonOut_({ ok: false, error: 'unknown action: ' + action });
   } catch (err) {
@@ -471,8 +484,14 @@ const SF_PUSH_STATUSES = { 'target': 1, 'pitched': 1 };
 // twice, never created when the Account already carries a litter Opportunity
 // (open or closed), and never closed automatically — a retailer dropping off
 // the target list leaves its Opportunity for a human to close.
-const SF_OPP_CATEGORY = 'Pet Litter';
+// An Opportunity is "ours" when its Product_Category__c includes any of these
+// values, or its Product_Label__c includes Catalyst. Add a category here if the
+// org adds one (the picklist today has no "Pet Pellets" value — the pellet
+// entries are Bedding Pellets, Cooking Pellets and Heating Pellets).
+const SF_OPP_CATEGORIES = ['Pet Litter'];
+const SF_OPP_CATEGORY = SF_OPP_CATEGORIES[0];   // what new Opportunities get tagged with
 const SF_OPP_LABEL = 'Catalyst';
+const SF_OPPS_SHEET = 'SF_Opps';   // litter Opportunities on Accounts no retailer is linked to
 const SF_OPP_TYPE = 'New Business';
 const SF_OPP_FORECAST = 'Omitted';        // keeps sizing estimates out of forecast totals
 const SF_OPP_STAGE = { 'target': 'Qualification', 'pitched': 'Proposal' };
@@ -900,15 +919,28 @@ function sfOppDate_(v) {
 }
 
 // Runs at the end of every sync. `rows` is the Retailers grid, already merged.
+function sfOppMatchClause_() {
+  const cats = SF_OPP_CATEGORIES.map(function (c) { return "'" + sfSoqlStr_(c) + "'"; }).join(', ');
+  return "(Product_Category__c INCLUDES (" + cats + ")" +
+         " OR Product_Label__c INCLUDES ('" + sfSoqlStr_(SF_OPP_LABEL) + "'))";
+}
+
 function sfSyncOpportunities_(rows, byRetailer, summary) {
-  const existing = {};
-  sfQuery_('SELECT Id, Name, StageName, IsClosed, CloseDate, Account.' + SF_LINK_FIELD +
-    ' FROM Opportunity WHERE Account.' + SF_LINK_FIELD + " != null" +
-    " AND Product_Category__c INCLUDES ('" + sfSoqlStr_(SF_OPP_CATEGORY) + "')" +
-    ' ORDER BY CreatedDate DESC').forEach(function (o) {
-      const rid = String(o.Account[SF_LINK_FIELD] || '').trim();
-      if (rid && !existing[rid]) existing[rid] = o;   // newest wins
-    });
+  // Every Catalyst / litter Opportunity in the org, linked Account or not, so a
+  // deal someone opens on an account we don't track still shows up.
+  const all = sfQuery_('SELECT Id, Name, StageName, IsClosed, CloseDate, Amount, CreatedDate,' +
+    ' AccountId, Account.Name, Account.' + SF_LINK_FIELD +
+    ' FROM Opportunity WHERE ' + sfOppMatchClause_() + ' ORDER BY CreatedDate DESC');
+
+  const existing = {}, orphans = [];
+  all.forEach(function (o) {
+    const rid = String((o.Account && o.Account[SF_LINK_FIELD]) || '').trim();
+    if (!rid) { orphans.push(o); return; }
+    if (!existing[rid]) existing[rid] = o;           // newest wins
+  });
+  summary.oppsFound = all.length;
+  summary.oppsUnlinked = orphans.length;
+  sfWriteOrphanOpps_(orphans);
 
   const creates = [], stageMoves = [], notes = [];
 
@@ -986,6 +1018,30 @@ function sfSyncOpportunities_(rows, byRetailer, summary) {
   return notes;
 }
 
+// Litter/Catalyst Opportunities whose Account no retailer row is linked to.
+// Written to their own tab so they're visible without cluttering the main grid;
+// link the Account (stamp Dashboard_Retailer_ID__c) to pull one into a row.
+function sfWriteOrphanOpps_(orphans) {
+  const ss = SpreadsheetApp.getActive();
+  let sh = ss.getSheetByName(SF_OPPS_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(SF_OPPS_SHEET);
+    sh.setColumnWidths(1, 7, 160);
+  }
+  sh.clear();
+  const header = ['account', 'opportunity', 'stage', 'amount', 'close_date', 'created', 'opportunity_id'];
+  sh.getRange(1, 1, 1, header.length).setValues([header])
+    .setFontWeight('bold').setBackground('#1a1a2e').setFontColor('#ffffff');
+  sh.setFrozenRows(1);
+  if (!orphans.length) return;
+  sh.getRange(2, 1, orphans.length, header.length).setValues(orphans.map(function (o) {
+    return [(o.Account && o.Account.Name) || '', o.Name || '', o.StageName || '',
+            o.Amount == null ? '' : o.Amount, o.CloseDate || '',
+            o.CreatedDate ? String(o.CreatedDate).slice(0, 10) : '', o.Id];
+  }));
+  sh.getRange(2, 4, orphans.length, 1).setNumberFormat('"$"#,##0');
+}
+
 // Run by hand to see what the next sync would create, without writing.
 function previewOpportunities() {
   if (!sfConfigured_()) throw new Error('Salesforce credentials not set in Script Properties');
@@ -996,7 +1052,7 @@ function previewOpportunities() {
     .forEach(function (a) { linked[String(a[SF_LINK_FIELD]).trim()] = a; });
   const has = {};
   sfQuery_('SELECT Id, Name, StageName, Account.' + SF_LINK_FIELD + ' FROM Opportunity WHERE Account.' +
-    SF_LINK_FIELD + " != null AND Product_Category__c INCLUDES ('" + sfSoqlStr_(SF_OPP_CATEGORY) + "')")
+    SF_LINK_FIELD + ' != null AND ' + sfOppMatchClause_())
     .forEach(function (o) { has[String(o.Account[SF_LINK_FIELD]).trim()] = o; });
 
   const lines = [];

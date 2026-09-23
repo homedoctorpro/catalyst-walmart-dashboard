@@ -659,6 +659,15 @@
   .rt-hidden { display:none; }
 
   /* ── Retailers: Sources card ── */
+  .rt-orphans { background:#fff; border-radius:12px; padding:16px 18px; margin-bottom:14px;
+                box-shadow:0 2px 8px rgba(0,0,0,0.08); border-left:4px solid #00838f; }
+  .rt-orphans > h3 { font-size:0.8rem; font-weight:700; color:#666; text-transform:uppercase;
+                     letter-spacing:0.06em; margin-bottom:10px; }
+  .rt-orphans table { width:100%; border-collapse:collapse; font-size:0.8rem; }
+  .rt-orphans th { text-align:left; color:#888; font-weight:700; font-size:0.72rem;
+                   text-transform:uppercase; padding:4px 8px; border-bottom:1px solid #eee; }
+  .rt-orphans td { padding:5px 8px; border-bottom:1px solid #f4f4f4; }
+  .rt-orphans .rt-o-note { font-size:0.75rem; color:#888; margin-top:8px; }
   .rt-sources { background:#fff; border-radius:12px; padding:18px 22px; margin-top:16px;
                 box-shadow:0 2px 8px rgba(0,0,0,0.08); font-size:0.82rem; color:#444; line-height:1.55; }
   .rt-sources h3 { font-size:0.8rem; font-weight:700; color:#666; text-transform:uppercase;
@@ -2004,6 +2013,12 @@
           <tbody id="rt-tbody"></tbody>
         </table>
       </div>
+    </div>
+
+    <!-- Salesforce litter Opportunities with no retailer row -->
+    <div class="rt-orphans" id="rt-orphans" style="display:none">
+      <h3>Salesforce cat-litter opportunities not on this list</h3>
+      <div id="rt-orphans-body"></div>
     </div>
 
     <!-- Sources & Methodology -->
@@ -8218,6 +8233,7 @@ function rtSetScope(v) {
   rtRenderSummary();
 }
 
+let RT_UNLINKED_OPPS = [];   // litter opps in Salesforce whose Account isn't on this list
 let RT_OVERRIDES = {};         // { retailerId: { usw, repFirm, nextSteps, status } }
 let RT_CHANNEL_DEFAULTS = {};  // { channelKey: USW }
 const RT_VISIBLE_CHANNELS = new Set(RT_CHANNEL_ORDER);
@@ -8487,6 +8503,26 @@ function rtRenderSummary() {
   if (sizingEl && hint) hint.textContent = sizingEl.open ? "" : rtSizingDigest();
 }
 
+function rtRenderOrphanOpps() {
+  const host = document.getElementById("rt-orphans");
+  const body = document.getElementById("rt-orphans-body");
+  if (!host || !body) return;
+  if (!RT_UNLINKED_OPPS.length) { host.style.display = "none"; return; }
+  host.style.display = "";
+  body.innerHTML =
+    `<table><thead><tr><th>Account</th><th>Opportunity</th><th>Stage</th><th>Amount</th><th>Closes</th></tr></thead><tbody>` +
+    RT_UNLINKED_OPPS.map(o => `<tr>
+      <td>${rtEsc(o.account)}</td>
+      <td><a href="${RT_SF_LIGHTNING}/lightning/r/Opportunity/${rtEsc(o.id)}/view" target="_blank" rel="noopener">${rtEsc(o.name)}</a></td>
+      <td>${rtEsc(o.stage)}</td>
+      <td>${o.amount ? rtFmt$(o.amount) : "—"}</td>
+      <td>${rtEsc(o.closeDate || "")}</td>
+    </tr>`).join("") +
+    `</tbody></table>
+     <div class="rt-o-note">Tagged Pet Litter or Catalyst in Salesforce, on Accounts no retailer row is linked to.
+     Stamp that Account's Dashboard Retailer ID to pull it onto a row.</div>`;
+}
+
 function rtRenderTable() {
   const tbody = document.getElementById("rt-tbody");
   let html = "";
@@ -8558,6 +8594,7 @@ function rtRenderTable() {
 
   // KPIs + by-channel summary (scope-filtered)
   if (document.getElementById("rt-summary-grid")) rtRenderSummary();
+  rtRenderOrphanOpps();
 }
 
 function rtRowHtml(r, dimmed) {
@@ -9035,6 +9072,7 @@ async function rtFetchFromSheet(showFeedback) {
     const j = await res.json();
     if (!j.ok) throw new Error(j.error || "unknown error");
     RT_OVERRIDES = j.data || {};
+    RT_UNLINKED_OPPS = j.unlinkedOpps || [];
     localStorage.setItem(RT_STORAGE_KEY, JSON.stringify(RT_OVERRIDES));
     RT_LAST_SYNC_AT = new Date();
     rtRenderTable();

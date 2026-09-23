@@ -201,6 +201,12 @@ retailer's status, and never touches an Opportunity someone has advanced to Nego
 Documentation or a closed stage. Dropping a retailer off the target list leaves its Opportunity
 alone for a human to close. Amount is set once at creation and never rewritten.
 
+Every sync also sweeps the whole org for Opportunities tagged `Pet Litter` (any value in
+`SF_OPP_CATEGORIES`) or labeled `Catalyst`. Ones on a linked Account attach to their retailer row.
+Ones on an Account no retailer is linked to land on an **SF_Opps** tab and show in a panel under
+the dashboard's retailer table, so a deal opened outside this list is still visible. Link that
+Account (stamp `Dashboard_Retailer_ID__c`) to pull it onto a row.
+
 `previewOpportunities` lists what the next sync would create, without writing.
 
 ### Overwrite warnings
