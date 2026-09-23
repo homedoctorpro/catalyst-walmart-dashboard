@@ -79,7 +79,7 @@ The Sheet has these columns:
 | H | `annual_units` | ❌ | Formula: `=D*G*52` |
 | I | `wholesale_opp` | ❌ | Formula: `=H*$10` |
 | J | `retail_opp` | ❌ | Formula: `=H*$20` |
-| K | `rep_firm` | ✅ | Free text. The dashboard dropdown shows `Unassigned / PSE / StoR / Brian Schlager / Internal / Jeff Day`; you can type any value here and it shows in the dashboard, but only those six appear in the dropdown choices. Blank = Unassigned. |
+| K | `rep_firm` | ✅ | Free text. The dashboard dropdown shows `Unassigned / Brian Schlager / Internal / Jeff Day / PSE / StoR`; you can type any value here and it shows in the dashboard, but only those six appear in the dropdown choices. Blank = Unassigned. |
 | L | `status` | ✅ | One of: `in`, `pitched`, `target`, `non-target`, `declined` (or blank). |
 | M | `next_steps` | ✅ | Free text. |
 | N | `updated_at` | ❌ | Auto-stamped on every write. |
@@ -115,7 +115,7 @@ creates Accounts.
 |---|---|---|
 | Dashboard Retailer ID | `Dashboard_Retailer_ID__c` | Text(80), **Unique** + **External ID** |
 | Retailer Status | `Retailer_Status__c` | Picklist, not restricted: Currently In, Pitched, Target, Non-Target, Declined |
-| Retailer Rep Firm | `Retailer_Rep_Firm__c` | Picklist, not restricted: Unassigned, PSE, StoR, Brian Schlager, Internal, Jeff Day |
+| Retailer Rep Firm | `Retailer_Rep_Firm__c` | Picklist, not restricted: Unassigned, Brian Schlager, Internal, Jeff Day, PSE, StoR |
 | Retailer Next Steps | `Retailer_Next_Steps__c` | Text Area (Long), 32,768 |
 | Retailer Next Review | `Retailer_Next_Review__c` | Date |
 | Retailer Priority | `Retailer_Priority__c` | Number(2, 0) |
