@@ -373,8 +373,13 @@ function bulkReplace_(items) {
     return [f.needsDistributor ? '1' : '', f.distributorName || '', f.deadline || '',
             f.keyContact || '', f.resetDate || ''];
   }));
+  // Width must follow N_SF_COLS — it grew from 4 (Q-T) to 6 (Q-V) when the
+  // Opportunity columns landed, and a short row here fails the whole push.
   sh.getRange(2, COL.sfAccountId, items.length, N_SF_COLS).setValues(items.map(function (it) {
-    return keptSf[it.retailerId] || ['', '', '', ''];
+    const kept = keptSf[it.retailerId] || [];
+    const row = [];
+    for (let i = 0; i < N_SF_COLS; i++) row.push(kept[i] == null ? '' : kept[i]);
+    return row;
   }));
 
   const lastDataRow = items.length + 1;
