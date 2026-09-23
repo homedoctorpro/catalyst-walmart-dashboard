@@ -555,17 +555,24 @@
   .rt-tbl th:hover { background:#eaeaea; }
   .rt-tbl th:nth-child(1), .rt-tbl th:nth-child(2), .rt-tbl th:nth-child(3),
   .rt-tbl th:nth-child(9), .rt-tbl th:nth-child(10), .rt-tbl th:nth-child(11),
-  .rt-tbl th:nth-child(12), .rt-tbl th:nth-child(13) { text-align:left; }
+  .rt-tbl th:nth-child(12), .rt-tbl th:nth-child(13),
+  .rt-tbl th:nth-child(14) { text-align:left; }
   .rt-tbl td { padding:6px 10px; border-bottom:1px solid #f0f0f0; text-align:right; vertical-align:middle; }
   .rt-tbl td:nth-child(1), .rt-tbl td:nth-child(2), .rt-tbl td:nth-child(3),
   .rt-tbl td:nth-child(9), .rt-tbl td:nth-child(10), .rt-tbl td:nth-child(11),
-  .rt-tbl td:nth-child(12), .rt-tbl td:nth-child(13) { text-align:left; }
+  .rt-tbl td:nth-child(12), .rt-tbl td:nth-child(13),
+  .rt-tbl td:nth-child(14) { text-align:left; }
   .rt-tbl tr:hover td { background:#f8f9ff; }
   .rt-tbl .rt-retailer-name { font-weight:600; color:#1a1a2e; }
   .rt-contact { display:inline-block; margin-top:3px; font-size:0.74rem; color:#0057e7; cursor:default;
                 border-bottom:1px dotted #9db4e8; }
   .rt-contact:focus { outline:none; }
   .rt-contact-none { color:#999; border-bottom:none; }
+  .rt-contact.is-key { color:#b8860b; font-weight:700; border-bottom-color:#e6c200; }
+  .rt-cc-star { background:none; border:none; cursor:pointer; font-size:0.95rem; color:#c9a227;
+                padding:0 4px 0 0; line-height:1; }
+  .rt-cc-star:hover { color:#8a6d00; }
+  .rt-cc.is-key { background:#fffbe6; border-radius:6px; }
   #rt-contact-card { display:none; position:fixed; z-index:1000; width:290px; max-width:calc(100vw - 32px);
                      background:#fff; border:1px solid #d0d8f0; border-radius:8px; padding:8px 12px;
                      box-shadow:0 6px 20px rgba(0,0,0,0.14); font-size:0.78rem; color:#333; }
@@ -1973,6 +1980,7 @@
               <th title="Tick when this retailer buys through a distributor; hover the cell to name it">Distributor</th>
               <th>Next Steps</th>
               <th title="Date to revisit this account">Next Review</th>
+              <th title="Hard date this has to land by — turns red once it passes">Deadline</th>
             </tr>
           </thead>
           <tbody id="rt-tbody"></tbody>
@@ -8463,7 +8471,7 @@ function rtRenderTable() {
       <td class="rt-size-col">${rtFmtUnits(chUnits)}</td>
       <td class="rt-size-col">${rtFmt$(chUnits * RT_WHOLESALE_PRICE)}</td>
       <td class="rt-size-col">${rtFmt$(chUnits * RT_RETAIL_PRICE)}</td>
-      <td colspan="5"></td>
+      <td colspan="6"></td>
     </tr>`;
 
     // Sort by priority (1 first, blanks last), then store count desc
@@ -8478,7 +8486,7 @@ function rtRenderTable() {
     <td class="rt-size-col">${rtFmtUnits(grandUnits)}</td>
     <td class="rt-size-col">${rtFmt$(grandUnits * RT_WHOLESALE_PRICE)}</td>
     <td class="rt-size-col">${rtFmt$(grandUnits * RT_RETAIL_PRICE)}</td>
-    <td colspan="5"></td>
+    <td colspan="6"></td>
   </tr>`;
 
   // Non-Target section at the bottom (visible channels only, not in totals)
@@ -8486,7 +8494,7 @@ function rtRenderTable() {
     .sort((a,b) => (RT_CHANNEL_ORDER.indexOf(a.channel) - RT_CHANNEL_ORDER.indexOf(b.channel)) || byPrio(a,b));
   if (nonTarget.length) {
     html += `<tr class="rt-channel-row">
-      <td colspan="13">
+      <td colspan="14">
         <span class="rt-ch-badge" style="background:#9e9e9e">Non-Target</span>
         <span style="font-weight:500;margin-left:8px;text-transform:none;letter-spacing:0;color:#555;font-size:0.75rem">${nonTarget.length} retailer${nonTarget.length === 1 ? "" : "s"} marked Non-Target; excluded from totals. Change Status to move a row back to its channel.</span>
       </td>
@@ -8513,6 +8521,8 @@ function rtRowHtml(r, dimmed) {
       const repFirm = rtRowField(r, "repFirm");
       const nextSteps = rtRowField(r, "nextSteps");
       const nextReview = rtRowField(r, "nextReview");
+      const deadline = rtRowField(r, "deadline");
+      const deadlineOverdue = deadline && deadline < rtTodayIso();
       const priority = rtRowField(r, "priority");
       const needsDist = rtRowField(r, "needsDistributor") === "1";
       const distName = rtRowField(r, "distributorName");
@@ -8572,6 +8582,12 @@ function rtRowHtml(r, dimmed) {
                  ${reviewOverdue ? 'title="Review date has passed"' : ''}
                  onchange="rtUpdateText('${r.id}', 'nextReview', this.value, this); rtRenderTable()">
         </td>
+        <td>
+          <input type="date" value="${rtEsc(deadline)}"
+                 class="rt-date-input ${deadline ? 'has-value' : ''} ${deadlineOverdue ? 'is-overdue' : ''}"
+                 ${deadlineOverdue ? 'title="Deadline has passed"' : ''}
+                 onchange="rtUpdateText('${r.id}', 'deadline', this.value, this); rtRenderTable()">
+        </td>
       </tr>`;
 }
 
@@ -8581,15 +8597,38 @@ function rtRowHtml(r, dimmed) {
 const RT_SF_LIGHTNING = "https://energex1.lightning.force.com";
 let RT_CONTACT_HIDE_T = null;
 
+// A contact's key is its email when it has one, else its name — Salesforce
+// Ids aren't in the pulled payload and names alone can collide.
+function rtContactKey(c) { return (c && (c.email || c.name) || "").trim().toLowerCase(); }
+function rtKeyContact(id) {
+  const o = RT_OVERRIDES[id] || {};
+  const cs = o.contacts || [];
+  if (!cs.length) return null;
+  const want = (o.keyContact || "").trim().toLowerCase();
+  return (want && cs.find(c => rtContactKey(c) === want)) || null;
+}
+
 function rtContactHtml(r) {
   const o = RT_OVERRIDES[r.id] || {};
   if (!o.sfAccountId) return "";
   const cs = o.contacts || [];
   if (!cs.length) return `<div class="rt-contact rt-contact-none" title="Linked to Salesforce Account ${rtEsc(o.sfAccountName)}">No Salesforce contacts</div>`;
+  const key = rtKeyContact(r.id);
+  const shown = key || cs[0];
   const more = cs.length > 1 ? ` +${cs.length - 1}` : "";
-  return `<div class="rt-contact" tabindex="0"
+  return `<div class="rt-contact${key ? " is-key" : ""}" tabindex="0"
       onmouseenter="rtShowContacts('${r.id}', this)" onmouseleave="rtHideContactsSoon()"
-      onfocus="rtShowContacts('${r.id}', this)" onblur="rtHideContactsSoon()">👤 ${rtEsc(cs[0].name)}${more}</div>`;
+      onfocus="rtShowContacts('${r.id}', this)" onblur="rtHideContactsSoon()"
+      title="${key ? "Key contact" : "First Salesforce contact — hover to pick the key contact"}">${key ? "★" : "👤"} ${rtEsc(shown.name)}${more}</div>`;
+}
+
+// Star a contact from the hover card. Clicking the current one clears it.
+function rtSetKeyContact(id, key, anchorless) {
+  const cur = (RT_OVERRIDES[id] || {}).keyContact || "";
+  rtSetOverride(id, "keyContact", cur === key ? null : key);
+  rtRenderTable();
+  const card = document.getElementById("rt-contact-card");
+  if (card) card.style.display = "none";
 }
 
 function rtShowContacts(id, anchor) {
@@ -8606,7 +8645,9 @@ function rtShowContacts(id, anchor) {
   const acctUrl = `${RT_SF_LIGHTNING}/lightning/r/Account/${encodeURIComponent(o.sfAccountId)}/view`;
   card.innerHTML =
     `<div class="rt-cc-acct">Salesforce: <a href="${acctUrl}" target="_blank" rel="noopener">${rtEsc(o.sfAccountName || "Account")}</a></div>` +
-    (o.contacts || []).map(c => `<div class="rt-cc">
+    (o.contacts || []).map(c => `<div class="rt-cc${rtContactKey(c) === ((o.keyContact || "").trim().toLowerCase()) && o.keyContact ? " is-key" : ""}">
+      <button class="rt-cc-star" title="Mark as our key contact"
+              onclick="rtSetKeyContact('${id}', '${rtEsc(rtContactKey(c))}')">${rtContactKey(c) === ((o.keyContact || "").trim().toLowerCase()) && o.keyContact ? "★" : "☆"}</button>
       <strong>${rtEsc(c.name)}</strong>${c.title ? ` <span class="rt-cc-title">· ${rtEsc(c.title)}</span>` : ""}
       ${c.email ? `<div>✉ <a href="mailto:${rtEsc(c.email)}">${rtEsc(c.email)}</a></div>` : ""}
       ${c.phone ? `<div>☎ <a href="tel:${rtEsc(c.phone.replace(/[^0-9+]/g, ""))}">${rtEsc(c.phone)}</a></div>` : ""}
@@ -8758,7 +8799,7 @@ function importRetailerData(evt) {
   evt.target.value = "";
 }
 function clearRetailerData() {
-  if (!confirm("Clear all priority / rep-firm / status / next-steps / next-review / U/S/W overrides? Channel defaults will also reset. This cannot be undone.")) return;
+  if (!confirm("Clear all priority / rep-firm / status / next-steps / next-review / deadline / U/S/W overrides? Channel defaults will also reset. This cannot be undone.")) return;
   RT_OVERRIDES = {};
   RT_CHANNEL_DEFAULTS = {};
   rtSave();
@@ -8871,6 +8912,8 @@ function rtBuildSheetItem(r) {
       nextSteps: o.nextSteps != null ? o.nextSteps : null,
       nextReview: o.nextReview != null ? o.nextReview : null,
       priority:  o.priority  != null ? o.priority  : null,
+      deadline:  o.deadline  != null ? o.deadline  : null,
+      keyContact: o.keyContact != null ? o.keyContact : null,
       needsDistributor: o.needsDistributor != null ? o.needsDistributor : null,
       distributorName:  o.distributorName  != null ? o.distributorName  : null,
       usw:       (o.usw != null && o.usw !== "") ? o.usw : null,

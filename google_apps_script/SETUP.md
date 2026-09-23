@@ -87,6 +87,8 @@ The Sheet has these columns:
 | P | `priority` | ✅ | Whole number 1–10 (1 = highest), or blank. Anything else is ignored on pull. The dashboard sorts each channel by priority, then store count. |
 | W | `needs_distributor` | ✅ | `1` when the retailer buys through a distributor, blank otherwise. Dashboard-only; not sent to Salesforce. |
 | X | `distributor_name` | ✅ | Free text — which distributor. Dashboard-only. |
+| Z | `key_contact` | ✅ | Email (or name) of the Account contact marked as our key contact in the dashboard. Dashboard-only; Salesforce contacts themselves are never written. |
+| Y | `deadline` | ✅ | Date (`yyyy-mm-dd`) the deal has to land by; shows red in the dashboard once it passes. Used as the Opportunity's CloseDate when set. |
 | Q | `sf_account_id` | ❌ | Linked Salesforce Account (written by the Salesforce sync). |
 | R | `sf_account_name` | ❌ | Account name from Salesforce. |
 | S | `contacts_json` | ❌ | Up to 5 Account contacts (name, title, email, phone); shown on hover in the dashboard. |
@@ -179,7 +181,7 @@ Account, created by the next sync:
 |---|---|
 | Name | `Catalyst Cat Litter - {Retailer} {close year}` |
 | StageName | Target → Qualification, Pitched → Proposal |
-| CloseDate | the retailer's Next Review, or 90 days out when that's blank |
+| CloseDate | the retailer's Deadline, else its Next Review, else 90 days out |
 | Amount | the dashboard's annual wholesale sizing (blank when the row has no stores) |
 | ForecastCategoryName | Omitted, so a top-down estimate never lands in a forecast total |
 | Type | New Business |
