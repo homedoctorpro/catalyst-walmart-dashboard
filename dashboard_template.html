@@ -553,11 +553,13 @@
                border-bottom:2px solid #e0e0e0; white-space:nowrap; position:sticky; top:0; z-index:1;
                cursor:pointer; user-select:none; }
   .rt-tbl th:hover { background:#eaeaea; }
-  .rt-tbl th:nth-child(1), .rt-tbl th:nth-child(2),
-  .rt-tbl th:nth-child(8), .rt-tbl th:nth-child(9), .rt-tbl th:nth-child(10) { text-align:left; }
+  .rt-tbl th:nth-child(1), .rt-tbl th:nth-child(2), .rt-tbl th:nth-child(3),
+  .rt-tbl th:nth-child(9), .rt-tbl th:nth-child(10),
+  .rt-tbl th:nth-child(11), .rt-tbl th:nth-child(12) { text-align:left; }
   .rt-tbl td { padding:6px 10px; border-bottom:1px solid #f0f0f0; text-align:right; vertical-align:middle; }
-  .rt-tbl td:nth-child(1), .rt-tbl td:nth-child(2),
-  .rt-tbl td:nth-child(8), .rt-tbl td:nth-child(9), .rt-tbl td:nth-child(10) { text-align:left; }
+  .rt-tbl td:nth-child(1), .rt-tbl td:nth-child(2), .rt-tbl td:nth-child(3),
+  .rt-tbl td:nth-child(9), .rt-tbl td:nth-child(10),
+  .rt-tbl td:nth-child(11), .rt-tbl td:nth-child(12) { text-align:left; }
   .rt-tbl tr:hover td { background:#f8f9ff; }
   .rt-tbl .rt-retailer-name { font-weight:600; color:#1a1a2e; }
   .rt-contact { display:inline-block; margin-top:3px; font-size:0.74rem; color:#0057e7; cursor:default;
@@ -589,6 +591,13 @@
   .rt-tbl .rt-text-input:focus { outline:none; border-color:#0057e7; }
   .rt-tbl .rt-text-input.has-value { background:#f0fdf4; border-color:#a5d6a7; }
   .rt-tbl.rt-lean .rt-size-col { display:none; }
+  /* With the sizing columns gone, give the width back to Next Steps rather
+     than letting the retailer name sprawl. */
+  .rt-tbl.rt-lean th:nth-child(2) { width:210px; }
+  .rt-tbl.rt-lean td:nth-child(2) { max-width:210px; white-space:normal; }
+  .rt-tbl.rt-lean .rt-retailer-name { font-size:0.78rem; font-weight:600; }
+  .rt-tbl.rt-lean th:nth-child(11) { width:48%; }
+  .rt-tbl.rt-lean td:nth-child(11) .rt-text-input { min-width:100%; }
   .rt-opp-chip { display:inline-block; margin-top:3px; padding:1px 7px; border-radius:10px;
                  font-size:0.68rem; font-weight:700; color:#fff; text-decoration:none;
                  letter-spacing:0.02em; }
