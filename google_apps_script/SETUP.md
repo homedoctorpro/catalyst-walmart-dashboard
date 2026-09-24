@@ -245,7 +245,15 @@ anyone with the dashboard password can see them.
 
 The same web app speaks MCP, so anyone on the team can work the list in conversation instead of
 opening the dashboard. No install: in Claude, **Settings → Connectors → Add custom connector**,
-paste the `/exec` URL, and four tools appear.
+paste **`https://catalyst-retailers-mcp.fly.dev/mcp`**, and four tools appear.
+
+That address is a thin proxy (`mcp_proxy/`, running on Fly) in front of the Apps Script
+deployment. Claude's connector check refuses the 302 redirect every Apps Script web app answers
+with, so the `/exec` URL can't be used directly even though it speaks MCP correctly. The proxy
+holds no logic — it forwards each JSON-RPC message and returns the answer. When the Apps Script
+deployment URL changes, update the proxy's secret and the connector URL stays put:
+
+    flyctl secrets set APPS_SCRIPT_URL="<new /exec url>" -a catalyst-retailers-mcp
 
 | Tool | What it does |
 |---|---|
