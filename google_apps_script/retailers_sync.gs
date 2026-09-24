@@ -44,6 +44,8 @@
  */
 
 const SHEET_NAME = 'Retailers';
+// Keep in step with RT_REP_FIRM_OPTIONS in dashboard_template.html
+const RT_REP_FIRMS = ['Unassigned', 'Brian Schlager', 'Internal', 'Jeff Day', 'PSE', 'StoR'];
 const HEADERS = [
   'retailer_id', 'retailer_name', 'channel',
   'us_stores', 'default_usw', 'usw_override',
@@ -388,6 +390,289 @@ function bulkReplace_(items) {
   return items.length;
 }
 
+
+// ── MCP (Model Context Protocol) ────────────────────────────────────────────
+//
+// The same web app also speaks MCP over HTTP, so the team can work the pipeline
+// by talking to Claude instead of opening the dashboard. Add the /exec URL as a
+// custom connector in Claude and these tools appear.
+//
+// JSON-RPC arrives on doPost; anything with a "jsonrpc" field is routed here
+// rather than to the dashboard's own actions. Writes run through the same
+// upsert path as the dashboard, so the Salesforce sync and SF_Log warnings
+// apply exactly as they do for a dashboard edit.
+
+const MCP_PROTOCOL = '2025-06-18';
+const MCP_SERVER = { name: 'catalyst-retailers', title: 'Catalyst Pet retailer pipeline', version: '1.0.0' };
+
+// Sheet field ← tool argument. Everything here is writable through update_retailer.
+const MCP_WRITABLE = {
+  status: 'status', priority: 'priority', rep_firm: 'repFirm', next_steps: 'nextSteps',
+  deadline: 'deadline', next_review: 'nextReview', reset_date: 'resetDate',
+  needs_distributor: 'needsDistributor', distributor_name: 'distributorName',
+  key_contact: 'keyContact',
+};
+const MCP_STATUSES = ['in', 'pitched', 'target', 'non-target', 'declined', ''];
+
+function mcpTools_() {
+  return [
+    {
+      name: 'find_retailers',
+      title: 'Find retailers',
+      description: 'Search the retailer pipeline. Any filter can be combined; omit them all for the ' +
+        'whole list. Returns each retailer with its status, priority, rep firm, next steps, dates, ' +
+        'store count, channel and Salesforce link.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          query:    { type: 'string', description: 'Part of a retailer name, e.g. "petco" or "giant"' },
+          status:   { type: 'string', enum: MCP_STATUSES.filter(String), description: 'Exact status' },
+          rep_firm: { type: 'string', description: 'Rep firm, e.g. "Brian Schlager", "PSE", "StoR", "Internal"' },
+          channel:  { type: 'string', description: 'Channel name, e.g. "Grocery", "Pet Specialty"' },
+          overdue:  { type: 'boolean', description: 'Only rows whose deadline has passed' },
+          limit:    { type: 'number', description: 'Max rows to return (default 40)' },
+        },
+      },
+    },
+    {
+      name: 'get_retailer',
+      title: 'Get one retailer',
+      description: 'Everything known about one retailer, including Salesforce contacts and the ' +
+        'linked cat-litter opportunity.',
+      inputSchema: {
+        type: 'object',
+        properties: { retailer: { type: 'string', description: 'Retailer name or id' } },
+        required: ['retailer'],
+      },
+    },
+    {
+      name: 'update_retailer',
+      title: 'Update a retailer',
+      description: 'Change one retailer\'s planning fields. Only the arguments you pass are touched. ' +
+        'Status Target or Pitched puts the row into Salesforce and creates its cat-litter opportunity; ' +
+        'Currently In, Non-Target and Declined park it at the bottom of the dashboard. Dates accept ' +
+        'yyyy-mm-dd.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          retailer:          { type: 'string', description: 'Retailer name or id' },
+          status:            { type: 'string', enum: MCP_STATUSES, description: 'in | pitched | target | non-target | declined, or empty to clear' },
+          priority:          { type: 'number', description: '1-10, 1 is highest. 0 clears it.' },
+          rep_firm:          { type: 'string', description: 'Unassigned, Brian Schlager, Internal, Jeff Day, PSE, StoR' },
+          next_steps:        { type: 'string' },
+          deadline:          { type: 'string', description: 'yyyy-mm-dd, or empty to clear' },
+          next_review:       { type: 'string', description: 'yyyy-mm-dd, or empty to clear' },
+          reset_date:        { type: 'string', description: 'yyyy-mm-dd shelf reset, or empty to clear' },
+          needs_distributor: { type: 'boolean' },
+          distributor_name:  { type: 'string' },
+          key_contact:       { type: 'string', description: 'Email of the Salesforce contact to star' },
+          us_stores:         { type: 'number', description: 'Door count. Note: a dashboard rebuild resets this to the number in the dashboard code.' },
+        },
+        required: ['retailer'],
+      },
+    },
+    {
+      name: 'pipeline_summary',
+      title: 'Pipeline summary',
+      description: 'Counts by status and rep firm, overdue deadlines, and the reviews coming up.',
+      inputSchema: { type: 'object', properties: {} },
+    },
+  ];
+}
+
+function mcpRows_() {
+  const sh = ensureSchema_();
+  const last = sh.getLastRow();
+  if (last < 2) return [];
+  return sh.getRange(2, 1, last - 1, N_COLS).getValues()
+    .filter(function (r) { const id = String(r[COL.id - 1] || '').trim(); return id && id !== 'TOTAL'; })
+    .map(function (r) {
+      const iso = function (v) {
+        return (v instanceof Date) ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd')
+                                   : String(v || '').trim();
+      };
+      return {
+        id: String(r[COL.id - 1]).trim(),
+        name: String(r[COL.name - 1] || ''),
+        channel: String(r[COL.channel - 1] || ''),
+        us_stores: Number(r[COL.usStores - 1]) || 0,
+        status: String(r[COL.status - 1] || ''),
+        priority: r[COL.priority - 1] === '' ? null : Number(r[COL.priority - 1]),
+        rep_firm: String(r[COL.repFirm - 1] || ''),
+        next_steps: String(r[COL.nextSteps - 1] || ''),
+        deadline: iso(r[COL.deadline - 1]),
+        next_review: iso(r[COL.nextReview - 1]),
+        reset_date: iso(r[COL.resetDate - 1]),
+        needs_distributor: !!String(r[COL.needsDistributor - 1] || '').trim(),
+        distributor_name: String(r[COL.distributorName - 1] || ''),
+        key_contact: String(r[COL.keyContact - 1] || ''),
+        sf_account: String(r[COL.sfAccountName - 1] || ''),
+        sf_opportunity_stage: String(r[COL.sfOppStage - 1] || ''),
+        contacts_json: String(r[COL.contactsJson - 1] || ''),
+        _row: 0,
+      };
+    });
+}
+
+function mcpFind_(rows, term) {
+  const t = String(term || '').trim().toLowerCase();
+  if (!t) return [];
+  const exact = rows.filter(function (r) { return r.id === t || r.name.toLowerCase() === t; });
+  if (exact.length) return exact;
+  return rows.filter(function (r) {
+    return r.id.indexOf(t) >= 0 || r.name.toLowerCase().indexOf(t) >= 0;
+  });
+}
+
+function mcpToday_() {
+  return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+
+function mcpLine_(r) {
+  const bits = [r.name + ' (' + r.id + ')', r.channel];
+  if (r.us_stores) bits.push(r.us_stores.toLocaleString() + ' doors');
+  bits.push('status: ' + (r.status || '—'));
+  if (r.priority) bits.push('priority ' + r.priority);
+  if (r.rep_firm) bits.push('rep: ' + r.rep_firm);
+  if (r.deadline) bits.push('deadline ' + r.deadline + (r.deadline < mcpToday_() ? ' (PASSED)' : ''));
+  if (r.next_review) bits.push('review ' + r.next_review);
+  if (r.reset_date) bits.push('reset ' + r.reset_date);
+  if (r.needs_distributor) bits.push('needs distributor' + (r.distributor_name ? ': ' + r.distributor_name : ''));
+  if (r.sf_account) bits.push('SF: ' + r.sf_account + (r.sf_opportunity_stage ? ' · opp ' + r.sf_opportunity_stage : ''));
+  if (r.next_steps) bits.push('next steps: ' + r.next_steps);
+  return '- ' + bits.join(' · ');
+}
+
+function mcpCall_(name, args) {
+  args = args || {};
+  const rows = mcpRows_();
+
+  if (name === 'find_retailers') {
+    let out = rows;
+    if (args.query)    out = mcpFind_(out, args.query);
+    if (args.status)   out = out.filter(function (r) { return r.status === String(args.status).toLowerCase(); });
+    if (args.rep_firm) out = out.filter(function (r) { return r.rep_firm.toLowerCase() === String(args.rep_firm).toLowerCase(); });
+    if (args.channel)  out = out.filter(function (r) { return r.channel.toLowerCase().indexOf(String(args.channel).toLowerCase()) >= 0; });
+    if (args.overdue)  out = out.filter(function (r) { return r.deadline && r.deadline < mcpToday_(); });
+    const limit = args.limit || 40;
+    const head = out.length + ' retailer(s)' + (out.length > limit ? ', showing ' + limit : '');
+    return head + '\n' + out.slice(0, limit).map(mcpLine_).join('\n');
+  }
+
+  if (name === 'get_retailer') {
+    const hits = mcpFind_(rows, args.retailer);
+    if (!hits.length) return 'No retailer matches "' + args.retailer + '".';
+    if (hits.length > 1) return 'That matches ' + hits.length + ': ' + hits.map(function (r) { return r.name; }).join(', ') + '. Be more specific.';
+    const r = hits[0];
+    let out = mcpLine_(r);
+    try {
+      const cs = JSON.parse(r.contacts_json || '[]');
+      if (cs.length) {
+        out += '\nSalesforce contacts:';
+        cs.forEach(function (c) {
+          out += '\n  · ' + c.name + (c.title ? ' — ' + c.title : '') + (c.email ? ' · ' + c.email : '') +
+                 (c.phone ? ' · ' + c.phone : '') + (r.key_contact && c.email === r.key_contact ? '  ★ key contact' : '');
+        });
+      } else {
+        out += '\nNo Salesforce contacts on the linked account.';
+      }
+    } catch (e) { /* contacts unreadable — the row is still useful */ }
+    return out;
+  }
+
+  if (name === 'update_retailer') {
+    const hits = mcpFind_(rows, args.retailer);
+    if (!hits.length) return 'No retailer matches "' + args.retailer + '". Nothing changed.';
+    if (hits.length > 1) return 'That matches ' + hits.length + ': ' + hits.map(function (r) { return r.name; }).join(', ') + '. Nothing changed — name one.';
+    const r = hits[0];
+
+    const fields = {};
+    for (const f in MCP_WRITABLE) {
+      const sheetKey = MCP_WRITABLE[f];
+      fields[sheetKey] = f === 'needs_distributor' ? (r.needs_distributor ? '1' : '') : (r[f] || '');
+    }
+    const changed = [];
+    for (const f in MCP_WRITABLE) {
+      if (!(f in args)) continue;
+      const sheetKey = MCP_WRITABLE[f];
+      let v = args[f];
+      if (f === 'status') {
+        v = String(v || '').toLowerCase();
+        if (MCP_STATUSES.indexOf(v) < 0) return 'Status must be one of: ' + MCP_STATUSES.filter(String).join(', ') + '. Nothing changed.';
+      }
+      if (f === 'priority') v = (Number(v) >= 1 && Number(v) <= 10) ? Math.round(Number(v)) : '';
+      if (f === 'needs_distributor') v = v ? '1' : '';
+      if (f === 'rep_firm' && v && RT_REP_FIRMS.indexOf(String(v)) < 0) {
+        return 'Rep firm must be one of: ' + RT_REP_FIRMS.join(', ') + '. Nothing changed.';
+      }
+      if (/date|deadline|review/.test(f) && v) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(v))) return f + ' must look like yyyy-mm-dd. Nothing changed.';
+      }
+      const before = fields[sheetKey];
+      if (String(before) === String(v)) continue;
+      fields[sheetKey] = v;
+      changed.push(f + ': ' + (before === '' ? '—' : before) + ' → ' + (v === '' ? '—' : v));
+    }
+
+    const item = { retailerId: r.id, fields: fields };
+    if ('us_stores' in args && Number(args.us_stores) >= 0 && Number(args.us_stores) !== r.us_stores) {
+      item.usStores = Math.round(Number(args.us_stores));
+      changed.push('us_stores: ' + r.us_stores + ' → ' + item.usStores +
+                   ' (a dashboard rebuild will reset this to the count in the dashboard code)');
+    }
+    if (!changed.length) return 'Nothing to change on ' + r.name + '.';
+    upsert_(item);
+    return 'Updated ' + r.name + ':\n  ' + changed.join('\n  ');
+  }
+
+  if (name === 'pipeline_summary') {
+    const today = mcpToday_();
+    const byStatus = {}, byRep = {};
+    let overdue = [], soon = [];
+    rows.forEach(function (r) {
+      byStatus[r.status || '(none)'] = (byStatus[r.status || '(none)'] || 0) + 1;
+      byRep[r.rep_firm || 'Unassigned'] = (byRep[r.rep_firm || 'Unassigned'] || 0) + 1;
+      if (r.deadline && r.deadline < today) overdue.push(r);
+      if (r.next_review && r.next_review >= today) soon.push(r);
+    });
+    soon.sort(function (a, b) { return a.next_review < b.next_review ? -1 : 1; });
+    let out = 'Retailers: ' + rows.length + '\nBy status: ' +
+      Object.keys(byStatus).map(function (k) { return k + ' ' + byStatus[k]; }).join(' · ') +
+      '\nBy rep firm: ' + Object.keys(byRep).map(function (k) { return k + ' ' + byRep[k]; }).join(' · ');
+    out += '\nDeadlines passed: ' + (overdue.length ? overdue.map(function (r) { return r.name + ' (' + r.deadline + ')'; }).join(', ') : 'none');
+    out += '\nNext reviews: ' + (soon.length ? soon.slice(0, 5).map(function (r) { return r.name + ' ' + r.next_review; }).join(', ') : 'none set');
+    return out;
+  }
+
+  throw new Error('unknown tool: ' + name);
+}
+
+function mcpHandle_(req) {
+  const id = (req && req.id !== undefined) ? req.id : null;
+  const ok = function (result) { return { jsonrpc: '2.0', id: id, result: result }; };
+  const err = function (code, message) { return { jsonrpc: '2.0', id: id, error: { code: code, message: message } }; };
+  const method = String((req && req.method) || '');
+
+  if (method === 'initialize') {
+    return ok({ protocolVersion: MCP_PROTOCOL, capabilities: { tools: { listChanged: false } }, serverInfo: MCP_SERVER });
+  }
+  if (method === 'ping') return ok({});
+  if (method.indexOf('notifications/') === 0) return null;   // no response for notifications
+  if (method === 'tools/list') return ok({ tools: mcpTools_() });
+  if (method === 'tools/call') {
+    const params = req.params || {};
+    try {
+      const text = mcpCall_(params.name, params.arguments);
+      return ok({ content: [{ type: 'text', text: String(text) }], isError: false });
+    } catch (e) {
+      return ok({ content: [{ type: 'text', text: 'Failed: ' + (e && e.message || e) }], isError: true });
+    }
+  }
+  if (method === 'resources/list') return ok({ resources: [] });
+  if (method === 'prompts/list') return ok({ prompts: [] });
+  return err(-32601, 'method not found: ' + method);
+}
+
 // ── HTTP entry points ───────────────────────────────────────────────────────
 
 function jsonOut_(obj) {
@@ -414,6 +699,15 @@ function doPost(e) {
   try {
     lock.waitLock(30000);
     const body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+
+    // MCP speaks JSON-RPC; the dashboard speaks {action: ...}
+    if (body.jsonrpc) {
+      const out = mcpHandle_(body);
+      return out === null
+        ? ContentService.createTextOutput('').setMimeType(ContentService.MimeType.TEXT)
+        : jsonOut_(out);
+    }
+
     const action = String(body.action || '').toLowerCase();
     if (action === 'upsert') {
       upsert_(body.item || body);  // accept both flat and nested

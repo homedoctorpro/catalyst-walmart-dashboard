@@ -241,6 +241,32 @@ anyone with the dashboard password can see them.
 
 ---
 
+## Talking to the pipeline through Claude (MCP)
+
+The same web app speaks MCP, so anyone on the team can work the list in conversation instead of
+opening the dashboard. No install: in Claude, **Settings → Connectors → Add custom connector**,
+paste the `/exec` URL, and four tools appear.
+
+| Tool | What it does |
+|---|---|
+| `find_retailers` | Search by name, status, rep firm, channel, or only overdue deadlines |
+| `get_retailer` | One retailer in full, including Salesforce contacts and its opportunity stage |
+| `update_retailer` | Set status, priority, rep firm, next steps, deadline, next review, reset date, distributor, key contact, store count |
+| `pipeline_summary` | Counts by status and rep firm, deadlines passed, reviews coming up |
+
+Writes go through the same upsert path as a dashboard edit, so the Salesforce sync, the
+Target/Pitched gate and the SF_Log overwrite warnings all behave identically. Only one retailer
+changes per call, and a name that matches several rows changes nothing and asks which one.
+
+Store counts are the exception worth knowing: the dashboard owns them, so a count set here is
+overwritten the next time someone runs **Push ALL retailers to Sheet**. For a permanent change,
+edit `RT_RETAILERS` in `dashboard_template.html`.
+
+**Access.** The connector inherits whatever the web app deployment allows. Deployed as "Anyone",
+the URL is the only gate — treat it like a password and share it directly, not in a public channel.
+
+---
+
 ## Updating the script later
 
 If `retailers_sync.gs` is updated in the repo (e.g. a new column was added):
