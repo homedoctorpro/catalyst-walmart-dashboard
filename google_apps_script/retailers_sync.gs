@@ -685,6 +685,9 @@ function doGet(e) {
   try {
     const action = ((e && e.parameter && e.parameter.action) || 'get').toLowerCase();
     if (action === 'get')    return jsonOut_({ ok: true, data: readAll_(), unlinkedOpps: readOrphanOpps_() });
+    // Full grid, names and channels included, for the MCP front door. A GET so
+    // it skips the write lock that makes doPost slow under load.
+    if (action === 'rows')   return jsonOut_({ ok: true, rows: mcpRows_(), today: mcpToday_() });
     if (action === 'health') return jsonOut_({ ok: true, status: 'ok', schema: HEADERS });
     return jsonOut_({ ok: false, error: 'unknown action: ' + action });
   } catch (err) {

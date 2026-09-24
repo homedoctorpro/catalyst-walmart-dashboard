@@ -20,23 +20,48 @@ import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+import tools
+
 APPS_SCRIPT_URL = os.environ.get("APPS_SCRIPT_URL", "").strip()
 MCP_BEARER = os.environ.get("MCP_BEARER", "").strip()
 PORT = int(os.environ.get("PORT", "8080"))
 UPSTREAM_TIMEOUT = 120
 
 
-def call_upstream(payload):
-    """POST one JSON-RPC message to Apps Script. urllib follows its redirect."""
-    req = urllib.request.Request(
-        APPS_SCRIPT_URL,
-        method="POST",
-        data=json.dumps(payload).encode(),
-        headers={"Content-Type": "application/json"},
-    )
-    with urllib.request.urlopen(req, timeout=UPSTREAM_TIMEOUT) as r:
-        body = r.read().decode("utf-8").strip()
-    return json.loads(body) if body else None
+PROTOCOL = "2025-06-18"
+SERVER_INFO = {"name": "catalyst-retailers", "title": "Catalyst Pet retailer pipeline", "version": "2.0.0"}
+
+
+def handle_rpc(payload):
+    """Answer one JSON-RPC message. Returns None for notifications."""
+    rid = payload.get("id")
+    method = str(payload.get("method") or "")
+
+    def ok(result):
+        return {"jsonrpc": "2.0", "id": rid, "result": result}
+
+    if method == "initialize":
+        return ok({"protocolVersion": PROTOCOL,
+                   "capabilities": {"tools": {"listChanged": False}},
+                   "serverInfo": SERVER_INFO})
+    if method == "ping":
+        return ok({})
+    if method.startswith("notifications/"):
+        return None
+    if method == "tools/list":
+        return ok({"tools": tools.TOOLS})
+    if method == "resources/list":
+        return ok({"resources": []})
+    if method == "prompts/list":
+        return ok({"prompts": []})
+    if method == "tools/call":
+        params = payload.get("params") or {}
+        try:
+            text = tools.call(APPS_SCRIPT_URL, params.get("name"), params.get("arguments"))
+            return ok({"content": [{"type": "text", "text": str(text)}], "isError": False})
+        except Exception as e:
+            return ok({"content": [{"type": "text", "text": f"Failed: {e}"}], "isError": True})
+    return {"jsonrpc": "2.0", "id": rid, "error": {"code": -32601, "message": f"method not found: {method}"}}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -108,12 +133,9 @@ class Handler(BaseHTTPRequestHandler):
         rid = payload.get("id") if isinstance(payload, dict) else None
 
         try:
-            result = call_upstream(payload)
-        except urllib.error.HTTPError as e:
-            self._rpc_error(rid, -32603, f"upstream HTTP {e.code}")
-            return
-        except Exception as e:                      # timeout, DNS, bad JSON back
-            self._rpc_error(rid, -32603, f"upstream call failed: {e}")
+            result = handle_rpc(payload)
+        except Exception as e:                      # never take the connector down
+            self._rpc_error(rid, -32603, f"server error: {e}")
             return
 
         if is_notification or result is None:
