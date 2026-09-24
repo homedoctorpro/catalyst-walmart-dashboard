@@ -491,6 +491,9 @@
                 cursor:pointer; background:#f5f5f5; padding:4px 10px; border-radius:20px;
                 border:2px solid transparent; transition:all 0.15s; user-select:none; font-weight:600; }
   .rt-ch-chip input { width:13px; height:13px; cursor:pointer; }
+  .rt-rep-filter { font-family:inherit; font-size:0.78rem; color:#333; border:1px solid #ddd;
+                   border-radius:6px; padding:2px 4px; background:#fff; }
+  .rt-rep-filter.has-value { border-color:#0057e7; color:#0057e7; font-weight:700; }
   .rt-ch-chip:has(input:checked) { background:#e8f0fe; }
   .rt-ch-dot { display:inline-block; width:9px; height:9px; border-radius:50%; }
   .rt-spacer { flex:1; }
@@ -1975,6 +1978,10 @@
     <div class="rt-controls">
       <span class="rt-controls-label">Channels:</span>
       <div id="rt-channel-chips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      <label class="rt-ch-chip" title="Show only the retailers assigned to one rep firm">
+        <span style="color:#666">Rep:</span>
+        <select id="rt-rep-filter" class="rt-rep-filter" onchange="rtSetRepFilter(this.value)"></select>
+      </label>
       <label class="rt-ch-chip" title="Hide US Stores, U/S/W, Annual Units and the two $ columns">
         <input type="checkbox" id="rt-lean-toggle" onchange="rtToggleSizingCols(this.checked)">
         <span>Hide sizing columns</span>
@@ -8328,6 +8335,28 @@ function rtToggleSizingCols(on) {
 }
 
 // Reset-date column: off by default, the table is wide enough already
+// Rep-firm filter: narrows the table, the channel summary and the KPIs alike
+const RT_REP_FILTER_KEY = "catalyst_retailers_rep_filter";
+let RT_REP_FILTER = "";
+try { RT_REP_FILTER = localStorage.getItem(RT_REP_FILTER_KEY) || ""; } catch {}
+function rtRepOf(r) { return rtRowField(r, "repFirm") || RT_REP_FIRM_DEFAULT; }
+function rtRepMatch(r) { return !RT_REP_FILTER || rtRepOf(r) === RT_REP_FILTER; }
+function rtRenderRepFilter() {
+  const sel = document.getElementById("rt-rep-filter");
+  if (!sel) return;
+  const counts = {};
+  RT_RETAILERS.forEach(r => { const k = rtRepOf(r); counts[k] = (counts[k] || 0) + 1; });
+  sel.innerHTML = `<option value="">All (${RT_RETAILERS.length})</option>` +
+    RT_REP_FIRM_OPTIONS.map(o => `<option value="${o}" ${o === RT_REP_FILTER ? "selected" : ""}>${o} (${counts[o] || 0})</option>`).join("");
+  sel.classList.toggle("has-value", !!RT_REP_FILTER);
+}
+function rtSetRepFilter(v) {
+  RT_REP_FILTER = v || "";
+  try { localStorage.setItem(RT_REP_FILTER_KEY, RT_REP_FILTER); } catch {}
+  rtRenderRepFilter();
+  rtRenderTable();
+}
+
 const RT_RESET_KEY = "catalyst_retailers_reset_col";
 let RT_SHOW_RESET = false;
 try { RT_SHOW_RESET = localStorage.getItem(RT_RESET_KEY) === "1"; } catch {}
@@ -8361,6 +8390,7 @@ function initRetailers() {
   rtLoad();
   rtLoadSyncUrl();
   rtRenderScopeBtns();
+  rtRenderRepFilter();
   const sizing = document.getElementById("rt-sizing");
   let sizingOpen = true;
   try { sizingOpen = localStorage.getItem(RT_SIZING_KEY) !== "0"; } catch {}
@@ -8426,7 +8456,7 @@ function rtChannelStats() {
   const byChannel = {};
   let gStores = 0, gUnits = 0, gRetailers = 0;
   RT_OPP_CHANNELS.forEach(ch => {
-    const rows = RT_RETAILERS.filter(r => r.channel === ch && rtInScope(r));
+    const rows = RT_RETAILERS.filter(r => r.channel === ch && rtInScope(r) && rtRepMatch(r));
     let stores = 0, units = 0;
     rows.forEach(r => {
       stores += r.stores;
@@ -8560,7 +8590,7 @@ function rtRenderTable() {
   RT_CHANNEL_ORDER.forEach(ch => {
     if (!RT_VISIBLE_CHANNELS.has(ch)) return;
     const c = RT_CHANNELS[ch];
-    const rows = RT_RETAILERS.filter(r => r.channel === ch && !isParked(r));
+    const rows = RT_RETAILERS.filter(r => r.channel === ch && !isParked(r) && rtRepMatch(r));
     if (!rows.length) return;
 
     // Channel header row with subtotal
@@ -8592,7 +8622,7 @@ function rtRenderTable() {
 
   // Grand total row
   html += `<tr class="rt-grand-row">
-    <td colspan="3">TOTAL (visible channels, excl. Currently In, Non-Target &amp; Declined)</td>
+    <td colspan="3">TOTAL (visible channels, excl. Currently In, Non-Target &amp; Declined)${RT_REP_FILTER ? ` · ${RT_REP_FILTER} only` : ""}</td>
     <td class="rt-size-col">${grandStores.toLocaleString()}</td>
     <td class="rt-size-col">—</td>
     <td class="rt-size-col">${rtFmtUnits(grandUnits)}</td>
@@ -8606,7 +8636,7 @@ function rtRenderTable() {
   ["in", "non-target", "declined"].forEach(code => {
     const meta = PARKED[code];
     const parked = RT_RETAILERS
-      .filter(r => RT_VISIBLE_CHANNELS.has(r.channel) && rtRowStatus(r) === code)
+      .filter(r => RT_VISIBLE_CHANNELS.has(r.channel) && rtRowStatus(r) === code && rtRepMatch(r))
       .sort((a,b) => (RT_CHANNEL_ORDER.indexOf(a.channel) - RT_CHANNEL_ORDER.indexOf(b.channel)) || byPrio(a,b));
     if (!parked.length) return;
     html += `<tr class="rt-channel-row">
@@ -8623,6 +8653,7 @@ function rtRenderTable() {
   // KPIs + by-channel summary (scope-filtered)
   if (document.getElementById("rt-summary-grid")) rtRenderSummary();
   rtRenderOrphanOpps();
+  rtRenderRepFilter();
 }
 
 function rtRowHtml(r, dimmed) {
