@@ -1,0 +1,46 @@
+name: Prospeo contact retry
+
+# The free Prospeo plan rate-limits hard, so the leftover lookups get picked up
+# a few at a time. Exits quietly once nothing is pending.
+
+on:
+  schedule:
+    - cron: "37 13 * * *"     # daily, ~7:37am ET
+    - cron: "37 21 * * *"     # and again in the afternoon
+  workflow_dispatch:
+    inputs:
+      all:
+        description: "Keep going past the per-run cap"
+        type: boolean
+        default: false
+
+concurrency:
+  group: prospeo-retry
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  retry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Retry the pending lookups
+        env:
+          PROSPEO_KEY: ${{ secrets.PROSPEO_KEY }}
+          RETAILERS_SYNC_URL: ${{ secrets.RETAILERS_SYNC_URL }}
+        run: python prospeo_retry.py ${{ inputs.all && '--all' || '' }}
+
+      - name: Commit anything new
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Reports/prospeo_candidates.csv
+          git diff --cached --quiet && echo "no change" && exit 0
+          git commit -m "Prospeo: contacts revealed $(date -u +%Y-%m-%d)"
+          git push
