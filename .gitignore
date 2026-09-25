@@ -18,3 +18,7 @@ Chewy Brand Snapshots/
 
 # Growth Report outputs (generated, but small + shareable — keep committed)
 !Growth Report/Catalyst_Growth_Report.xlsx
+
+# Apps Script CLI (account-specific ids)
+google_apps_script/.clasp.json
+google_apps_script/src/*.gs

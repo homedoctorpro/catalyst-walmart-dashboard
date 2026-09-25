@@ -275,6 +275,44 @@ the URL is the only gate — treat it like a password and share it directly, not
 
 ---
 
+## Deploying without the copy-paste (clasp)
+
+Pasting the file into the editor and cutting a new version by hand is the slow way, and
+creating a *new* deployment instead of a version changes the `/exec` URL, which then has to be
+re-pointed everywhere. `clasp`, Google's Apps Script CLI, does both steps in one command and
+always updates the same deployment:
+
+    ./deploy_apps_script.sh "what changed"
+
+### One-time setup
+
+1. **Install and log in** (the login opens a browser once):
+
+       npm install -g @google/clasp
+       clasp login
+
+2. **Turn on the Apps Script API** for the Google account that owns the Sheet:
+   <https://script.google.com/home/usersettings> → *Google Apps Script API* → **On**.
+
+3. **Collect two ids.**
+   - *scriptId*: in the Apps Script editor, Project Settings → IDs → Script ID.
+   - *deploymentId*: Deploy → Manage deployments → the active web app → the id under its name
+     (it looks like `AKfycb…`, longer than the URL fragment).
+
+4. **Write `google_apps_script/.clasp.json`** (gitignored, since the ids are account-specific):
+
+       {
+         "scriptId": "<script id>",
+         "deploymentId": "<deployment id>",
+         "rootDir": "src"
+       }
+
+After that, every change to `retailers_sync.gs` ships with one command, the `/exec` URL stays
+put, and the MCP proxy needs no secret update. The script copies the `.gs` files into `src/`
+next to `appsscript.json` before pushing, so the repo keeps its flat layout.
+
+---
+
 ## Updating the script later
 
 If `retailers_sync.gs` is updated in the repo (e.g. a new column was added):
