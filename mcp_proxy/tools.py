@@ -61,6 +61,7 @@ WRITABLE = {
     "next_steps": "nextSteps", "deadline": "deadline", "next_review": "nextReview",
     "reset_date": "resetDate", "needs_distributor": "needsDistributor",
     "distributor_name": "distributorName", "key_contact": "keyContact",
+    "suggested_contacts": "suggestedContacts",
 }
 DATE_FIELDS = {"deadline", "next_review", "reset_date"}
 
@@ -145,6 +146,7 @@ class Pipeline:
                 "needs_distributor": bool(v.get("needsDistributor")),
                 "distributor_name": v.get("distributorName", ""),
                 "key_contact": v.get("keyContact", ""),
+                "suggested_contacts": v.get("suggestedContacts", ""),
                 "sf_account": v.get("sfAccountName", ""),
                 "sf_opportunity_stage": v.get("sfOppStage", ""),
                 "contacts_json": json.dumps(v.get("contacts") or []),
@@ -220,6 +222,9 @@ class Pipeline:
             bits.append("needs distributor" + (": " + r["distributor_name"] if r.get("distributor_name") else ""))
         if r.get("sf_account"):
             bits.append("SF: " + r["sf_account"] + (" · opp " + r["sf_opportunity_stage"] if r.get("sf_opportunity_stage") else ""))
+        if r.get("suggested_contacts"):
+            first = r["suggested_contacts"].split("\n")[0]
+            bits.append("suggested contact (unverified): " + first)
         if r.get("next_steps"):
             bits.append("next steps: " + r["next_steps"])
         return "- " + " · ".join(bits)
@@ -393,6 +398,7 @@ TOOLS = [
                 "needs_distributor": {"type": "boolean"},
                 "distributor_name": {"type": "string"},
                 "key_contact": {"type": "string", "description": "Email of the Salesforce contact to star"},
+                "suggested_contacts": {"type": "string", "description": "Leads from a lookup tool, one per line; not Salesforce contacts"},
                 "us_stores": {"type": "number", "description": "Door count (a dashboard rebuild resets it)"},
             },
             "required": ["retailer"],

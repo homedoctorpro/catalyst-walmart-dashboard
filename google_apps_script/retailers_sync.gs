@@ -7,7 +7,7 @@
  *
  * See SETUP.md for step-by-step instructions.
  *
- * Schema (columns 1..27):
+ * Schema (columns 1..28):
  *   A retailer_id     stable ID from dashboard           (do not edit)
  *   B retailer_name   human-readable                      (gets overwritten on push)
  *   C channel         channel name                        (gets overwritten on push)
@@ -35,6 +35,8 @@
  *   Y deadline           hard date (yyyy-mm-dd)                EDIT ME
  *   Z key_contact        email (or name) of the key contact    EDIT ME
  *   AA reset_date        shelf reset / modular date            EDIT ME
+ *   AB suggested_contacts  "Name <email> · title" lines from a
+ *                          lookup tool; a lead, not a Salesforce contact
  *
  * Sheets created with fewer columns are migrated in place by appending the
  * missing headers; rows are kept.
@@ -55,6 +57,7 @@ const HEADERS = [
   'sf_account_id', 'sf_account_name', 'contacts_json', 'sf_synced_at',
   'sf_opportunity_id', 'sf_opportunity_stage',
   'needs_distributor', 'distributor_name', 'deadline', 'key_contact', 'reset_date',
+  'suggested_contacts',
 ];
 const COL = {
   id: 1, name: 2, channel: 3,
@@ -65,7 +68,7 @@ const COL = {
   sfAccountId: 17, sfAccountName: 18, contactsJson: 19, sfSyncedAt: 20,
   sfOppId: 21, sfOppStage: 22,
   needsDistributor: 23, distributorName: 24, deadline: 25, keyContact: 26,
-  resetDate: 27,
+  resetDate: 27, suggestedContacts: 28,
 };
 const N_SF_COLS = 6;  // Q..V, owned by the Salesforce sync
 const N_COLS = HEADERS.length;
@@ -85,7 +88,7 @@ function formatHeader_(sh) {
 
 function setColumnWidths_(sh) {
   const widths = [110, 220, 110, 80, 90, 100, 110, 110, 130, 130, 130, 100, 320, 160, 110, 70,
-                  150, 200, 300, 140, 190, 130, 120, 180, 110, 220, 110];
+                  150, 200, 300, 140, 190, 130, 120, 180, 110, 220, 110, 320];
   for (let i = 0; i < widths.length; i++) sh.setColumnWidth(i + 1, widths[i]);
 }
 
@@ -122,7 +125,7 @@ function ensureSchema_() {
   // Migrate older layouts (14 = through updated_at, 15 = next_review, 16 = priority,
   // 20 = the Account sync block, 22 = the Opportunity columns): append the
   // missing trailing headers instead of wiping data
-  for (const n of [14, 15, 16, 20, 22, 24, 25, 26]) {
+  for (const n of [14, 15, 16, 20, 22, 24, 25, 26, 27]) {
     let isLegacy = true;
     for (let i = 0; i < N_COLS; i++) {
       const want = i < n ? HEADERS[i] : '';
@@ -190,6 +193,8 @@ function readAll_() {
       ? Utilities.formatDate(resetRaw, Session.getScriptTimeZone(), 'yyyy-MM-dd')
       : String(resetRaw || '').trim();
     if (resetDate) o.resetDate = resetDate;
+    const suggested = String(r[COL.suggestedContacts - 1] || '').trim();
+    if (suggested) o.suggestedContacts = suggested;
     if (String(r[COL.needsDistributor - 1] || '').trim()) o.needsDistributor = '1';
     const distName = String(r[COL.distributorName - 1] || '').trim();
     if (distName) o.distributorName = distName;
@@ -276,6 +281,7 @@ function writeEditable_(sh, row, fields) {
   sh.getRange(row, COL.deadline).setValue(fields.deadline || '');
   sh.getRange(row, COL.keyContact).setValue(fields.keyContact || '');
   sh.getRange(row, COL.resetDate).setValue(fields.resetDate || '');
+  sh.getRange(row, COL.suggestedContacts).setValue(fields.suggestedContacts || '');
 }
 
 function upsert_(item) {
@@ -370,10 +376,10 @@ function bulkReplace_(items) {
     const f = it.fields || {};
     return [f.nextReview || '', f.priority || ''];
   }));
-  sh.getRange(2, COL.needsDistributor, items.length, 5).setValues(items.map(function (it) {
+  sh.getRange(2, COL.needsDistributor, items.length, 6).setValues(items.map(function (it) {
     const f = it.fields || {};
     return [f.needsDistributor ? '1' : '', f.distributorName || '', f.deadline || '',
-            f.keyContact || '', f.resetDate || ''];
+            f.keyContact || '', f.resetDate || '', f.suggestedContacts || ''];
   }));
   // Width must follow N_SF_COLS — it grew from 4 (Q-T) to 6 (Q-V) when the
   // Opportunity columns landed, and a short row here fails the whole push.
@@ -506,6 +512,7 @@ function mcpRows_() {
         needs_distributor: !!String(r[COL.needsDistributor - 1] || '').trim(),
         distributor_name: String(r[COL.distributorName - 1] || ''),
         key_contact: String(r[COL.keyContact - 1] || ''),
+        suggested_contacts: String(r[COL.suggestedContacts - 1] || ''),
         sf_account: String(r[COL.sfAccountName - 1] || ''),
         sf_opportunity_stage: String(r[COL.sfOppStage - 1] || ''),
         contacts_json: String(r[COL.contactsJson - 1] || ''),
@@ -1482,6 +1489,7 @@ function sfOnSheetEdit(e) {
   editable[COL.nextReview] = 1; editable[COL.priority] = 1; editable[COL.uswOverride] = 1;
   editable[COL.needsDistributor] = 1; editable[COL.distributorName] = 1;
   editable[COL.deadline] = 1; editable[COL.keyContact] = 1; editable[COL.resetDate] = 1;
+  editable[COL.suggestedContacts] = 1;
 
   const c1 = e.range.getColumn(), c2 = e.range.getLastColumn();
   let touched = false;

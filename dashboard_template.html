@@ -574,6 +574,10 @@
                 border-bottom:1px dotted #9db4e8; }
   .rt-contact:focus { outline:none; }
   .rt-contact-none { color:#999; border-bottom:none; }
+  .rt-suggested { display:block; margin-top:3px; font-size:0.72rem; color:#7a5c00;
+                  background:#fffbe6; border:1px dashed #e6c200; border-radius:6px;
+                  padding:1px 6px; max-width:280px; overflow:hidden; text-overflow:ellipsis;
+                  white-space:nowrap; cursor:help; }
   .rt-contact.is-key { color:#b8860b; font-weight:700; border-bottom-color:#e6c200; }
   .rt-cc-star { background:none; border:none; cursor:pointer; font-size:0.95rem; color:#c9a227;
                 padding:0 4px 0 0; line-height:1; }
@@ -8709,7 +8713,7 @@ function rtRowHtml(r, dimmed) {
             ${RT_PRIORITY_OPTIONS.map(n => `<option value="${n}" ${String(n) === String(priority) ? "selected" : ""}>${n}</option>`).join("")}
           </select>
         </td>
-        <td><span class="rt-retailer-name">${r.name}</span>${r.reach ? `<div style="font-size:0.72rem;color:#777;margin-top:2px">${r.reach}</div>` : ""}${rtContactHtml(r)}${rtOppChip(r.id)}</td>
+        <td><span class="rt-retailer-name">${r.name}</span>${r.reach ? `<div style="font-size:0.72rem;color:#777;margin-top:2px">${r.reach}</div>` : ""}${rtContactHtml(r)}${rtSuggestedHtml(r)}${rtOppChip(r.id)}</td>
         <td><span class="rt-ch-badge" style="background:${c.color}">${c.name}</span></td>
         ${oppCells || `<td class="rt-size-col" title="${rtEsc(rtStateTooltip(r))}">${r.stores.toLocaleString()}</td>
         <td class="rt-size-col">
@@ -8841,6 +8845,18 @@ function rtUpdatePriority(id, val) {
   rtSetOverride(id, "priority", val ? Number(val) : null);
   rtRenderTable();
 }
+// Leads from a contact-lookup tool. Deliberately styled apart from the
+// Salesforce contacts: nobody has spoken to these people yet.
+function rtSuggestedHtml(r) {
+  const o = RT_OVERRIDES[r.id] || {};
+  const raw = (o.suggestedContacts || "").trim();
+  if (!raw) return "";
+  const lines = raw.split("\n").filter(Boolean);
+  const first = lines[0];
+  const more = lines.length > 1 ? ` +${lines.length - 1}` : "";
+  return `<div class="rt-suggested" title="${rtEsc(lines.join(" \n"))}">🔎 ${rtEsc(first)}${more}</div>`;
+}
+
 // Salesforce Opportunity badge, present once the sync has created or found one.
 function rtOppChip(id) {
   const o = RT_OVERRIDES[id];
@@ -9188,6 +9204,7 @@ function rtBuildSheetItem(r) {
       deadline:  o.deadline  != null ? o.deadline  : null,
       resetDate: o.resetDate != null ? o.resetDate : null,
       keyContact: o.keyContact != null ? o.keyContact : null,
+      suggestedContacts: o.suggestedContacts != null ? o.suggestedContacts : null,
       needsDistributor: o.needsDistributor != null ? o.needsDistributor : null,
       distributorName:  o.distributorName  != null ? o.distributorName  : null,
       usw:       (o.usw != null && o.usw !== "") ? o.usw : null,
