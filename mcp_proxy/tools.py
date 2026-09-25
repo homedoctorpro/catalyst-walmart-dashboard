@@ -18,11 +18,35 @@ CACHE_TTL = 20            # seconds; a conversation asks several questions in a 
 _CACHE = {}
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# Published by every dashboard build; the file baked into the image is only the
+# fallback for when GitHub Pages is unreachable.
+CATALOG_URL = os.environ.get(
+    "CATALOG_URL",
+    "https://homedoctorpro.github.io/catalyst-walmart-dashboard/retailers_catalog.json")
+CATALOG_TTL = 900
+_catalog_cache = {"at": 0, "data": {}}
+
 try:
     with open(os.path.join(HERE, "catalog.json"), encoding="utf-8") as f:
-        CATALOG = json.load(f)          # id -> name, channel, us_stores
+        BAKED_CATALOG = json.load(f)    # id -> name, channel, us_stores
 except (FileNotFoundError, json.JSONDecodeError):
-    CATALOG = {}
+    BAKED_CATALOG = {}
+
+
+def catalog():
+    """The dashboard's retailer list, refreshed from Pages every 15 minutes."""
+    if _catalog_cache["data"] and time.time() - _catalog_cache["at"] < CATALOG_TTL:
+        return _catalog_cache["data"]
+    try:
+        with urllib.request.urlopen(CATALOG_URL, timeout=30) as r:
+            data = json.loads(r.read().decode("utf-8")).get("retailers") or {}
+        if data:
+            _catalog_cache.update(at=time.time(), data=data)
+            return data
+    except Exception as e:
+        print(f"[catalog] fetch failed, using the baked copy: {e}", flush=True)
+    _catalog_cache.update(at=time.time(), data=BAKED_CATALOG)
+    return BAKED_CATALOG
 
 
 def _today():
@@ -100,14 +124,16 @@ class Pipeline:
             print(f"[upstream] rows probe: {e}", flush=True)
             out = {}
         if out.get("ok") and out.get("rows"):
-            _CACHE[self.base] = (time.time(), out["rows"], out.get("today", _today()))
-            return out["rows"], out.get("today", _today())
+            rows = self._seed_missing(out["rows"])
+            today = out.get("today", _today())
+            _CACHE[self.base] = (time.time(), rows, today)
+            return rows, today
 
         out = _retry(lambda: _fetch(self.base + "?action=get"))
         if not out.get("ok"):
             raise RuntimeError(out.get("error") or "sheet returned ok:false")
         data, rows = out.get("data") or {}, []
-        for rid, meta in CATALOG.items():
+        for rid, meta in catalog().items():
             v = data.get(rid, {})
             rows.append({
                 "id": rid, "name": meta["name"], "channel": meta["channel"],
@@ -126,6 +152,35 @@ class Pipeline:
         today = _today()
         _CACHE[self.base] = (time.time(), rows, today)
         return rows, today
+
+    def _seed_missing(self, rows):
+        """Add rows for retailers the dashboard has and the sheet doesn't.
+
+        Keeps the sheet, Salesforce and this connector in step with the
+        dashboard without anyone running "Push ALL retailers to Sheet".
+        """
+        known = {r["id"] for r in rows}
+        missing = {rid: m for rid, m in catalog().items() if rid not in known}
+        if not missing:
+            return rows
+        print(f"[seed] adding {len(missing)} retailer(s) the sheet lacks: "
+              + ", ".join(sorted(missing)), flush=True)
+        for rid, meta in missing.items():
+            try:
+                _retry(lambda: _fetch(self.base, {"action": "upsert", "item": {
+                    "retailerId": rid, "retailerName": meta["name"],
+                    "channel": meta["channel"], "usStores": meta["us_stores"],
+                    "fields": {},
+                }}), attempts=2)
+                rows.append({"id": rid, "name": meta["name"], "channel": meta["channel"],
+                             "us_stores": meta["us_stores"], "status": "", "priority": None,
+                             "rep_firm": "", "next_steps": "", "deadline": "", "next_review": "",
+                             "reset_date": "", "needs_distributor": False, "distributor_name": "",
+                             "key_contact": "", "sf_account": "", "sf_opportunity_stage": "",
+                             "contacts_json": "[]"})
+            except Exception as e:
+                print(f"[seed] {rid} failed: {e}", flush=True)
+        return rows
 
     def _write(self, retailer_id, fields, us_stores=None):
         item = {"retailerId": retailer_id, "fields": fields}

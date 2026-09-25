@@ -2178,6 +2178,10 @@ def main():
 
     # 7b. Standalone public store map (no password gate) — shareable link
     write_store_map(stores, all_store_weeks, store_weeks_list, week_labels)
+
+    # 7c. Retailer catalog for the MCP front door, so a retailer added here
+    #     reaches the sheet and Claude without anyone pushing a button.
+    write_retailer_catalog()
     print("Done.")
 
     # ── Send weekly report email ──────────────────────────────────────────────
@@ -2219,6 +2223,37 @@ def main():
                 open(sent_flag, "w").write(str(today))
         except Exception as e:
             print(f"  [Email] Error: {e}")
+
+
+def write_retailer_catalog(template_path=None, out_path=None):
+    """id → name, channel label and door count, straight from RT_RETAILERS.
+
+    Published beside the dashboard so the MCP proxy can pick up new retailers on
+    its own; without it, a retailer added to the dashboard only reached the
+    Google Sheet when someone clicked "Push ALL retailers to Sheet".
+    """
+    import re
+    here = os.path.dirname(os.path.abspath(__file__))
+    template_path = template_path or os.path.join(here, TEMPLATE_FILE)
+    out_path = out_path or os.path.join(here, "retailers_catalog.json")
+    src = open(template_path, encoding="utf-8").read()
+    try:
+        block = src[src.index("const RT_RETAILERS"):src.index("const RT_STATUS_OPTIONS")]
+        chans = src[src.index("const RT_CHANNELS"):src.index("const RT_CHANNEL_ORDER")]
+    except ValueError:
+        print("  [Catalog] RT_RETAILERS not found in the template — skipped")
+        return
+    labels = dict(re.findall(r'(\w+):\s*\{ name: "([^"]+)"', chans))
+    catalog = {}
+    for rid, name, ch, stores in re.findall(
+            r'\{\s*id:\s*"([^"]+)",\s*name:\s*"([^"]+)",\s*channel:\s*"([^"]+)",\s*stores:\s*(\d+)', block):
+        catalog[rid] = {"name": name, "channel": labels.get(ch, ch), "us_stores": int(stores)}
+    if not catalog:
+        print("  [Catalog] no retailers parsed — skipped")
+        return
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump({"retailers": catalog}, f, indent=1, sort_keys=True)
+    print(f"Wrote {out_path} ({len(catalog)} retailers)")
 
 
 def write_store_map(stores, all_store_weeks, store_weeks_list, week_labels):

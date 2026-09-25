@@ -1,0 +1,429 @@
+{
+ "retailers": {
+  "ace": {
+   "channel": "Hardware / Home",
+   "name": "Ace Hardware (co-op)",
+   "us_stores": 4800
+  },
+  "albertsons": {
+   "channel": "Grocery",
+   "name": "Albertsons / Safeway",
+   "us_stores": 2270
+  },
+  "aldi": {
+   "channel": "Grocery",
+   "name": "Aldi US",
+   "us_stores": 2400
+  },
+  "atwoods": {
+   "channel": "Farm & Rural",
+   "name": "Atwoods Ranch & Home",
+   "us_stores": 70
+  },
+  "awg": {
+   "channel": "Pet Distributors",
+   "name": "Associated Wholesale Grocers",
+   "us_stores": 0
+  },
+  "big-lots": {
+   "channel": "Dollar / Value",
+   "name": "Big Lots",
+   "us_stores": 1300
+  },
+  "big-r": {
+   "channel": "Farm & Rural",
+   "name": "Big R Stores",
+   "us_stores": 30
+  },
+  "big-y": {
+   "channel": "Grocery",
+   "name": "Big Y Foods",
+   "us_stores": 79
+  },
+  "bjs": {
+   "channel": "Club",
+   "name": "BJ's Wholesale Club",
+   "us_stores": 245
+  },
+  "bomgaars": {
+   "channel": "Farm & Rural",
+   "name": "Bomgaars",
+   "us_stores": 110
+  },
+  "bozzutos": {
+   "channel": "Pet Distributors",
+   "name": "Bozzuto's",
+   "us_stores": 0
+  },
+  "bradley-caldwell": {
+   "channel": "Pet Distributors",
+   "name": "Bradley Caldwell (BCI)",
+   "us_stores": 0
+  },
+  "cal-ranch": {
+   "channel": "Farm & Rural",
+   "name": "C-A-L Ranch Stores",
+   "us_stores": 30
+  },
+  "concord-pet": {
+   "channel": "Pet Specialty",
+   "name": "Concord Pet Foods & Supplies",
+   "us_stores": 33
+  },
+  "costco": {
+   "channel": "Club",
+   "name": "Costco",
+   "us_stores": 600
+  },
+  "cs-wholesale": {
+   "channel": "Pet Distributors",
+   "name": "C&S Wholesale Grocers",
+   "us_stores": 0
+  },
+  "cvs": {
+   "channel": "Drug",
+   "name": "CVS Pharmacy",
+   "us_stores": 9000
+  },
+  "db-supply": {
+   "channel": "Farm & Rural",
+   "name": "D&B Supply",
+   "us_stores": 11
+  },
+  "do-it-best": {
+   "channel": "Hardware / Home",
+   "name": "Do it Best (members)",
+   "us_stores": 4000
+  },
+  "dollar-general": {
+   "channel": "Dollar / Value",
+   "name": "Dollar General",
+   "us_stores": 20000
+  },
+  "dollar-tree": {
+   "channel": "Dollar / Value",
+   "name": "Dollar Tree",
+   "us_stores": 8000
+  },
+  "earthwise-pet": {
+   "channel": "Pet Specialty",
+   "name": "Earthwise Pet",
+   "us_stores": 200
+  },
+  "family-dollar": {
+   "channel": "Dollar / Value",
+   "name": "Family Dollar",
+   "us_stores": 8000
+  },
+  "farm-fleet": {
+   "channel": "Farm & Rural",
+   "name": "Blain's Farm & Fleet",
+   "us_stores": 45
+  },
+  "feeders": {
+   "channel": "Pet Specialty",
+   "name": "Feeders Pet Supply",
+   "us_stores": 23
+  },
+  "five-below": {
+   "channel": "Dollar / Value",
+   "name": "Five Below",
+   "us_stores": 1800
+  },
+  "fleet-farm": {
+   "channel": "Farm & Rural",
+   "name": "Mills Fleet Farm",
+   "us_stores": 50
+  },
+  "food-lion": {
+   "channel": "Grocery",
+   "name": "Food Lion (Ahold Delhaize)",
+   "us_stores": 1115
+  },
+  "fresh-market": {
+   "channel": "Grocery",
+   "name": "The Fresh Market",
+   "us_stores": 173
+  },
+  "giant-company": {
+   "channel": "Grocery",
+   "name": "The GIANT Company (Ahold Delhaize)",
+   "us_stores": 193
+  },
+  "giant-eagle": {
+   "channel": "Grocery",
+   "name": "Giant Eagle",
+   "us_stores": 200
+  },
+  "giant-food": {
+   "channel": "Grocery",
+   "name": "Giant Food (Ahold Delhaize)",
+   "us_stores": 165
+  },
+  "hall-roberts": {
+   "channel": "Pet Distributors",
+   "name": "Hall Roberts' Son",
+   "us_stores": 0
+  },
+  "hannaford": {
+   "channel": "Grocery",
+   "name": "Hannaford (Ahold Delhaize)",
+   "us_stores": 187
+  },
+  "heb": {
+   "channel": "Grocery",
+   "name": "H-E-B",
+   "us_stores": 430
+  },
+  "hollywood-feed": {
+   "channel": "Pet Specialty",
+   "name": "Hollywood Feed",
+   "us_stores": 150
+  },
+  "home-depot": {
+   "channel": "Hardware / Home",
+   "name": "Home Depot",
+   "us_stores": 2000
+  },
+  "hyvee": {
+   "channel": "Grocery",
+   "name": "Hy-Vee",
+   "us_stores": 280
+  },
+  "indie-via-distributors": {
+   "channel": "Pet Distributors",
+   "name": "Independent + regional pet doors (served via distributors)",
+   "us_stores": 7000
+  },
+  "ingles": {
+   "channel": "Grocery",
+   "name": "Ingles Markets",
+   "us_stores": 198
+  },
+  "jeffers": {
+   "channel": "Pet Distributors",
+   "name": "Jeffers (wholesale program)",
+   "us_stores": 0
+  },
+  "kahoots": {
+   "channel": "Pet Specialty",
+   "name": "Kahoot's Pet Store",
+   "us_stores": 30
+  },
+  "kehe": {
+   "channel": "Pet Distributors",
+   "name": "KeHE Distributors",
+   "us_stores": 0
+  },
+  "kriser": {
+   "channel": "Pet Specialty",
+   "name": "Kriser's Natural Pet",
+   "us_stores": 25
+  },
+  "kroger": {
+   "channel": "Grocery",
+   "name": "Kroger (all banners)",
+   "us_stores": 2750
+  },
+  "lowes": {
+   "channel": "Hardware / Home",
+   "name": "Lowe's",
+   "us_stores": 1750
+  },
+  "lowes-foods": {
+   "channel": "Grocery",
+   "name": "Lowes Foods",
+   "us_stores": 85
+  },
+  "market-basket": {
+   "channel": "Grocery",
+   "name": "Market Basket (DeMoulas)",
+   "us_stores": 90
+  },
+  "mdi": {
+   "channel": "Pet Distributors",
+   "name": "MDI (Merchants Distributors)",
+   "us_stores": 0
+  },
+  "meijer": {
+   "channel": "Grocery",
+   "name": "Meijer",
+   "us_stores": 270
+  },
+  "menards": {
+   "channel": "Hardware / Home",
+   "name": "Menards",
+   "us_stores": 350
+  },
+  "murdochs": {
+   "channel": "Farm & Rural",
+   "name": "Murdoch's Ranch & Home",
+   "us_stores": 35
+  },
+  "other-grocery": {
+   "channel": "Grocery",
+   "name": "Remaining Grocery (regional + indie)",
+   "us_stores": 10000
+  },
+  "pet-food-experts": {
+   "channel": "Pet Distributors",
+   "name": "Pet Food Experts (PFX)",
+   "us_stores": 0
+  },
+  "pet-supermarket": {
+   "channel": "Pet Specialty",
+   "name": "Pet Supermarket",
+   "us_stores": 215
+  },
+  "pet-supplies-plus": {
+   "channel": "Pet Specialty",
+   "name": "Pet Supplies Plus",
+   "us_stores": 770
+  },
+  "petco": {
+   "channel": "Pet Specialty",
+   "name": "Petco",
+   "us_stores": 1500
+  },
+  "petsense": {
+   "channel": "Pet Specialty",
+   "name": "Petsense by Tractor Supply",
+   "us_stores": 134
+  },
+  "petsmart": {
+   "channel": "Pet Specialty",
+   "name": "PetSmart",
+   "us_stores": 1650
+  },
+  "phillips-pet": {
+   "channel": "Pet Distributors",
+   "name": "Phillips Pet Food & Supplies",
+   "us_stores": 0
+  },
+  "price-chopper": {
+   "channel": "Grocery",
+   "name": "Price Chopper / Market 32",
+   "us_stores": 131
+  },
+  "publix": {
+   "channel": "Grocery",
+   "name": "Publix",
+   "us_stores": 1390
+  },
+  "redners": {
+   "channel": "Grocery",
+   "name": "Redner's Markets",
+   "us_stores": 45
+  },
+  "rite-aid": {
+   "channel": "Drug",
+   "name": "Rite Aid",
+   "us_stores": 1200
+  },
+  "rural-king": {
+   "channel": "Farm & Rural",
+   "name": "Rural King",
+   "us_stores": 130
+  },
+  "sams-club": {
+   "channel": "Club",
+   "name": "Sam's Club",
+   "us_stores": 600
+  },
+  "southeastern": {
+   "channel": "Grocery",
+   "name": "Southeastern Grocers (Winn-Dixie, Harveys)",
+   "us_stores": 170
+  },
+  "southern-states": {
+   "channel": "Farm & Rural",
+   "name": "Southern States Cooperative",
+   "us_stores": 1200
+  },
+  "sprouts": {
+   "channel": "Grocery",
+   "name": "Sprouts Farmers Market",
+   "us_stores": 415
+  },
+  "stop-shop": {
+   "channel": "Grocery",
+   "name": "Stop & Shop (Ahold Delhaize)",
+   "us_stores": 365
+  },
+  "target": {
+   "channel": "Mass",
+   "name": "Target",
+   "us_stores": 1950
+  },
+  "tomlinsons": {
+   "channel": "Pet Specialty",
+   "name": "Tomlinson's Feed",
+   "us_stores": 25
+  },
+  "tops": {
+   "channel": "Grocery",
+   "name": "Tops Friendly Markets",
+   "us_stores": 152
+  },
+  "tractor-supply": {
+   "channel": "Farm & Rural",
+   "name": "Tractor Supply",
+   "us_stores": 2300
+  },
+  "trader-joes": {
+   "channel": "Grocery",
+   "name": "Trader Joe's",
+   "us_stores": 565
+  },
+  "true-value": {
+   "channel": "Hardware / Home",
+   "name": "True Value (Do it Best)",
+   "us_stores": 4500
+  },
+  "unfi": {
+   "channel": "Pet Distributors",
+   "name": "UNFI",
+   "us_stores": 0
+  },
+  "walgreens": {
+   "channel": "Drug",
+   "name": "Walgreens",
+   "us_stores": 8600
+  },
+  "walmart": {
+   "channel": "Mass",
+   "name": "Walmart",
+   "us_stores": 4615
+  },
+  "walmart-canada": {
+   "channel": "Mass",
+   "name": "Walmart Canada",
+   "us_stores": 403
+  },
+  "wegmans": {
+   "channel": "Grocery",
+   "name": "Wegmans",
+   "us_stores": 110
+  },
+  "weis": {
+   "channel": "Grocery",
+   "name": "Weis Markets",
+   "us_stores": 200
+  },
+  "whole-foods": {
+   "channel": "Grocery",
+   "name": "Whole Foods Market",
+   "us_stores": 530
+  },
+  "winco": {
+   "channel": "Grocery",
+   "name": "WinCo Foods",
+   "us_stores": 145
+  },
+  "woodmans": {
+   "channel": "Grocery",
+   "name": "Woodman's Markets",
+   "us_stores": 19
+  }
+ }
+}
