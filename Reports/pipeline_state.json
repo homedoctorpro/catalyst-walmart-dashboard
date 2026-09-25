@@ -1,5 +1,5 @@
 {
- "lastSentOn": "2026-09-24",
+ "lastSentOn": "2026-09-25",
  "overdueSeen": [],
  "rows": {
   "ace": {
@@ -35,6 +35,9 @@
    "sfOppStage": "Qualification",
    "status": "target"
   },
+  "big-y": {
+   "repFirm": "Brian Schlager"
+  },
   "bjs": {
    "status": "non-target"
   },
@@ -44,6 +47,9 @@
    "repFirm": "Internal",
    "sfOppStage": "Qualification",
    "status": "target"
+  },
+  "bozzutos": {
+   "repFirm": "Brian Schlager"
   },
   "bradley-caldwell": {
    "nextSteps": "Annamarie",
@@ -61,6 +67,9 @@
   },
   "costco": {
    "status": "non-target"
+  },
+  "cs-wholesale": {
+   "repFirm": "Brian Schlager"
   },
   "cvs": {
    "status": "non-target"
@@ -111,6 +120,7 @@
    "status": "in"
   },
   "food-lion": {
+   "nextSteps": "Discuss with PSE (Lori)",
    "priority": 1,
    "repFirm": "PSE",
    "status": "target"
@@ -120,7 +130,9 @@
    "repFirm": "Brian Schlager",
    "status": "target"
   },
-  "giant-eagle": {},
+  "giant-eagle": {
+   "repFirm": "Brian Schlager"
+  },
   "giant-food": {
    "priority": 1,
    "repFirm": "Brian Schlager",
@@ -147,6 +159,10 @@
   "hyvee": {
    "status": "in"
   },
+  "ingles": {
+   "nextSteps": "Bryan to open; slotting $8k/SKU, start 15 lb",
+   "repFirm": "Brian Schlager"
+  },
   "kahoots": {
    "nextSteps": "Need distributor",
    "priority": 4,
@@ -156,7 +172,7 @@
   "kehe": {
    "nextSteps": "Reach out",
    "priority": 3,
-   "repFirm": "Internal",
+   "repFirm": "Brian Schlager",
    "status": "target"
   },
   "kriser": {
@@ -174,6 +190,15 @@
   },
   "lowes": {
    "status": "non-target"
+  },
+  "lowes-foods": {
+   "repFirm": "Brian Schlager"
+  },
+  "market-basket": {
+   "repFirm": "Brian Schlager"
+  },
+  "mdi": {
+   "repFirm": "Brian Schlager"
   },
   "meijer": {
    "nextSteps": "Cindee to reach out / wait for Mike's response",
@@ -199,7 +224,7 @@
    "status": "target"
   },
   "pet-supermarket": {
-   "nextReview": "2027-01-01",
+   "nextReview": "2026-12-30",
    "nextSteps": "New Buyer - hear back from Tim Evans",
    "priority": 2,
    "repFirm": "PSE",
@@ -231,7 +256,12 @@
    "sfOppStage": "Closed Lost",
    "status": "target"
   },
-  "publix": {},
+  "price-chopper": {
+   "repFirm": "Brian Schlager"
+  },
+  "publix": {
+   "repFirm": "Brian Schlager"
+  },
   "rite-aid": {
    "status": "non-target"
   },
@@ -244,6 +274,9 @@
   },
   "sams-club": {
    "status": "non-target"
+  },
+  "southeastern": {
+   "repFirm": "Brian Schlager"
   },
   "sprouts": {
    "nextSteps": "See response",
@@ -261,6 +294,9 @@
    "nextSteps": "Wait until next year",
    "repFirm": "PSE",
    "status": "declined"
+  },
+  "tops": {
+   "repFirm": "Brian Schlager"
   },
   "tractor-supply": {
    "nextSteps": "Talk to Mark - Catalyst + Private Label",
@@ -281,7 +317,7 @@
   "unfi": {
    "nextSteps": "Reach out",
    "priority": 3,
-   "repFirm": "Internal",
+   "repFirm": "Brian Schlager",
    "sfOppStage": "Qualification",
    "status": "target"
   },
@@ -293,11 +329,25 @@
    "repFirm": "StoR"
   },
   "walmart-canada": {
+   "nextReview": "2026-10-06",
+   "nextSteps": "Jeff L to talk to Kenny",
    "repFirm": "StoR",
+   "resetDate": "2027-04-30",
    "status": "target"
   },
-  "wegmans": {},
-  "winco": {}
+  "wegmans": {
+   "repFirm": "Brian Schlager"
+  },
+  "weis": {
+   "repFirm": "Brian Schlager"
+  },
+  "winco": {
+   "sfOppStage": "Qualification",
+   "status": "target"
+  },
+  "woodmans": {
+   "repFirm": "Brian Schlager"
+  }
  },
- "savedAt": "2026-09-24T15:50:52"
+ "savedAt": "2026-09-25T15:51:02"
 }
