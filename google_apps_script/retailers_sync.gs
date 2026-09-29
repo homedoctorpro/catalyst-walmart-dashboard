@@ -397,6 +397,52 @@ function bulkReplace_(items) {
 }
 
 
+// Catalog sync from the dashboard build (sync_retailer_catalog.py, run by the
+// retailer-catalog-sync workflow). Only the dashboard-owned columns move: name,
+// channel and store count on existing rows; retailers the Sheet lacks are
+// appended with their channel default U/S/W. Edits, Salesforce links and rows
+// the dashboard doesn't know about are never touched, so this is safe to run
+// on every build — unlike bulkreplace, which rewrites the Sheet from one
+// browser's view.
+function syncStatic_(items) {
+  const sh = ensureSchema_();
+  const last = sh.getLastRow();
+  const index = {};
+  if (last >= 2) {
+    sh.getRange(2, COL.id, last - 1, COL.usStores).getValues().forEach(function (r, i) {
+      const id = String(r[0] || '').trim();
+      if (id) index[id] = { row: i + 2, name: r[COL.name - 1], channel: r[COL.channel - 1], stores: r[COL.usStores - 1] };
+    });
+  }
+  const changed = [], added = [];
+  items.forEach(function (it) {
+    if (!it || !it.retailerId) return;
+    const cur = index[it.retailerId];
+    if (!cur) {
+      const row = Math.max(sh.getLastRow() + 1, 2);
+      writeStaticAndFormulas_(sh, row, it);
+      writeEditable_(sh, row, {});
+      added.push(it.retailerId);
+      return;
+    }
+    const diff = [];
+    if (it.retailerName != null && String(cur.name) !== String(it.retailerName)) {
+      sh.getRange(cur.row, COL.name).setValue(it.retailerName); diff.push('name');
+    }
+    if (it.channel != null && String(cur.channel) !== String(it.channel)) {
+      sh.getRange(cur.row, COL.channel).setValue(it.channel); diff.push('channel');
+    }
+    if (it.usStores != null && Number(cur.stores) !== Number(it.usStores)) {
+      sh.getRange(cur.row, COL.usStores).setValue(it.usStores);
+      diff.push('stores ' + cur.stores + '→' + it.usStores);
+    }
+    if (diff.length) changed.push(it.retailerId + ' (' + diff.join(', ') + ')');
+  });
+  if (added.length) setNumberFormats_(sh, sh.getLastRow());
+  return { changed: changed, added: added };
+}
+
+
 // ── MCP (Model Context Protocol) ────────────────────────────────────────────
 //
 // The same web app also speaks MCP over HTTP, so the team can work the pipeline
@@ -731,6 +777,9 @@ function doPost(e) {
     if (action === 'bulkreplace') {
       const count = bulkReplace_(body.items || []);
       return jsonOut_({ ok: true, count: count, data: readAll_() });
+    }
+    if (action === 'syncstatic') {
+      return jsonOut_(Object.assign({ ok: true }, syncStatic_(body.items || [])));
     }
     if (action === 'sfsync') {
       const summary = syncSalesforce_();

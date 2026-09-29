@@ -2180,8 +2180,18 @@ def main():
             print( "        To drop weeks on purpose, set ALLOW_WEEK_REGRESSION=1.")
             sys.exit(1)
 
+    # Build stamp: a hash of the page, embedded in it and published beside it as
+    # version.json. Open tabs poll version.json and reload when it moves, so
+    # nobody keeps working from a cached copy after a push.
+    import hashlib
+    from datetime import datetime as _dt
+    build_id = hashlib.sha1(html.encode("utf-8")).hexdigest()[:12]
+    html = html.replace("/*BUILD_ID_PLACEHOLDER*/", f'const BUILD_ID = "{build_id}";')
+
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(html)
+    with open(os.path.join(os.path.dirname(__file__), "version.json"), "w", encoding="utf-8") as f:
+        json.dump({"build": build_id, "built_at": _dt.now().isoformat(timespec="seconds")}, f)
 
     json_mb = len(json_str) / 1024 / 1024
     print(f"\nWrote {output_path} ({json_mb:.2f} MB JSON embedded)")
@@ -2254,10 +2264,13 @@ def write_retailer_catalog(template_path=None, out_path=None):
         print("  [Catalog] RT_RETAILERS not found in the template — skipped")
         return
     labels = dict(re.findall(r'(\w+):\s*\{ name: "([^"]+)"', chans))
+    default_usw = {k: float(v) for k, v in re.findall(
+        r'(\w+):\s*\{ name: "[^"]+",[^}]*?defaultUSW:\s*([\d.]+)', chans)}
     catalog = {}
     for rid, name, ch, stores in re.findall(
             r'\{\s*id:\s*"([^"]+)",\s*name:\s*"([^"]+)",\s*channel:\s*"([^"]+)",\s*stores:\s*(\d+)', block):
-        catalog[rid] = {"name": name, "channel": labels.get(ch, ch), "us_stores": int(stores)}
+        catalog[rid] = {"name": name, "channel": labels.get(ch, ch), "us_stores": int(stores),
+                        "default_usw": default_usw.get(ch)}
     if not catalog:
         print("  [Catalog] no retailers parsed — skipped")
         return

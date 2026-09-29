@@ -1,0 +1,35 @@
+name: Retailer catalog → Sheet
+
+# Keeps the Retailers Sheet's name / channel / store-count columns matching the
+# dashboard. Runs whenever the catalog changes, plus once a day as a backstop.
+# Only those columns move (syncstatic), so edits and Salesforce links are safe.
+
+on:
+  push:
+    branches: [master]
+    paths: [retailers_catalog.json]
+  schedule:
+    - cron: "40 10 * * *"         # 6:40 ET daily
+  workflow_dispatch:
+
+concurrency:
+  group: retailer-catalog-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Sync catalog columns to the Sheet
+        env:
+          RETAILERS_SYNC_URL: ${{ secrets.RETAILERS_SYNC_URL }}
+        run: python sync_retailer_catalog.py

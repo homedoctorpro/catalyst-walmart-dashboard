@@ -2224,6 +2224,7 @@
 
 <script>
 /*DATA_PLACEHOLDER*/
+/*BUILD_ID_PLACEHOLDER*/
 
 // ══ Auth ══════════════════════════════════════════════════════════════════════
 const PASSWORD = "pellets123";
@@ -2240,6 +2241,7 @@ function showApp() {
   document.getElementById("gate").style.display = "none";
   document.getElementById("app").style.display = "flex";
   initDashboard();
+  verRestoreView();
 }
 
 // ══ Constants ═════════════════════════════════════════════════════════════════
@@ -2334,6 +2336,7 @@ function renderRecap() {
   document.getElementById('recapFrame').srcdoc = new TextDecoder('utf-8').decode(bytes);
 }
 function switchTab(name, btn) {
+  window.CUR_TAB = name;
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
   document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
   btn.classList.add("active");
@@ -9600,6 +9603,67 @@ function resetReviewFilters() {
 }
 
 // ── Must be last ──────────────────────────────────────────────────────────────
+// ══ Stale-copy guard ══════════════════════════════════════════════════════════
+// GitHub Pages lets browsers cache this file, so a tab opened before a push can
+// keep showing the old dashboard. The build publishes version.json next to the
+// page; when it no longer matches BUILD_ID, reload onto the new build (keeping
+// the open tab and scroll spot), or ask first if someone is mid-edit.
+const VER_VIEW_KEY = "wm_ver_view";
+const VER_TRIED_KEY = "wm_ver_tried";
+async function verCheck() {
+  if (typeof BUILD_ID === "undefined" || location.protocol === "file:") return;
+  let v;
+  try {
+    const res = await fetch("version.json?_=" + Date.now(), { cache: "no-store" });
+    if (!res.ok) return;
+    v = await res.json();
+  } catch { return; }
+  if (!v || !v.build || v.build === BUILD_ID) return;
+  const busy = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)
+    || (typeof RT_INFLIGHT !== "undefined" && RT_INFLIGHT > 0);
+  let tried = null;
+  try { tried = sessionStorage.getItem(VER_TRIED_KEY); } catch {}
+  // Already reloaded once for this build and still old: the CDN hasn't caught up.
+  if (busy || tried === v.build) { verBanner(v.build); return; }
+  verReload(v.build);
+}
+function verReload(build) {
+  try {
+    sessionStorage.setItem(VER_TRIED_KEY, build);
+    sessionStorage.setItem(VER_VIEW_KEY, JSON.stringify({ tab: window.CUR_TAB || "", y: window.scrollY }));
+  } catch {}
+  // A new query string sidesteps both the browser cache and the Pages CDN copy
+  location.replace(location.pathname + "?v=" + encodeURIComponent(build) + location.hash);
+}
+function verBanner(build) {
+  if (document.getElementById("ver-banner")) return;
+  const b = document.createElement("div");
+  b.id = "ver-banner";
+  b.style.cssText = "position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:10000;" +
+    "background:#0057e7;color:#fff;padding:9px 14px;border-radius:8px;font-size:0.85rem;" +
+    "box-shadow:0 4px 16px rgba(0,0,0,0.25);display:flex;gap:12px;align-items:center";
+  b.innerHTML = `<span>A newer version of the dashboard is out.</span>`;
+  const btn = document.createElement("button");
+  btn.textContent = "Refresh";
+  btn.style.cssText = "background:#fff;color:#0057e7;border:0;border-radius:5px;padding:4px 10px;font-weight:700;cursor:pointer";
+  btn.onclick = () => verReload(build);
+  b.appendChild(btn);
+  document.body.appendChild(b);
+}
+function verRestoreView() {
+  let view = null;
+  try { view = JSON.parse(sessionStorage.getItem(VER_VIEW_KEY) || "null"); sessionStorage.removeItem(VER_VIEW_KEY); } catch {}
+  if (!view) return;
+  if (view.tab) {
+    const btn = [...document.querySelectorAll(".tab-btn")].find(x => (x.getAttribute("onclick") || "").includes(`'${view.tab}'`));
+    if (btn) btn.click();
+  }
+  if (view.y) setTimeout(() => window.scrollTo(0, view.y), 400);
+}
+setTimeout(verCheck, 5000);
+setInterval(verCheck, 5 * 60 * 1000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") verCheck(); });
+
 if (localStorage.getItem(AUTH_KEY) === "ok") showApp();
 </script>
 </body>
