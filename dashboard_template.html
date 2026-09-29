@@ -8392,10 +8392,11 @@ function rtSetRepFilter(v) {
   rtRenderTable();
 }
 
-// Priority sort: drop the channel grouping and rank every row together
-const RT_PRIO_SORT_KEY = "catalyst_retailers_prio_sort";
-let RT_PRIO_SORT = false;
-try { RT_PRIO_SORT = localStorage.getItem(RT_PRIO_SORT_KEY) === "1"; } catch {}
+// Priority sort: drop the channel grouping and rank every row together.
+// On by default; the key was renamed (v2) so earlier "off" choices reset.
+const RT_PRIO_SORT_KEY = "catalyst_retailers_prio_sort_v2";
+let RT_PRIO_SORT = true;
+try { RT_PRIO_SORT = localStorage.getItem(RT_PRIO_SORT_KEY) !== "0"; } catch {}
 function rtTogglePrioSort(on) {
   RT_PRIO_SORT = !!on;
   try { localStorage.setItem(RT_PRIO_SORT_KEY, RT_PRIO_SORT ? "1" : "0"); } catch {}
