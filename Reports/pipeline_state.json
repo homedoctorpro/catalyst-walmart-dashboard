@@ -1,5 +1,5 @@
 {
- "lastSentOn": "2026-09-25",
+ "lastSentOn": "2026-09-29",
  "overdueSeen": [],
  "rows": {
   "ace": {
@@ -172,7 +172,7 @@
   "kehe": {
    "nextSteps": "Reach out",
    "priority": 3,
-   "repFirm": "Brian Schlager",
+   "repFirm": "Internal",
    "status": "target"
   },
   "kriser": {
@@ -245,7 +245,7 @@
   },
   "petsense": {},
   "petsmart": {
-   "nextSteps": "Follow up in October",
+   "nextSteps": "Follow up in October - follow up with Steve now",
    "priority": 1,
    "repFirm": "PSE",
    "sfOppStage": "Proposal",
@@ -261,7 +261,11 @@
    "repFirm": "Brian Schlager"
   },
   "publix": {
-   "repFirm": "Brian Schlager"
+   "nextSteps": "Start working on it at the end of October",
+   "priority": 5,
+   "repFirm": "Brian Schlager",
+   "sfOppStage": "Qualification",
+   "status": "target"
   },
   "rite-aid": {
    "status": "non-target"
@@ -318,7 +322,7 @@
   "unfi": {
    "nextSteps": "Reach out",
    "priority": 3,
-   "repFirm": "Brian Schlager",
+   "repFirm": "Internal",
    "sfOppStage": "Qualification",
    "status": "target"
   },
@@ -331,7 +335,8 @@
   },
   "walmart-canada": {
    "nextReview": "2026-10-06",
-   "nextSteps": "Jeff L to talk to Kenny",
+   "nextSteps": "Fill out the new item sheet - mod review for in-store will be late October",
+   "priority": 1,
    "repFirm": "StoR",
    "resetDate": "2027-04-30",
    "status": "target"
@@ -350,5 +355,5 @@
    "repFirm": "Brian Schlager"
   }
  },
- "savedAt": "2026-09-28T18:37:50"
+ "savedAt": "2026-09-29T16:55:03"
 }
