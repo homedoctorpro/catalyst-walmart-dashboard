@@ -2101,6 +2101,15 @@ def main():
 
     reviews = load_reviews()
 
+    # Researched store counts by state for the Retailers tab tooltip. Missing
+    # file just means every non-Walmart row says "no breakdown".
+    try:
+        with open(os.path.join(os.path.dirname(__file__), "retailer_state_counts.json"), encoding="utf-8") as f:
+            retailer_states = json.load(f)
+    except (OSError, ValueError) as e:
+        print(f"  [WARN] retailer_state_counts.json not loaded: {e}")
+        retailer_states = {}
+
     data = {
         "weeks":       sorted(files.keys()),
         "store_weeks": store_weeks_list,
@@ -2127,6 +2136,7 @@ def main():
         "rollback": rollback,
         "coop": coop,
         "reviews": reviews,
+        "retailer_states": retailer_states,
     }
 
     # 7. Read template and embed JSON

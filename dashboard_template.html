@@ -648,9 +648,10 @@
                            font-size:0.78rem; color:#333; }
   .rt-tbl .rt-date-input.has-value { background:#f0fdf4; border-color:#a5d6a7; }
   .rt-tbl .rt-date-input.is-overdue { background:#ffe0e0; border-color:#ef9a9a; color:#b71c1c; }
-  .rt-tbl select.rt-status-select { padding:3px 6px; border:1px solid #e0e0e0; border-radius:4px;
-                                    font-size:0.78rem; font-family:inherit; background:#fff;
+  .rt-tbl select.rt-status-select { padding:4px 8px; border:1px solid #e0e0e0; border-radius:4px;
+                                    font-size:0.82rem; font-family:inherit; background:#fff;
                                     font-weight:600; }
+  .rt-tbl .rt-status-cell { white-space:nowrap; }
   .rt-tbl select.rt-status-select:focus { outline:none; border-color:#0057e7; }
   .rt-tbl select.rt-rep-select { padding:4px 8px; border:1px solid #e0e0e0; border-radius:4px;
                                  font-size:0.82rem; font-family:inherit; background:#fff;
@@ -1990,6 +1991,10 @@
         <input type="checkbox" id="rt-lean-toggle" onchange="rtToggleSizingCols(this.checked)">
         <span>Hide sizing columns</span>
       </label>
+      <label class="rt-ch-chip" title="One list across every channel, priority 1 first; unranked rows follow by store count">
+        <input type="checkbox" id="rt-prio-sort-toggle" onchange="rtTogglePrioSort(this.checked)">
+        <span>Sort by priority</span>
+      </label>
       <label class="rt-ch-chip" title="Show the shelf reset / modular date column">
         <input type="checkbox" id="rt-reset-toggle" onchange="rtToggleResetCol(this.checked)">
         <span>Show reset date</span>
@@ -2019,8 +2024,8 @@
               <th>Rep Firm</th>
               <th title="Tick when this retailer buys through a distributor; hover the cell to name it">Distributor</th>
               <th>Next Steps</th>
-              <th title="Date to revisit this account">Next Review</th>
               <th title="Hard date this has to land by — turns red once it passes">Deadline</th>
+              <th title="Date to revisit this account">Next Review</th>
               <th class="rt-reset-col" title="Shelf reset / modular date for this retailer">Reset Date</th>
             </tr>
           </thead>
@@ -2041,18 +2046,17 @@
       <dl>
         <dt>Named-retailer store counts</dt>
         <dd>
-          Company 10-K filings, investor presentations, and corporate fact sheets where available
-          (Walmart, Target, Costco, Sam's Club, Tractor Supply, Kroger, Albertsons, Publix, BJ's,
-          PetSmart, Petco, Pet Supplies Plus, Dollar General, Dollar Tree, Five Below, Home Depot,
-          Lowe's, etc., FY2025 filings).
-          Private chains and co-ops use the most recent published number from company websites or
-          trade press (Wegmans, H-E-B, Hy-Vee, Hollywood Feed, Pet Supermarket, Earthwise Pet,
-          Ace Hardware, Do it Best, True Value, Menards, Meijer, Rural King, Bomgaars, Atwoods,
-          Fleet Farm, Murdoch's, etc.). Feeders Pet Supply (23 stores across KY, IN and OH) is a
-          Houchens Industries company; count from the chain's own site, Sept 2026. Petsense by
-          Tractor Supply is carried at 134 doors: Tractor Supply reported 209 Petsense stores in 23
-          states as of 2026-06-27 and has since announced roughly 75 closures. Concord Pet Foods &
-          Supplies is 33 doors (DE/PA/NJ/MD) per the chain's own site, 2026.
+          Recounted state by state in Sept 2026 (<code>retailer_state_counts.json</code>); each row's
+          count is the sum of its states, and hovering the number shows the split, source and date.
+          Sources are 10-K property tables (Albertsons, Sprouts, Home Depot, Lowe's, Dollar General,
+          Five Below), the chains' own store directories and locators, StoreLocators.com, and ScrapeHero
+          where its table covers every state the chain is in. Caveats: Tractor Supply excludes Petsense
+          (its own row); Earthwise Pet is EarthWise-branded stores only; CVS includes the pharmacies
+          inside Target; True Value's directory has no Delaware page; Pet Supplies Plus may include
+          closed or coming-soon stores. Walmart US uses the weekly store feed. Southern States stays at ~1,200
+          dealer outlets; only its 83 company stores are listed by state. Ace, Menards, Walgreens,
+          Rite Aid, Big Lots and Southeastern Grocers have no published per-state count and keep their
+          earlier estimates.
         </dd>
 
         <dt>"Independent + regional pet doors" (~7,000 doors, under Pet Distributors)</dt>
@@ -2069,8 +2073,8 @@
         <dt>Ahold Delhaize banners</dt>
         <dd>
           Split into its five US banners rather than one line, because each is bought separately:
-          Food Lion 1,115 · Stop &amp; Shop 365 · The GIANT Company 193 · Hannaford 187 ·
-          Giant Food 165 (2,025 doors, Sept 2026 counts). Martin's is no longer an Ahold Delhaize banner.
+          Food Lion 1,113 · Stop &amp; Shop 362 · The GIANT Company 202 · Hannaford 188 ·
+          Giant Food 165 (2,030 doors, Sept 2026 counts). Martin's is no longer an Ahold Delhaize banner.
         </dd>
 
         <dt>"Remaining Grocery" (~10,000 doors)</dt>
@@ -2104,11 +2108,10 @@
         <dt>Rep-firm accounts added Sept 2026</dt>
         <dd>
           The grocery accounts named in the B&amp;D Sales (Bryan Schlager) agreement and in the PSE
-          split, added so the rep firms' own target lists are visible here: Weis 200 · Ingles 198 ·
-          Southeastern Grocers 170 · Tops 152 · Price Chopper/Market 32 131 · Market Basket 90 ·
-          Lowes Foods 85 · Big Y 79 · Redner's 45 · Woodman's 19, plus the wholesalers C&amp;S, MDI
-          and Bozzuto's at zero doors. Counts are approximate, from company sites and trade press
-          Sept 2026; Southeastern Grocers reflects the ~170 Winn-Dixie and Harveys doors a C&amp;S-led
+          split, added so the rep firms' own target lists are visible here: Weis · Ingles ·
+          Southeastern Grocers · Tops · Price Chopper/Market 32 · Market Basket ·
+          Lowes Foods · Big Y · Redner's · Woodman's, plus the wholesalers C&amp;S, MDI
+          and Bozzuto's at zero doors. Southeastern Grocers reflects the ~170 Winn-Dixie and Harveys doors a C&amp;S-led
           group bought back from Aldi in 2025, not the pre-2024 footprint.
         </dd>
 
@@ -2137,7 +2140,7 @@
         </dd>
       </dl>
       <div class="rt-sources-foot">
-        Store counts and estimates current as of 2026-05. The Retailers tab is for opportunity sizing
+        Store counts current as of 2026-09 (hover a store count for its state split and source). The Retailers tab is for opportunity sizing
         and account planning — not a guarantee of distribution. Adjust U/S/W per retailer in the
         table to model your own assumptions; bumping a row to "Currently In" turns it green.
       </div>
@@ -8136,99 +8139,99 @@ const RT_OPP_CHANNELS = RT_CHANNEL_ORDER;
 const RT_RETAILERS = [
   // Mass
   { id: "walmart",          name: "Walmart",                       channel: "mass",     stores: 4615, defaultStatus: "in" },
-  { id: "target",           name: "Target",                        channel: "mass",     stores: 1950 },
-  { id: "walmart-canada",   name: "Walmart Canada",                channel: "mass",     stores: 403,
-    reach: "344 supercentres + 59 discount stores · separate buying team from Walmart US" },
+  { id: "target",           name: "Target",                        channel: "mass",     stores: 2023 },
+  { id: "walmart-canada",   name: "Walmart Canada",                channel: "mass",     stores: 402,
+    reach: "Separate buying team from Walmart US" },
 
   // Pet Specialty
-  { id: "petsmart",         name: "PetSmart",                      channel: "pet",      stores: 1650 },
-  { id: "petco",            name: "Petco",                         channel: "pet",      stores: 1500 },
-  { id: "pet-supplies-plus",name: "Pet Supplies Plus",             channel: "pet",      stores: 770 },
-  { id: "pet-supermarket",  name: "Pet Supermarket",               channel: "pet",      stores: 215 },
-  { id: "earthwise-pet",    name: "Earthwise Pet",                 channel: "pet",      stores: 200 },
-  { id: "hollywood-feed",   name: "Hollywood Feed",                channel: "pet",      stores: 150 },
-  { id: "petsense",         name: "Petsense by Tractor Supply",    channel: "pet",      stores: 134,
+  { id: "petsmart",         name: "PetSmart",                      channel: "pet",      stores: 1536 },
+  { id: "petco",            name: "Petco",                         channel: "pet",      stores: 1376 },
+  { id: "pet-supplies-plus",name: "Pet Supplies Plus",             channel: "pet",      stores: 783 },
+  { id: "pet-supermarket",  name: "Pet Supermarket",               channel: "pet",      stores: 199 },
+  { id: "earthwise-pet",    name: "Earthwise Pet",                 channel: "pet",      stores: 77 },
+  { id: "hollywood-feed",   name: "Hollywood Feed",                channel: "pet",      stores: 180 },
+  { id: "petsense",         name: "Petsense by Tractor Supply",    channel: "pet",      stores: 135,
     reach: "209 stores across 23 states before the ~75-store closure announced in 2026" },
-  { id: "feeders",          name: "Feeders Pet Supply",            channel: "pet",      stores: 23,
-    reach: "KY, IN and OH · a Houchens Industries company" },
-  { id: "concord-pet",      name: "Concord Pet Foods & Supplies",  channel: "pet",      stores: 33,
-    reach: "DE 16 · PA ~10 · NJ ~5" },
-  { id: "kahoots",          name: "Kahoot's Pet Store",            channel: "pet",      stores: 30 },
-  { id: "tomlinsons",       name: "Tomlinson's Feed",              channel: "pet",      stores: 25 },
-  { id: "kriser",           name: "Kriser's Natural Pet",          channel: "pet",      stores: 25 },
+  { id: "feeders",          name: "Feeders Pet Supply",            channel: "pet",      stores: 50,
+    reach: "KY 26 · IN 8 · MI 7 · OH 4 · NC 3 · TN 2 · a Houchens Industries company" },
+  { id: "concord-pet",      name: "Concord Pet Foods & Supplies",  channel: "pet",      stores: 24,
+    reach: "DE 11 · PA 8 · NJ 3 · MD 2" },
+  { id: "kahoots",          name: "Kahoot's Pet Store",            channel: "pet",      stores: 25 },
+  { id: "tomlinsons",       name: "Tomlinson's Feed",              channel: "pet",      stores: 20 },
+  { id: "kriser",           name: "Kriser's Natural Pet",          channel: "pet",      stores: 20 },
 
   // Club
-  { id: "costco",           name: "Costco",                        channel: "club",     stores: 600 },
-  { id: "sams-club",        name: "Sam's Club",                    channel: "club",     stores: 600 },
-  { id: "bjs",              name: "BJ's Wholesale Club",           channel: "club",     stores: 245 },
+  { id: "costco",           name: "Costco",                        channel: "club",     stores: 632 },
+  { id: "sams-club",        name: "Sam's Club",                    channel: "club",     stores: 602 },
+  { id: "bjs",              name: "BJ's Wholesale Club",           channel: "club",     stores: 273 },
 
   // Farm & Rural
-  { id: "tractor-supply",   name: "Tractor Supply",                channel: "farm",     stores: 2300 },
-  { id: "rural-king",       name: "Rural King",                    channel: "farm",     stores: 130 },
-  { id: "bomgaars",         name: "Bomgaars",                      channel: "farm",     stores: 110 },
-  { id: "atwoods",          name: "Atwoods Ranch & Home",          channel: "farm",     stores: 70 },
+  { id: "tractor-supply",   name: "Tractor Supply",                channel: "farm",     stores: 2485 },
+  { id: "rural-king",       name: "Rural King",                    channel: "farm",     stores: 160 },
+  { id: "bomgaars",         name: "Bomgaars",                      channel: "farm",     stores: 188 },
+  { id: "atwoods",          name: "Atwoods Ranch & Home",          channel: "farm",     stores: 83 },
   { id: "fleet-farm",       name: "Mills Fleet Farm",              channel: "farm",     stores: 50 },
   { id: "farm-fleet",       name: "Blain's Farm & Fleet",          channel: "farm",     stores: 45 },
-  { id: "murdochs",         name: "Murdoch's Ranch & Home",        channel: "farm",     stores: 35 },
-  { id: "cal-ranch",        name: "C-A-L Ranch Stores",            channel: "farm",     stores: 30 },
-  { id: "big-r",            name: "Big R Stores",                  channel: "farm",     stores: 30 },
+  { id: "murdochs",         name: "Murdoch's Ranch & Home",        channel: "farm",     stores: 47 },
+  { id: "cal-ranch",        name: "C-A-L Ranch Stores",            channel: "farm",     stores: 55 },
+  { id: "big-r",            name: "Big R Stores",                  channel: "farm",     stores: 39 },
   { id: "southern-states",  name: "Southern States Cooperative",   channel: "farm",     stores: 1200,
     reach: "~1,200 dealer outlets across 21 states · open Documentation-stage litter opp in Salesforce" },
-  { id: "db-supply",        name: "D&B Supply",                    channel: "farm",     stores: 11,
-    reach: "Idaho + eastern Oregon · farm, home and pet · 12th store announced" },
+  { id: "db-supply",        name: "D&B Supply",                    channel: "farm",     stores: 16,
+    reach: "Idaho + eastern Oregon · farm, home and pet" },
 
   // Grocery
-  { id: "meijer",           name: "Meijer",                        channel: "grocery",  stores: 270 },
-  { id: "kroger",           name: "Kroger (all banners)",          channel: "grocery",  stores: 2750 },
-  { id: "aldi",             name: "Aldi US",                       channel: "grocery",  stores: 2400 },
-  { id: "albertsons",       name: "Albertsons / Safeway",          channel: "grocery",  stores: 2270 },
-  { id: "food-lion",        name: "Food Lion (Ahold Delhaize)",    channel: "grocery",  stores: 1115 },
-  { id: "stop-shop",        name: "Stop & Shop (Ahold Delhaize)",  channel: "grocery",  stores: 365 },
-  { id: "giant-company",    name: "The GIANT Company (Ahold Delhaize)", channel: "grocery", stores: 193 },
-  { id: "hannaford",        name: "Hannaford (Ahold Delhaize)",    channel: "grocery",  stores: 187 },
+  { id: "meijer",           name: "Meijer",                        channel: "grocery",  stores: 282 },
+  { id: "kroger",           name: "Kroger (all banners)",          channel: "grocery",  stores: 2688 },
+  { id: "aldi",             name: "Aldi US",                       channel: "grocery",  stores: 2686 },
+  { id: "albertsons",       name: "Albertsons / Safeway",          channel: "grocery",  stores: 2244 },
+  { id: "food-lion",        name: "Food Lion (Ahold Delhaize)",    channel: "grocery",  stores: 1113 },
+  { id: "stop-shop",        name: "Stop & Shop (Ahold Delhaize)",  channel: "grocery",  stores: 362 },
+  { id: "giant-company",    name: "The GIANT Company (Ahold Delhaize)", channel: "grocery", stores: 202 },
+  { id: "hannaford",        name: "Hannaford (Ahold Delhaize)",    channel: "grocery",  stores: 188 },
   { id: "giant-food",       name: "Giant Food (Ahold Delhaize)",   channel: "grocery",  stores: 165 },
-  { id: "publix",           name: "Publix",                        channel: "grocery",  stores: 1390 },
-  { id: "trader-joes",      name: "Trader Joe's",                  channel: "grocery",  stores: 565 },
-  { id: "whole-foods",      name: "Whole Foods Market",            channel: "grocery",  stores: 530 },
-  { id: "heb",              name: "H-E-B",                         channel: "grocery",  stores: 430 },
-  { id: "sprouts",          name: "Sprouts Farmers Market",        channel: "grocery",  stores: 415 },
+  { id: "publix",           name: "Publix",                        channel: "grocery",  stores: 1447 },
+  { id: "trader-joes",      name: "Trader Joe's",                  channel: "grocery",  stores: 662 },
+  { id: "whole-foods",      name: "Whole Foods Market",            channel: "grocery",  stores: 535 },
+  { id: "heb",              name: "H-E-B",                         channel: "grocery",  stores: 372 },
+  { id: "sprouts",          name: "Sprouts Farmers Market",        channel: "grocery",  stores: 477 },
   { id: "fresh-market",     name: "The Fresh Market",              channel: "grocery",  stores: 173,
     reach: "22 states · FL 52 · NC 21 · VA 13 · owned by Cencosud" },
-  { id: "hyvee",            name: "Hy-Vee",                        channel: "grocery",  stores: 280 },
-  { id: "giant-eagle",      name: "Giant Eagle",                   channel: "grocery",  stores: 200 },
-  { id: "weis",             name: "Weis Markets",                  channel: "grocery",  stores: 200 },
-  { id: "ingles",           name: "Ingles Markets",                channel: "grocery",  stores: 198 },
+  { id: "hyvee",            name: "Hy-Vee",                        channel: "grocery",  stores: 296 },
+  { id: "giant-eagle",      name: "Giant Eagle",                   channel: "grocery",  stores: 189 },
+  { id: "weis",             name: "Weis Markets",                  channel: "grocery",  stores: 204 },
+  { id: "ingles",           name: "Ingles Markets",                channel: "grocery",  stores: 188 },
   { id: "southeastern",     name: "Southeastern Grocers (Winn-Dixie, Harveys)", channel: "grocery", stores: 170,
     reach: "~170 doors after Aldi sold the banner back to a C&S-led group in 2025" },
-  { id: "tops",             name: "Tops Friendly Markets",         channel: "grocery",  stores: 152 },
-  { id: "price-chopper",    name: "Price Chopper / Market 32",     channel: "grocery",  stores: 131 },
-  { id: "market-basket",    name: "Market Basket (DeMoulas)",      channel: "grocery",  stores: 90 },
+  { id: "tops",             name: "Tops Friendly Markets",         channel: "grocery",  stores: 147 },
+  { id: "price-chopper",    name: "Price Chopper / Market 32",     channel: "grocery",  stores: 130 },
+  { id: "market-basket",    name: "Market Basket (DeMoulas)",      channel: "grocery",  stores: 95 },
   { id: "lowes-foods",      name: "Lowes Foods",                   channel: "grocery",  stores: 85 },
-  { id: "big-y",            name: "Big Y Foods",                   channel: "grocery",  stores: 79 },
-  { id: "redners",          name: "Redner's Markets",              channel: "grocery",  stores: 45 },
-  { id: "woodmans",         name: "Woodman's Markets",             channel: "grocery",  stores: 19 },
-  { id: "winco",            name: "WinCo Foods",                   channel: "grocery",  stores: 145 },
-  { id: "wegmans",          name: "Wegmans",                       channel: "grocery",  stores: 110 },
+  { id: "big-y",            name: "Big Y Foods",                   channel: "grocery",  stores: 97 },
+  { id: "redners",          name: "Redner's Markets",              channel: "grocery",  stores: 56 },
+  { id: "woodmans",         name: "Woodman's Markets",             channel: "grocery",  stores: 20 },
+  { id: "winco",            name: "WinCo Foods",                   channel: "grocery",  stores: 146 },
+  { id: "wegmans",          name: "Wegmans",                       channel: "grocery",  stores: 115 },
   { id: "other-grocery",    name: "Remaining Grocery (regional + indie)", channel: "grocery", stores: 10000 },
 
   // Hardware / Home Improvement
   { id: "ace",              name: "Ace Hardware (co-op)",          channel: "hardware", stores: 4800 },
-  { id: "true-value",       name: "True Value (Do it Best)",       channel: "hardware", stores: 4500 },
-  { id: "do-it-best",       name: "Do it Best (members)",          channel: "hardware", stores: 4000 },
-  { id: "home-depot",       name: "Home Depot",                    channel: "hardware", stores: 2000 },
-  { id: "lowes",            name: "Lowe's",                        channel: "hardware", stores: 1750 },
+  { id: "true-value",       name: "True Value (Do it Best)",       channel: "hardware", stores: 1294 },
+  { id: "do-it-best",       name: "Do it Best (members)",          channel: "hardware", stores: 3080 },
+  { id: "home-depot",       name: "Home Depot",                    channel: "hardware", stores: 2035 },
+  { id: "lowes",            name: "Lowe's",                        channel: "hardware", stores: 1759 },
   { id: "menards",          name: "Menards",                       channel: "hardware", stores: 350 },
 
   // Drug
-  { id: "cvs",              name: "CVS Pharmacy",                  channel: "drug",     stores: 9000 },
+  { id: "cvs",              name: "CVS Pharmacy",                  channel: "drug",     stores: 8998 },
   { id: "walgreens",        name: "Walgreens",                     channel: "drug",     stores: 8600 },
   { id: "rite-aid",         name: "Rite Aid",                      channel: "drug",     stores: 1200 },
 
   // Dollar / Value
-  { id: "dollar-general",   name: "Dollar General",                channel: "dollar",   stores: 20000 },
-  { id: "dollar-tree",      name: "Dollar Tree",                   channel: "dollar",   stores: 8000 },
-  { id: "family-dollar",    name: "Family Dollar",                 channel: "dollar",   stores: 8000 },
-  { id: "five-below",       name: "Five Below",                    channel: "dollar",   stores: 1800 },
+  { id: "dollar-general",   name: "Dollar General",                channel: "dollar",   stores: 20942 },
+  { id: "dollar-tree",      name: "Dollar Tree",                   channel: "dollar",   stores: 9193 },
+  { id: "family-dollar",    name: "Family Dollar",                 channel: "dollar",   stores: 7060 },
+  { id: "five-below",       name: "Five Below",                    channel: "dollar",   stores: 1921 },
   { id: "big-lots",         name: "Big Lots",                      channel: "dollar",   stores: 1300 },
 
   // Pet Distributors — the ~7,000 regional + indie doors they serve, then the routes in
@@ -8383,6 +8386,16 @@ function rtSetRepFilter(v) {
   RT_REP_FILTER = v || "";
   try { localStorage.setItem(RT_REP_FILTER_KEY, RT_REP_FILTER); } catch {}
   rtRenderRepFilter();
+  rtRenderTable();
+}
+
+// Priority sort: drop the channel grouping and rank every row together
+const RT_PRIO_SORT_KEY = "catalyst_retailers_prio_sort";
+let RT_PRIO_SORT = false;
+try { RT_PRIO_SORT = localStorage.getItem(RT_PRIO_SORT_KEY) === "1"; } catch {}
+function rtTogglePrioSort(on) {
+  RT_PRIO_SORT = !!on;
+  try { localStorage.setItem(RT_PRIO_SORT_KEY, RT_PRIO_SORT ? "1" : "0"); } catch {}
   rtRenderTable();
 }
 
@@ -8616,7 +8629,18 @@ function rtRenderTable() {
   const prio = r => { const p = Number(rtRowField(r, "priority")); return p > 0 ? p : Infinity; };
   const byPrio = (a,b) => (prio(a) - prio(b)) || (b.stores - a.stores);
 
-  RT_CHANNEL_ORDER.forEach(ch => {
+  const prioBox = document.getElementById("rt-prio-sort-toggle");
+  if (prioBox) prioBox.checked = RT_PRIO_SORT;
+  if (RT_PRIO_SORT) {
+    const rows = RT_RETAILERS.filter(r => RT_VISIBLE_CHANNELS.has(r.channel) && !isParked(r) && rtRepMatch(r));
+    rows.forEach(r => {
+      grandStores += r.stores;
+      grandUnits += r.stores * rtRowUsw(r) * RT_WEEKS_PER_YEAR;
+    });
+    rows.sort(byPrio).forEach(r => { html += rtRowHtml(r); });
+  }
+
+  if (!RT_PRIO_SORT) RT_CHANNEL_ORDER.forEach(ch => {
     if (!RT_VISIBLE_CHANNELS.has(ch)) return;
     const c = RT_CHANNELS[ch];
     const rows = RT_RETAILERS.filter(r => r.channel === ch && !isParked(r) && rtRepMatch(r));
@@ -8666,7 +8690,8 @@ function rtRenderTable() {
     const meta = PARKED[code];
     const parked = RT_RETAILERS
       .filter(r => RT_VISIBLE_CHANNELS.has(r.channel) && rtRowStatus(r) === code && rtRepMatch(r))
-      .sort((a,b) => (RT_CHANNEL_ORDER.indexOf(a.channel) - RT_CHANNEL_ORDER.indexOf(b.channel)) || byPrio(a,b));
+      .sort((a,b) => RT_PRIO_SORT ? byPrio(a,b)
+        : (RT_CHANNEL_ORDER.indexOf(a.channel) - RT_CHANNEL_ORDER.indexOf(b.channel)) || byPrio(a,b));
     if (!parked.length) return;
     html += `<tr class="rt-channel-row">
       <td colspan="15">
@@ -8725,7 +8750,7 @@ function rtRowHtml(r, dimmed) {
         <td class="rt-size-col">${rtFmtUnits(annualUnits)}</td>
         <td class="rt-size-col"><strong>${rtFmt$(annualUnits * RT_WHOLESALE_PRICE)}</strong></td>
         <td class="rt-size-col">${rtFmt$(annualUnits * RT_RETAIL_PRICE)}</td>`}
-        <td>
+        <td class="rt-status-cell">
           <select class="rt-status-select" onchange="rtUpdateStatus('${r.id}', this.value)">
             ${RT_STATUS_OPTIONS.map(o => `<option value="${o.v}" ${o.v === status ? "selected" : ""}>${o.label}</option>`).join("")}
           </select>
@@ -8754,8 +8779,8 @@ function rtRowHtml(r, dimmed) {
                  class="rt-text-input ${nextSteps ? 'has-value' : ''}"
                  onchange="rtUpdateText('${r.id}', 'nextSteps', this.value, this)">
         </td>
-        <td>${rtDateCell(r.id, "nextReview", nextReview, reviewOverdue)}</td>
         <td>${rtDateCell(r.id, "deadline", deadline, deadlineOverdue)}</td>
+        <td>${rtDateCell(r.id, "nextReview", nextReview, reviewOverdue)}</td>
         <td class="rt-reset-col">${rtDateCell(r.id, "resetDate", resetDate, false)}</td>
       </tr>`;
 }
@@ -8867,41 +8892,40 @@ function rtOppChip(id) {
              href="${RT_SF_LIGHTNING}/lightning/r/Opportunity/${rtEsc(o.sfOppId)}/view"
              title="Catalyst cat litter Opportunity in Salesforce">SF · ${rtEsc(stage)}</a></div>`;
 }
-// State split behind the store-count cell. Walmart is real (this week's store
-// feed); every other retailer is modeled by spreading its door count across
-// Walmart's own state footprint, which is the closest proxy we have. Labeled
-// as modeled so nobody reads it as a store list.
-let RT_STATE_FOOTPRINT = null;
-function rtStateFootprint() {
-  if (RT_STATE_FOOTPRINT) return RT_STATE_FOOTPRINT;
-  const counts = {};
-  let total = 0;
-  Object.values((typeof DATA !== "undefined" && DATA.stores) || {}).forEach(st => {
-    const k = (st && st.state) || "";
-    if (!k) return;
-    counts[k] = (counts[k] || 0) + 1;
-    total++;
-  });
-  RT_STATE_FOOTPRINT = { counts, total };
-  return RT_STATE_FOOTPRINT;
-}
+// State split behind the store-count cell. Walmart comes from this week's
+// store feed; every other retailer uses researched counts from
+// retailer_state_counts.json (source + date shown). No source, no split:
+// the tooltip says so rather than modeling one.
 function rtStateTooltip(r) {
-  const fp = rtStateFootprint();
-  if (!fp.total || !r.stores) return "";
-  const real = r.id === "walmart";
-  const rows = Object.entries(fp.counts)
-    .map(([st, n]) => [st, real ? n : Math.round(n / fp.total * r.stores)])
-    .filter(([, n]) => n > 0)
-    .sort((a, b) => b[1] - a[1]);
+  if (!r.stores) return "";
+  let counts = null, head = "";
+  if (r.id === "walmart") {
+    counts = {};
+    Object.values((typeof DATA !== "undefined" && DATA.stores) || {}).forEach(st => {
+      const k = (st && st.state) || "";
+      if (k) counts[k] = (counts[k] || 0) + 1;
+    });
+    const n = Object.values(counts).reduce((t, v) => t + v, 0);
+    head = `${r.name}: ${n.toLocaleString()} stores by state (Walmart store feed)`;
+  } else {
+    const rs = (typeof DATA !== "undefined" && DATA.retailer_states) || {};
+    const e = (rs.counts || {})[r.id];
+    if (!e) {
+      const why = (rs.missing || {})[r.id];
+      return `${r.name}: no published store count by state${why ? ` (${why})` : ""}`;
+    }
+    counts = e.states;
+    const n = Object.values(counts).reduce((t, v) => t + v, 0);
+    head = `${r.name}: ${n.toLocaleString()} stores by state · ${e.src}, ${e.asOf}`
+      + (n !== r.stores ? ` (row uses ${r.stores.toLocaleString()})` : "")
+      + (e.note ? `\nNote: ${e.note}` : "");
+  }
+  const rows = Object.entries(counts).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
   if (!rows.length) return "";
-  const top = rows.slice(0, 10);
-  const rest = rows.slice(10).reduce((t, [, n]) => t + n, 0);
-  const lines = top.map(([st, n]) => `${st} ${n.toLocaleString()}`);
-  if (rest > 0) lines.push(`+${rows.length - 10} more states ${rest.toLocaleString()}`);
-  const head = real
-    ? `${r.name}: stores by state (Walmart store feed, ${fp.total.toLocaleString()} stores)`
-    : `${r.name}: estimated split of ${r.stores.toLocaleString()} doors — MODELED from Walmart's state footprint, not a store list`;
-  return head + "\n" + lines.join(" · ");
+  const lines = [];
+  for (let i = 0; i < rows.length; i += 8)
+    lines.push(rows.slice(i, i + 8).map(([st, n]) => `${st} ${n.toLocaleString()}`).join(" · "));
+  return head + "\n" + lines.join("\n");
 }
 
 // Dates are typed, not clicked: the native picker's year segment is the worst
@@ -8982,8 +9006,7 @@ function rtParseDate(raw) {
 function rtDateLabel(iso) {
   if (!iso) return "";
   const [y, m, d] = iso.split("-").map(Number);
-  const label = `${RT_MONTHS[m-1].replace(/^./, c => c.toUpperCase())} ${d}`;
-  return y === new Date().getFullYear() ? label : `${label} '${String(y).slice(2)}`;
+  return `${m}/${d}/${String(y).slice(2)}`;
 }
 
 // One editable date cell: type shorthand, or hit the calendar button.
