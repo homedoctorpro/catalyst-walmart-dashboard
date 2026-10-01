@@ -73,9 +73,9 @@ SURVEY = "(Walmart) Lignetics Inc. Cat Litter Endcap Set WK27.xlsx"
 FOLLOWUP_GLOB = "* Endcap Update.xlsx"
 # Full re-sweeps. Anderson re-visits every not-set store and sends a combined
 # "WK27_WK30_Final" workbook in the WK27 survey layout, one row per store with
-# its latest visit. Rows dated after a store's current record win; a store
-# already confirmed set is never downgraded (the follow-up sweep isn't in
-# these files, so its 136 stores show their stale WK27 "No" row there).
+# its latest visit. Rows dated after a store's current record win (the WK30
+# file carries a stale WK27 "No" row for the 136 follow-up stores; its date
+# predates the follow-up, so it is ignored). See load_survey for lapses.
 RESWEEP_GLOB = "*Cat Litter Endcap Set WK*_*Final*.xlsx"
 
 # Set waves, in the order they happened. Every sales cut reports them
@@ -273,10 +273,12 @@ def load_resweeps():
         if "Summary" in wb.sheetnames:
             for r in wb["Summary"].iter_rows(max_row=8, values_only=True):
                 for cell in r:
-                    pat = r"WK(\d+)\s*\((\w{3} \d{1,2})\s*-\s*(\w{3} \d{1,2})\)"
-                    for wk, a, b in re.findall(pat, str(cell or "")):
-                        da = datetime.strptime(a + " 2026", "%b %d %Y").date()
-                        db = datetime.strptime(b + " 2026", "%b %d %Y").date()
+                    # Month may be spelled "Sept" (WK33 header), so match 3-4
+                    # letters and parse the first three.
+                    pat = r"WK(\d+)\s*\((\w{3})\w? (\d{1,2})\s*-\s*(\w{3})\w? (\d{1,2})\)"
+                    for wk, ma, a, mb, b in re.findall(pat, str(cell or "")):
+                        da = datetime.strptime(f"{ma} {a} 2026", "%b %d %Y").date()
+                        db = datetime.strptime(f"{mb} {b} 2026", "%b %d %Y").date()
                         windows[f"wk{int(wk)}"] = (da, db)
         rows = {}
         it = wb["Store Details"].iter_rows(values_only=True)
@@ -355,17 +357,23 @@ def load_survey():
         print(f"[ok] follow-up list {fu_file}: {len(fu)} set, {n_fu} newly converted")
 
     # --- re-sweep overlay ---------------------------------------------------
-    # Only a visit dated after the store's current record can change it, and a
-    # store already confirmed set stays set (the re-sweep workbook carries the
-    # stale WK27 "No" row for the follow-up stores, which were not re-visited).
+    # The latest dated visit wins. The date check is what keeps the stale WK27
+    # "No" rows (carried for the Aug 9-11 follow-up stores in the WK30 file)
+    # from undoing the follow-up. A store that was set and is found NOT set on
+    # a later re-visit (WK33 re-visited 135 of the follow-up stores; 24 were
+    # not set) drops to not-set with lapsed=<its old wave>, matching Anderson's
+    # own count. A set store re-confirmed later keeps its original wave.
     for fname, _windows, rows in load_resweeps():
-        n_new = n_reason = 0
+        n_new = n_reason = n_lapsed = 0
         for store, rec in rows.items():
             prev = out.get(store)
             if prev and rec["date"] <= prev["date"]:
                 continue
             if prev and prev["set"]:
-                continue
+                if rec["set"]:
+                    continue          # re-confirmed: keep the original wave/date
+                rec["lapsed"] = prev["wave"]
+                n_lapsed += 1
             rec["prior_reason"] = prev["reason"] if prev else ""
             if rec["set"]:
                 n_new += 1
@@ -373,7 +381,8 @@ def load_survey():
                 rec["wave"] = ""
                 n_reason += 1
             out[store] = rec
-        print(f"[ok] re-sweep {fname}: {n_new} newly set, {n_reason} not-set reasons refreshed")
+        print(f"[ok] re-sweep {fname}: {n_new} newly set, {n_reason} not-set reasons refreshed"
+              + (f", {n_lapsed} previously-set stores found not set" if n_lapsed else ""))
     return out
 
 
