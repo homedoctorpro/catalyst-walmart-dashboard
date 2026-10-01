@@ -75,7 +75,7 @@ FOLLOWUP_GLOB = "* Endcap Update.xlsx"
 # "WK27_WK30_Final" workbook in the WK27 survey layout, one row per store with
 # its latest visit. Rows dated after a store's current record win (the WK30
 # file carries a stale WK27 "No" row for the 136 follow-up stores; its date
-# predates the follow-up, so it is ignored). See load_survey for lapses.
+# predates the follow-up, so it is ignored). A set store is never downgraded.
 RESWEEP_GLOB = "*Cat Litter Endcap Set WK*_*Final*.xlsx"
 
 # Set waves, in the order they happened. Every sales cut reports them
@@ -357,12 +357,12 @@ def load_survey():
         print(f"[ok] follow-up list {fu_file}: {len(fu)} set, {n_fu} newly converted")
 
     # --- re-sweep overlay ---------------------------------------------------
-    # The latest dated visit wins. The date check is what keeps the stale WK27
-    # "No" rows (carried for the Aug 9-11 follow-up stores in the WK30 file)
-    # from undoing the follow-up. A store that was set and is found NOT set on
-    # a later re-visit (WK33 re-visited 135 of the follow-up stores; 24 were
-    # not set) drops to not-set with lapsed=<its old wave>, matching Anderson's
-    # own count. A set store re-confirmed later keeps its original wave.
+    # Only a visit dated after the store's current record can change it (that
+    # is what ignores the stale WK27 "No" rows the WK30 file carries for the
+    # Aug 9-11 follow-up stores). A store once set stays set in its original
+    # wave: WK33 re-visited 135 follow-up stores and found 24 "not set", but
+    # those had sold through the 36 bags, not lost the display (owner call,
+    # 2026-10-01). This is why our set count runs above Anderson's summary.
     for fname, _windows, rows in load_resweeps():
         n_new = n_reason = n_lapsed = 0
         for store, rec in rows.items():
@@ -370,10 +370,10 @@ def load_survey():
             if prev and rec["date"] <= prev["date"]:
                 continue
             if prev and prev["set"]:
-                if rec["set"]:
-                    continue          # re-confirmed: keep the original wave/date
-                rec["lapsed"] = prev["wave"]
-                n_lapsed += 1
+                if not rec["set"]:
+                    prev["revisit_not_set"] = rec["date"]
+                    n_lapsed += 1
+                continue
             rec["prior_reason"] = prev["reason"] if prev else ""
             if rec["set"]:
                 n_new += 1
@@ -382,7 +382,7 @@ def load_survey():
                 n_reason += 1
             out[store] = rec
         print(f"[ok] re-sweep {fname}: {n_new} newly set, {n_reason} not-set reasons refreshed"
-              + (f", {n_lapsed} previously-set stores found not set" if n_lapsed else ""))
+              + (f", {n_lapsed} set stores found sold through on re-visit (kept set)" if n_lapsed else ""))
     return out
 
 
