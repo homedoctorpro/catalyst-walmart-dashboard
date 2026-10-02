@@ -57,7 +57,7 @@ const HEADERS = [
   'sf_account_id', 'sf_account_name', 'contacts_json', 'sf_synced_at',
   'sf_opportunity_id', 'sf_opportunity_stage',
   'needs_distributor', 'distributor_name', 'deadline', 'key_contact', 'reset_date',
-  'suggested_contacts',
+  'suggested_contacts', 'notes',
 ];
 const COL = {
   id: 1, name: 2, channel: 3,
@@ -68,7 +68,7 @@ const COL = {
   sfAccountId: 17, sfAccountName: 18, contactsJson: 19, sfSyncedAt: 20,
   sfOppId: 21, sfOppStage: 22,
   needsDistributor: 23, distributorName: 24, deadline: 25, keyContact: 26,
-  resetDate: 27, suggestedContacts: 28,
+  resetDate: 27, suggestedContacts: 28, notes: 29,
 };
 const N_SF_COLS = 6;  // Q..V, owned by the Salesforce sync
 const N_COLS = HEADERS.length;
@@ -88,7 +88,7 @@ function formatHeader_(sh) {
 
 function setColumnWidths_(sh) {
   const widths = [110, 220, 110, 80, 90, 100, 110, 110, 130, 130, 130, 100, 320, 160, 110, 70,
-                  150, 200, 300, 140, 190, 130, 120, 180, 110, 220, 110, 320];
+                  150, 200, 300, 140, 190, 130, 120, 180, 110, 220, 110, 320, 360];
   for (let i = 0; i < widths.length; i++) sh.setColumnWidth(i + 1, widths[i]);
 }
 
@@ -125,7 +125,7 @@ function ensureSchema_() {
   // Migrate older layouts (14 = through updated_at, 15 = next_review, 16 = priority,
   // 20 = the Account sync block, 22 = the Opportunity columns): append the
   // missing trailing headers instead of wiping data
-  for (const n of [14, 15, 16, 20, 22, 24, 25, 26, 27]) {
+  for (const n of [14, 15, 16, 20, 22, 24, 25, 26, 27, 28]) {
     let isLegacy = true;
     for (let i = 0; i < N_COLS; i++) {
       const want = i < n ? HEADERS[i] : '';
@@ -195,6 +195,8 @@ function readAll_() {
     if (resetDate) o.resetDate = resetDate;
     const suggested = String(r[COL.suggestedContacts - 1] || '').trim();
     if (suggested) o.suggestedContacts = suggested;
+    const notes = String(r[COL.notes - 1] || '').trim();
+    if (notes) o.notes = notes;
     if (String(r[COL.needsDistributor - 1] || '').trim()) o.needsDistributor = '1';
     const distName = String(r[COL.distributorName - 1] || '').trim();
     if (distName) o.distributorName = distName;
@@ -282,6 +284,9 @@ function writeEditable_(sh, row, fields) {
   sh.getRange(row, COL.keyContact).setValue(fields.keyContact || '');
   sh.getRange(row, COL.resetDate).setValue(fields.resetDate || '');
   sh.getRange(row, COL.suggestedContacts).setValue(fields.suggestedContacts || '');
+  // Only touch notes when the caller sent the key, so a dashboard tab left open
+  // from before the column existed can't blank them.
+  if ('notes' in fields) sh.getRange(row, COL.notes).setValue(fields.notes || '');
 }
 
 function upsert_(item) {
@@ -381,6 +386,9 @@ function bulkReplace_(items) {
     return [f.needsDistributor ? '1' : '', f.distributorName || '', f.deadline || '',
             f.keyContact || '', f.resetDate || '', f.suggestedContacts || ''];
   }));
+  sh.getRange(2, COL.notes, items.length, 1).setValues(items.map(function (it) {
+    return [(it.fields && it.fields.notes) || ''];
+  }));
   // Width must follow N_SF_COLS — it grew from 4 (Q-T) to 6 (Q-V) when the
   // Opportunity columns landed, and a short row here fails the whole push.
   sh.getRange(2, COL.sfAccountId, items.length, N_SF_COLS).setValues(items.map(function (it) {
@@ -462,7 +470,7 @@ const MCP_WRITABLE = {
   status: 'status', priority: 'priority', rep_firm: 'repFirm', next_steps: 'nextSteps',
   deadline: 'deadline', next_review: 'nextReview', reset_date: 'resetDate',
   needs_distributor: 'needsDistributor', distributor_name: 'distributorName',
-  key_contact: 'keyContact',
+  key_contact: 'keyContact', notes: 'notes',
 };
 const MCP_STATUSES = ['in', 'pitched', 'target', 'non-target', 'declined', ''];
 
@@ -512,6 +520,7 @@ function mcpTools_() {
           priority:          { type: 'number', description: '1-10, 1 is highest. 0 clears it.' },
           rep_firm:          { type: 'string', description: 'Unassigned, Brian Schlager, Internal, Jeff Day, PSE, StoR' },
           next_steps:        { type: 'string' },
+          notes:             { type: 'string', description: 'Free-text notes (replaces the existing notes)' },
           deadline:          { type: 'string', description: 'yyyy-mm-dd, or empty to clear' },
           next_review:       { type: 'string', description: 'yyyy-mm-dd, or empty to clear' },
           reset_date:        { type: 'string', description: 'yyyy-mm-dd shelf reset, or empty to clear' },
@@ -559,6 +568,7 @@ function mcpRows_() {
         distributor_name: String(r[COL.distributorName - 1] || ''),
         key_contact: String(r[COL.keyContact - 1] || ''),
         suggested_contacts: String(r[COL.suggestedContacts - 1] || ''),
+        notes: String(r[COL.notes - 1] || ''),
         sf_account: String(r[COL.sfAccountName - 1] || ''),
         sf_opportunity_stage: String(r[COL.sfOppStage - 1] || ''),
         contacts_json: String(r[COL.contactsJson - 1] || ''),

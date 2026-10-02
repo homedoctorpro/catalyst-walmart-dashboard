@@ -57,6 +57,7 @@ TRACKED = [
     ("needsDistributor", "Needs distributor"),
     ("distributorName",  "Distributor"),
     ("keyContact",       "Key contact"),
+    ("notes",            "Notes"),
     ("sfOppStage",       "Opportunity stage"),
 ]
 STATUS_LABEL = {"in": "Currently In", "pitched": "Pitched", "target": "Target",
