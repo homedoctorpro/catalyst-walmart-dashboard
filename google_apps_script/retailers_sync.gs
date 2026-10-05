@@ -154,6 +154,18 @@ function ensureSchema_() {
   return sh;
 }
 
+// ── Dates ───────────────────────────────────────────────────────────────────
+// A 'yyyy-mm-dd' string written to a cell becomes midnight in the SPREADSHEET's
+// time zone, so it must be read back in that same zone. The script's own zone
+// (America/Denver in appsscript.json) is two hours behind Eastern: formatting
+// with it turned 12/1 into 11/30, and every read-modify-write save slipped
+// every date on the row back a day.
+let sheetTzCache_ = null;
+function sheetTz_() {
+  if (!sheetTzCache_) sheetTzCache_ = SpreadsheetApp.getActive().getSpreadsheetTimeZone();
+  return sheetTzCache_;
+}
+
 // ── Read ────────────────────────────────────────────────────────────────────
 
 function readAll_() {
@@ -175,7 +187,7 @@ function readAll_() {
     const uswRaw = r[COL.uswOverride - 1];
     const reviewRaw = r[COL.nextReview - 1];
     const nextReview = (reviewRaw instanceof Date)
-      ? Utilities.formatDate(reviewRaw, Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      ? Utilities.formatDate(reviewRaw, sheetTz_(), 'yyyy-MM-dd')
       : String(reviewRaw || '').trim();
     if (nextReview) o.nextReview = nextReview;
     const prioRaw = r[COL.priority - 1];
@@ -183,14 +195,14 @@ function readAll_() {
     if (prioRaw !== '' && prioRaw != null && prio >= 1 && prio <= 10) o.priority = Math.round(prio);
     const dlRaw = r[COL.deadline - 1];
     const deadline = (dlRaw instanceof Date)
-      ? Utilities.formatDate(dlRaw, Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      ? Utilities.formatDate(dlRaw, sheetTz_(), 'yyyy-MM-dd')
       : String(dlRaw || '').trim();
     if (deadline) o.deadline = deadline;
     const keyContact = String(r[COL.keyContact - 1] || '').trim();
     if (keyContact) o.keyContact = keyContact;
     const resetRaw = r[COL.resetDate - 1];
     const resetDate = (resetRaw instanceof Date)
-      ? Utilities.formatDate(resetRaw, Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      ? Utilities.formatDate(resetRaw, sheetTz_(), 'yyyy-MM-dd')
       : String(resetRaw || '').trim();
     if (resetDate) o.resetDate = resetDate;
     const suggested = String(r[COL.suggestedContacts - 1] || '').trim();
@@ -229,7 +241,7 @@ function readOrphanOpps_() {
     return { account: String(r[0] || ''), name: String(r[1] || ''), stage: String(r[2] || ''),
              amount: r[3] === '' ? null : Number(r[3]),
              closeDate: r[4] instanceof Date
-               ? Utilities.formatDate(r[4], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+               ? Utilities.formatDate(r[4], sheetTz_(), 'yyyy-MM-dd')
                : String(r[4] || ''),
              id: String(r[6] || '') };
   }).filter(function (o) { return o.id; });
@@ -263,8 +275,12 @@ function writeStaticAndFormulas_(sh, row, item) {
   if (item.channel != null)      sh.getRange(row, COL.channel).setValue(item.channel);
   if (item.usStores != null)     sh.getRange(row, COL.usStores).setValue(item.usStores);
   if (item.defaultUsw != null)   sh.getRange(row, COL.defaultUsw).setValue(item.defaultUsw);
-  const usw = (item.fields && item.fields.usw != null && item.fields.usw !== '') ? item.fields.usw : '';
-  sh.getRange(row, COL.uswOverride).setValue(usw);
+  // Only touch the override when the caller sent the key (the dashboard always
+  // does, null to clear); the MCP connector doesn't, and used to blank it.
+  if (item.fields && 'usw' in item.fields) {
+    const usw = (item.fields.usw != null && item.fields.usw !== '') ? item.fields.usw : '';
+    sh.getRange(row, COL.uswOverride).setValue(usw);
+  }
   // Formulas are idempotent — write them every time
   const f = rowFormulas_(row);
   sh.getRange(row, COL.effectiveUsw, 1, 4).setFormulas([f]);
@@ -549,7 +565,7 @@ function mcpRows_() {
     .filter(function (r) { const id = String(r[COL.id - 1] || '').trim(); return id && id !== 'TOTAL'; })
     .map(function (r) {
       const iso = function (v) {
-        return (v instanceof Date) ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd')
+        return (v instanceof Date) ? Utilities.formatDate(v, sheetTz_(), 'yyyy-MM-dd')
                                    : String(v || '').trim();
       };
       return {
@@ -588,7 +604,7 @@ function mcpFind_(rows, term) {
 }
 
 function mcpToday_() {
-  return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  return Utilities.formatDate(new Date(), sheetTz_(), 'yyyy-MM-dd');
 }
 
 function mcpLine_(r) {
@@ -955,7 +971,7 @@ function sfSoqlStr_(s) { return String(s).replace(/\\/g, '\\\\').replace(/'/g, "
 function sfNorm_(field, v) {
   if (v == null) return '';
   if (field === 'nextReview') {
-    if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    if (v instanceof Date) return Utilities.formatDate(v, sheetTz_(), 'yyyy-MM-dd');
     return String(v).trim().slice(0, 10);
   }
   if (field === 'priority') {
@@ -1279,11 +1295,14 @@ function syncSalesforce_() {
 // ── Opportunities ──────────────────────────────────────────────────────────
 
 function sfOppDate_(v) {
-  const d = (v instanceof Date) ? v : (String(v || '').trim() ? new Date(String(v).trim()) : null);
-  if (d && !isNaN(d.getTime())) return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  // a plain date string is already the answer; new Date('yyyy-mm-dd') is UTC midnight
+  const s = (v instanceof Date) ? '' : String(v || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const d =(v instanceof Date) ? v : (String(v || '').trim() ? new Date(String(v).trim()) : null);
+  if (d && !isNaN(d.getTime())) return Utilities.formatDate(d, sheetTz_(), 'yyyy-MM-dd');
   const fallback = new Date();
   fallback.setDate(fallback.getDate() + SF_OPP_DEFAULT_DAYS);
-  return Utilities.formatDate(fallback, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  return Utilities.formatDate(fallback, sheetTz_(), 'yyyy-MM-dd');
 }
 
 // Runs at the end of every sync. `rows` is the Retailers grid, already merged.
