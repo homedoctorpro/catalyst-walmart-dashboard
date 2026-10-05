@@ -1,5 +1,5 @@
 {
- "lastSentOn": "2026-10-02",
+ "lastSentOn": "2026-10-05",
  "overdueSeen": [],
  "rows": {
   "ace": {
@@ -224,7 +224,7 @@
    "status": "target"
   },
   "pet-supermarket": {
-   "nextReview": "2026-12-30",
+   "nextReview": "2026-12-31",
    "nextSteps": "New Buyer - hear back from Tim Evans",
    "priority": 2,
    "repFirm": "PSE",
@@ -243,7 +243,6 @@
    "sfOppStage": "Proposal",
    "status": "pitched"
   },
-  "petsense": {},
   "petsmart": {
    "nextSteps": "Follow up in October - follow up with Steve now",
    "priority": 1,
@@ -334,11 +333,11 @@
    "repFirm": "StoR"
   },
   "walmart-canada": {
-   "nextReview": "2026-10-06",
+   "nextReview": "2026-10-07",
    "nextSteps": "Fill out the new item sheet - mod review for in-store will be late October",
    "priority": 1,
    "repFirm": "StoR",
-   "resetDate": "2027-04-30",
+   "resetDate": "2027-05-01",
    "status": "target"
   },
   "wegmans": {
@@ -355,5 +354,5 @@
    "repFirm": "Brian Schlager"
   }
  },
- "savedAt": "2026-10-02T16:41:17"
+ "savedAt": "2026-10-05T16:47:12"
 }
