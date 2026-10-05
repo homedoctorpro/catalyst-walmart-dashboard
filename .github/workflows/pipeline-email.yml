@@ -2,12 +2,14 @@ name: Retailer pipeline daily email
 
 # Weekday mornings: read the Retailers sheet, compare with the committed
 # snapshot, and email the group only if something moved or a deadline passed.
-# GitHub's cron is best-effort, so this runs hourly across the morning window
-# and the script itself keeps it to one send a day.
+# GitHub's cron is best-effort (slots get dropped or fire hours late, and on
+# 2026-10-05 the one late slot then sat with no runner), so this runs hourly
+# from morning through mid-afternoon and the script keeps it to one send a day.
 
 on:
   schedule:
     - cron: "22 11-15 * * 1-5"    # 7:22-11:22 ET, weekdays
+    - cron: "52 16-20 * * 1-5"    # 12:52-4:52 ET retries; no-op once sent
   workflow_dispatch:
     inputs:
       force:
