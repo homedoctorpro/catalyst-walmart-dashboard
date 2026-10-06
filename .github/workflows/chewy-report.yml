@@ -29,6 +29,10 @@ on:
         description: "Email the dev recipient (Phil) only"
         type: boolean
         default: false
+      reforward_days:
+        description: "Only re-forward snapshot emails from the last N days to Phil (no build, no recap)"
+        type: string
+        default: ""
 
 concurrency:
   group: chewy-report
@@ -60,7 +64,16 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Re-forward recent snapshot emails to Phil
+        if: inputs.reforward_days != ''
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
+        run: |
+          python chewy_cloud_poller.py --reforward-only             --since-days "${{ inputs.reforward_days }}"             --inbox-dir "$RUNNER_TEMP/reforward"             --state-file "$RUNNER_TEMP/reforward_state"
+
       - name: Poll inbox for new Brand Snapshot PDFs
+        if: inputs.reforward_days == ''
         id: poll
         env:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}

@@ -161,6 +161,9 @@ def main():
     ap.add_argument("--since-days", type=int, default=45)
     ap.add_argument("--forward-to", default=FORWARD_TO,
                     help="Forward each ingested email here ('' = off).")
+    ap.add_argument("--reforward-only", action="store_true",
+                    help="Only forward snapshot emails from the last --since-days, "
+                         "processed or not. Saves nothing, changes no state.")
     args = ap.parse_args()
 
     user = os.environ.get("EMAIL_USER")
@@ -191,10 +194,14 @@ def main():
                 continue
             msg = email.message_from_bytes(raw[0][1])
             msg_id = (msg.get("Message-ID") or "").strip() or f"uid:{num.decode()}"
-            if msg_id in processed:
+            if msg_id in processed and not args.reforward_only:
                 continue
             pdfs = list(snapshot_pdfs(msg)) + list(data_files(msg))
             if not pdfs:
+                continue
+            if args.reforward_only:
+                if args.forward_to:
+                    forward_original(msg, user, pw, args.forward_to)
                 continue
             sender = parseaddr(msg.get("From") or "")[1].lower()
             if sender and sender not in senders:
