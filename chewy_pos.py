@@ -589,8 +589,8 @@ def build(store, out_dir):
     path = os.path.join(out_dir, name)
     wb.save(path)
 
-    def usum(ms):
-        return sum(get(store, "units", p, m) or 0 for p in PARTS for m in ms)
+    def usum(ms, parts=PARTS):
+        return sum(get(store, "units", p, m) or 0 for p in parts for m in ms)
 
     summary = {
         "report": path, "file_name": name,
@@ -598,6 +598,10 @@ def build(store, out_dir):
         "fy": fy_now, "fy_prev": fy_prev,
         "units_window": u_label.strip("()"), "dollars_window": d_label.strip("()"),
         "units_ytd": usum(u_cur), "units_ytd_prior": usum(u_pri),
+        # Feline Fresh was only ramping at Chewy a year ago, so the overall growth % is
+        # partly new-brand volume; Catalyst alone is the like-for-like number.
+        "catalyst_units_ytd": usum(u_cur, CATALYST),
+        "catalyst_units_ytd_prior": usum(u_pri, CATALYST),
         "no_dollar_months": no_dollar_months,
         "partial_dollar_groups": partial_groups,
         "partial_dollar_since": partial_since,
@@ -637,8 +641,16 @@ def render_body(summary, names):
                  + ". Those cells are gray and the totals stay blank until it does.")
     lines += [para, ""]
     if pri:
-        lines += [f"{summary['fy']} YTD units ({summary['units_window']}): {cur:,} vs {pri:,} "
-                  f"last year ({(cur - pri) / pri * 100:+.1f}%).", ""]
+        line = (f"{summary['fy']} YTD units ({summary['units_window']}): "
+                f"{cur:,} vs {pri:,} last year ({(cur - pri) / pri * 100:+.1f}%) overall")
+        ccur, cpri = summary.get("catalyst_units_ytd"), summary.get("catalyst_units_ytd_prior")
+        if cpri:
+            fcur, fpri = cur - ccur, pri - cpri
+            line += (f". Catalyst only: {ccur:,} vs {cpri:,} ({(ccur - cpri) / cpri * 100:+.1f}%). "
+                     f"Feline Fresh: {fcur:,} vs {fpri:,}.")
+        else:
+            line += "."
+        lines += [line, ""]
     lines += ["Send new Brand Snapshots or Chewy's monthly sales file to "
               "ligneticsdata@gmail.com anytime and an updated report comes back.", "",
               "Catalyst reporting"]
