@@ -6,6 +6,10 @@ attachment whose filename contains "Brand Snapshot" (Jeff's monthly Chewy
 snapshots, forwarded to the reports mailbox), and saves each one into the
 snapshots folder inside the data-repo checkout so chewy_extract.py can parse it.
 
+Each ingested email is also forwarded to FORWARD_TO (Phil), so he sees what
+Jeff sent even when Jeff mails only the reports inbox. Skipped when Phil was
+already on it. Best-effort: a failed forward never stops the ingest.
+
 Idempotency: processed email Message-IDs are recorded in a state file inside the
 data repo, so an email is never ingested twice.
 
@@ -17,12 +21,23 @@ import re
 import sys
 import email
 import imaplib
+import smtplib
+import ssl
 import argparse
 from email.header import decode_header, make_header
-from email.utils import parseaddr
+from email.utils import parseaddr, getaddresses
 from datetime import date, timedelta
 
 IMAP_HOST = "imap.gmail.com"
+SMTP_HOST, SMTP_PORT = "smtp.gmail.com", 465
+FORWARD_TO = "pross@lignetics.com"
+# Headers that belong to the original delivery, not to the forward.
+_DROP_HEADERS = ("To", "Cc", "Bcc", "From", "Sender", "Reply-To", "Subject",
+                 "Message-ID", "In-Reply-To", "References", "Return-Path",
+                 "Delivered-To", "Received", "DKIM-Signature",
+                 "ARC-Seal", "ARC-Message-Signature", "ARC-Authentication-Results",
+                 "Authentication-Results", "Received-SPF",
+                 "X-Google-Smtp-Source", "X-Received", "X-Gm-Message-State")
 # PDF filenames Chewy/Jeff have used so far:
 #   "Brand Snapshot _ Catalyst Pet - Aug 2023.pdf"   (2023-25 export)
 #   "CATALYSTPET - Mar 2026.pdf" / "FELINEFRESH - Mar 2026.pdf"
@@ -105,6 +120,34 @@ def data_files(msg):
             yield fname, payload
 
 
+def forward_original(msg, user, pw, to=FORWARD_TO):
+    """Re-send the original email (body and attachments untouched) to `to`.
+    Reply-To stays the original sender, so replying goes to Jeff."""
+    recipients = {a.lower() for _, a in getaddresses(
+        msg.get_all("To", []) + msg.get_all("Cc", []))}
+    sender_name, sender = parseaddr(msg.get("From") or "")
+    if to.lower() in recipients or sender.lower() == to.lower():
+        print(f"[chewy-poller] {to} already on the original; not forwarding")
+        return
+    subject = _decode(msg.get("Subject"))
+    fwd = email.message_from_bytes(msg.as_bytes())
+    for h in _DROP_HEADERS:
+        del fwd[h]
+    fwd["From"] = user
+    fwd["To"] = to
+    fwd["Reply-To"] = msg.get("From")
+    fwd["Subject"] = f"Fwd: {subject}"
+    fwd["X-Original-From"] = msg.get("From") or ""
+    try:
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT,
+                              context=ssl.create_default_context()) as srv:
+            srv.login(user, pw)
+            srv.send_message(fwd, from_addr=user, to_addrs=[to])
+        print(f"[chewy-poller] forwarded {subject!r} from {sender} to {to}")
+    except Exception as e:
+        print(f"[chewy-poller] forward to {to} failed: {e}", file=sys.stderr)
+
+
 def _safe(name):
     return re.sub(r"[^A-Za-z0-9._ ()-]", "_", name).strip()
 
@@ -116,6 +159,8 @@ def main():
     ap.add_argument("--state-file", required=True,
                     help="File tracking processed Message-IDs (in the data repo).")
     ap.add_argument("--since-days", type=int, default=45)
+    ap.add_argument("--forward-to", default=FORWARD_TO,
+                    help="Forward each ingested email here ('' = off).")
     args = ap.parse_args()
 
     user = os.environ.get("EMAIL_USER")
@@ -161,6 +206,8 @@ def main():
                 print(f"[chewy-poller] saved {os.path.basename(out)} "
                       f"({len(payload)} bytes) from {_decode(msg.get('Subject'))!r}")
                 saved.append(os.path.basename(out))
+            if args.forward_to:
+                forward_original(msg, user, pw, args.forward_to)
             append_processed(args.state_file, msg_id)
             processed.add(msg_id)
             try:
