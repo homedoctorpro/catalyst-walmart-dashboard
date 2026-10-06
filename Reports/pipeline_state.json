@@ -1,11 +1,12 @@
 {
- "lastSentOn": "2026-10-05",
+ "lastSentOn": "2026-10-06",
  "overdueSeen": [],
  "rows": {
   "ace": {
    "status": "target"
   },
   "albertsons": {
+   "deadline": "2026-11-13",
    "nextSteps": "Reach out to buyer",
    "priority": 3,
    "repFirm": "Internal",
@@ -13,12 +14,14 @@
    "status": "target"
   },
   "aldi": {
+   "deadline": "2026-11-30",
    "nextSteps": "Reach out to buyer - PL",
    "priority": 4,
    "repFirm": "Internal",
    "status": "target"
   },
   "atwoods": {
+   "deadline": "2026-11-13",
    "nextSteps": "Try again, price sensitive",
    "priority": 3,
    "repFirm": "Internal",
@@ -29,6 +32,7 @@
    "status": "non-target"
   },
   "big-r": {
+   "deadline": "2027-01-15",
    "nextSteps": "Annamarie",
    "priority": 6,
    "repFirm": "Internal",
@@ -42,6 +46,7 @@
    "status": "non-target"
   },
   "bomgaars": {
+   "deadline": "2026-11-13",
    "nextSteps": "Have FF, price sensitive",
    "priority": 3,
    "repFirm": "Internal",
@@ -52,6 +57,7 @@
    "repFirm": "Brian Schlager"
   },
   "bradley-caldwell": {
+   "deadline": "2026-10-30",
    "nextSteps": "Annamarie",
    "priority": 2,
    "repFirm": "Internal",
@@ -59,6 +65,7 @@
    "status": "target"
   },
   "cal-ranch": {
+   "deadline": "2027-01-15",
    "nextSteps": "Annamarie",
    "priority": 6,
    "repFirm": "Internal",
@@ -75,6 +82,7 @@
    "status": "non-target"
   },
   "db-supply": {
+   "deadline": "2026-11-13",
    "priority": 3,
    "repFirm": "Internal",
    "status": "target"
@@ -83,6 +91,7 @@
    "status": "target"
   },
   "dollar-general": {
+   "deadline": "2026-12-15",
    "nextSteps": "In BBQ",
    "priority": 5,
    "repFirm": "Internal",
@@ -93,18 +102,21 @@
    "status": "non-target"
   },
   "earthwise-pet": {
+   "deadline": "2026-11-13",
    "nextSteps": "Reach out to understand how they order?",
    "priority": 3,
    "repFirm": "Internal",
    "status": "target"
   },
   "family-dollar": {
+   "deadline": "2027-01-15",
    "priority": 6,
    "repFirm": "Internal",
    "sfOppStage": "Qualification",
    "status": "target"
   },
   "farm-fleet": {
+   "deadline": "2027-01-29",
    "nextSteps": "Not happy with Shavings",
    "priority": 7,
    "repFirm": "Internal",
@@ -120,12 +132,14 @@
    "status": "in"
   },
   "food-lion": {
+   "deadline": "2026-10-19",
    "nextSteps": "Discuss with PSE (Lori)",
    "priority": 1,
    "repFirm": "PSE",
    "status": "target"
   },
   "giant-company": {
+   "deadline": "2026-10-19",
    "priority": 1,
    "repFirm": "Brian Schlager",
    "status": "target"
@@ -134,16 +148,19 @@
    "repFirm": "Brian Schlager"
   },
   "giant-food": {
+   "deadline": "2026-10-19",
    "priority": 1,
    "repFirm": "Brian Schlager",
    "status": "target"
   },
   "hannaford": {
+   "deadline": "2026-10-19",
    "priority": 1,
    "repFirm": "Brian Schlager",
    "status": "target"
   },
   "heb": {
+   "deadline": "2026-10-19",
    "nextSteps": "Cindee to reach out / Lori / Skyler",
    "priority": 1,
    "repFirm": "Internal",
@@ -164,24 +181,28 @@
    "repFirm": "Brian Schlager"
   },
   "kahoots": {
+   "deadline": "2026-11-30",
    "nextSteps": "Need distributor",
    "priority": 4,
    "repFirm": "Internal",
    "status": "target"
   },
   "kehe": {
+   "deadline": "2026-11-13",
    "nextSteps": "Reach out",
    "priority": 3,
    "repFirm": "Internal",
    "status": "target"
   },
   "kriser": {
+   "deadline": "2026-11-30",
    "nextSteps": "Need distributor",
    "priority": 4,
    "repFirm": "Internal",
    "status": "target"
   },
   "kroger": {
+   "deadline": "2026-11-13",
    "nextSteps": "Reach out to buyer",
    "priority": 3,
    "repFirm": "Internal",
@@ -201,6 +222,7 @@
    "repFirm": "Brian Schlager"
   },
   "meijer": {
+   "deadline": "2026-10-19",
    "nextSteps": "Cindee to reach out / wait for Mike's response",
    "priority": 1,
    "repFirm": "PSE",
@@ -211,6 +233,7 @@
    "status": "non-target"
   },
   "murdochs": {
+   "deadline": "2027-01-15",
    "nextSteps": "Annamarie",
    "priority": 6,
    "repFirm": "Internal",
@@ -218,19 +241,22 @@
    "status": "target"
   },
   "pet-food-experts": {
+   "deadline": "2026-10-30",
    "priority": 2,
    "repFirm": "Internal",
    "sfOppStage": "Closed Lost",
    "status": "target"
   },
   "pet-supermarket": {
-   "nextReview": "2026-12-31",
+   "deadline": "2027-01-15",
+   "nextReview": "2026-12-30",
    "nextSteps": "New Buyer - hear back from Tim Evans",
    "priority": 2,
    "repFirm": "PSE",
    "status": "target"
   },
   "pet-supplies-plus": {
+   "deadline": "2026-10-30",
    "nextSteps": "Sent Teaser deck - hear back from Tim Evans",
    "priority": 2,
    "repFirm": "PSE",
@@ -243,6 +269,7 @@
    "sfOppStage": "Proposal",
    "status": "pitched"
   },
+  "petsense": {},
   "petsmart": {
    "nextSteps": "Follow up in October - follow up with Steve now",
    "priority": 1,
@@ -251,6 +278,10 @@
    "status": "pitched"
   },
   "phillips-pet": {
+   "deadline": "2026-12-15",
+   "keyContact": "steven.cline@phillipspet.com",
+   "nextReview": "2026-12-01",
+   "nextSteps": "10/5: Keith Chitwood has left Phillips. Steve Cline (Sr. Vendor Manager) is covering until a new category manager is hired. Phillips is pausing all new vendors/items during the Central integration. Cindee to re-engage Steve in early December (12/1).",
    "priority": 2,
    "repFirm": "Internal",
    "sfOppStage": "Closed Lost",
@@ -260,6 +291,7 @@
    "repFirm": "Brian Schlager"
   },
   "publix": {
+   "deadline": "2026-11-20",
    "nextSteps": "Start working on it at the end of October",
    "priority": 5,
    "repFirm": "Brian Schlager",
@@ -270,6 +302,7 @@
    "status": "non-target"
   },
   "rural-king": {
+   "deadline": "2027-01-15",
    "nextSteps": "Will try, but price sensitive",
    "priority": 6,
    "repFirm": "Internal",
@@ -283,6 +316,7 @@
    "repFirm": "Brian Schlager"
   },
   "sprouts": {
+   "deadline": "2027-01-15",
    "nextSteps": "See response",
    "priority": 6,
    "repFirm": "Jeff Day",
@@ -290,6 +324,7 @@
    "status": "target"
   },
   "stop-shop": {
+   "deadline": "2026-10-19",
    "priority": 1,
    "repFirm": "Brian Schlager",
    "status": "target"
@@ -303,6 +338,7 @@
    "repFirm": "Brian Schlager"
   },
   "tractor-supply": {
+   "deadline": "2026-10-30",
    "nextSteps": "Talk to Mark - Catalyst + Private Label",
    "priority": 2,
    "repFirm": "Internal",
@@ -310,6 +346,7 @@
    "status": "target"
   },
   "trader-joes": {
+   "deadline": "2026-11-30",
    "nextSteps": "Reach out to buyer - PL",
    "priority": 4,
    "repFirm": "Internal",
@@ -319,6 +356,7 @@
    "status": "target"
   },
   "unfi": {
+   "deadline": "2026-11-13",
    "nextSteps": "Reach out",
    "priority": 3,
    "repFirm": "Internal",
@@ -326,6 +364,7 @@
    "status": "target"
   },
   "walgreens": {
+   "deadline": "2027-02-26",
    "priority": 8,
    "status": "target"
   },
@@ -333,11 +372,12 @@
    "repFirm": "StoR"
   },
   "walmart-canada": {
-   "nextReview": "2026-10-07",
+   "deadline": "2026-10-16",
+   "nextReview": "2026-10-06",
    "nextSteps": "Fill out the new item sheet - mod review for in-store will be late October",
    "priority": 1,
    "repFirm": "StoR",
-   "resetDate": "2027-05-01",
+   "resetDate": "2027-04-30",
    "status": "target"
   },
   "wegmans": {
@@ -354,5 +394,5 @@
    "repFirm": "Brian Schlager"
   }
  },
- "savedAt": "2026-10-05T16:47:12"
+ "savedAt": "2026-10-06T01:32:34"
 }
