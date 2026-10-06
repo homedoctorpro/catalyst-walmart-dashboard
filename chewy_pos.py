@@ -65,6 +65,7 @@ PART_BY_CT = {s[1]: s[0] for s in SKUS}
 PART_BY_CT["CT28"] = "1932190"          # older reports labelled the FF 20-lb CT28
 BAGS = "1685430"
 CATALYST = [p for p, _, b, _ in SKUS if b == "Catalyst"]
+LIG_FY_START_MONTH = 7       # Lignetics' fiscal year starts in July
 FELINE = [p for p, _, b, _ in SKUS if b == "Feline Fresh"]
 LITTER = ["241757", "241758", "965502", "241763", "241764", "1633142", "241760", "241761"]
 
@@ -589,6 +590,13 @@ def build(store, out_dir):
     path = os.path.join(out_dir, name)
     wb.save(path)
 
+    lig_start = f"{int(lu[:4]) - (int(lu[5:]) < LIG_FY_START_MONTH)}-{LIG_FY_START_MONTH:02d}"
+    lig_cur, m = [], lig_start
+    while m <= lu:
+        lig_cur.append(m)
+        m = ym_add(m, 1)
+    lig_pri = [ym_add(m, -12) for m in lig_cur]
+
     def usum(ms, parts=PARTS):
         return sum(get(store, "units", p, m) or 0 for p in parts for m in ms)
 
@@ -602,6 +610,11 @@ def build(store, out_dir):
         # partly new-brand volume; Catalyst alone is the like-for-like number.
         "catalyst_units_ytd": usum(u_cur, CATALYST),
         "catalyst_units_ytd_prior": usum(u_pri, CATALYST),
+        # Lignetics' own fiscal year starts in July (Chewy's starts in February)
+        "lig_window": f"{mon(lig_cur[0])}-{mon(lig_cur[-1])}",
+        "lig_units_ytd": usum(lig_cur), "lig_units_ytd_prior": usum(lig_pri),
+        "lig_catalyst_units_ytd": usum(lig_cur, CATALYST),
+        "lig_catalyst_units_ytd_prior": usum(lig_pri, CATALYST),
         "no_dollar_months": no_dollar_months,
         "partial_dollar_groups": partial_groups,
         "partial_dollar_since": partial_since,
@@ -617,6 +630,18 @@ def _join(items):
     if len(items) <= 2:
         return " and ".join(items)
     return ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def _growth_line(label, cur, pri, ccur, cpri):
+    """Overall growth plus the Catalyst / Feline Fresh split: Feline Fresh was
+    only ramping at Chewy a year earlier, so the overall % isn't like-for-like."""
+    pct = lambda a, b: f" ({(a - b) / b * 100:+.1f}%)" if b else ""
+    line = f"{label}: {cur:,} vs {pri:,} last year{pct(cur, pri)} overall"
+    if not cpri:
+        return line + "."
+    fcur, fpri = cur - ccur, pri - cpri
+    return (line + f". Catalyst only: {ccur:,} vs {cpri:,}{pct(ccur, cpri)}. "
+            f"Feline Fresh: {fcur:,} vs {fpri:,}{pct(fcur, fpri)}.")
 
 
 def render_body(summary, names):
@@ -641,17 +666,14 @@ def render_body(summary, names):
                  + ". Those cells are gray and the totals stay blank until it does.")
     lines += [para, ""]
     if pri:
-        line = (f"{summary['fy']} YTD units ({summary['units_window']}): "
-                f"{cur:,} vs {pri:,} last year ({(cur - pri) / pri * 100:+.1f}%) overall")
-        ccur, cpri = summary.get("catalyst_units_ytd"), summary.get("catalyst_units_ytd_prior")
-        if cpri:
-            fcur, fpri = cur - ccur, pri - cpri
-            line += (f". Catalyst only: {ccur:,} vs {cpri:,} ({(ccur - cpri) / cpri * 100:+.1f}%). "
-                     f"Feline Fresh: {fcur:,} vs {fpri:,}"
-                     + (f" ({(fcur - fpri) / fpri * 100:+.1f}%)." if fpri else "."))
-        else:
-            line += "."
-        lines += [line, ""]
+        lines += [_growth_line(f"Chewy {summary['fy']} YTD units ({summary['units_window']})",
+                               cur, pri, summary.get("catalyst_units_ytd"),
+                               summary.get("catalyst_units_ytd_prior")), ""]
+    if summary.get("lig_units_ytd_prior"):
+        lines += [_growth_line(f"Lignetics FYTD units ({summary['lig_window']})",
+                               summary["lig_units_ytd"], summary["lig_units_ytd_prior"],
+                               summary.get("lig_catalyst_units_ytd"),
+                               summary.get("lig_catalyst_units_ytd_prior")), ""]
     lines += ["Send new Brand Snapshots or Chewy's monthly sales file to "
               "ligneticsdata@gmail.com anytime and an updated report comes back.", "",
               "Catalyst reporting"]
