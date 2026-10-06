@@ -647,7 +647,8 @@ def render_body(summary, names):
         if cpri:
             fcur, fpri = cur - ccur, pri - cpri
             line += (f". Catalyst only: {ccur:,} vs {cpri:,} ({(ccur - cpri) / cpri * 100:+.1f}%). "
-                     f"Feline Fresh: {fcur:,} vs {fpri:,}.")
+                     f"Feline Fresh: {fcur:,} vs {fpri:,}"
+                     + (f" ({(fcur - fpri) / fpri * 100:+.1f}%)." if fpri else "."))
         else:
             line += "."
         lines += [line, ""]
