@@ -9,7 +9,7 @@ import sys
 import glob
 import re
 import math
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import date, timedelta
 import pandas as pd
 import pgeocode
@@ -1037,6 +1037,9 @@ def compute_week_date(week_code):
 GEO_CACHE_FILE = "stores_geo.json"
 TEMPLATE_FILE  = "dashboard_template.html"
 OUTPUT_FILE    = "dashboard.html"
+# Weeks after this one keep its traited store base for U/S/W and Instock %
+# (Walmart dropped 598 store-SKU traits in wk202635 with no agreed change).
+TRAIT_BASE_WEEK = "202634"
 STORE_MAP_TEMPLATE_FILE = "store_map_template.html"
 STORE_MAP_OUTPUT_FILE   = "store_map.html"
 
@@ -1177,6 +1180,7 @@ def extract_instore_metrics(week, df):
         instock_pct = safe_float(row.iloc[9], 100)   # stored as fraction → multiply × 100
         usw = safe_float(row.iloc[33])
         markdown_pct = safe_float(row.iloc[41], 100)  # col 41: Markdown % Sales TY, fraction → %
+        traited_stores = safe_float(row.iloc[17])     # col 17: Traited Stores TY (U/S/W denominator)
 
         wholesale = None
         if pos_qty is not None:
@@ -1189,6 +1193,7 @@ def extract_instore_metrics(week, df):
             "usw":              usw,
             "wholesale_dollars": wholesale,
             "markdown_pct":     markdown_pct,
+            "traited_stores":   int(traited_stores) if traited_stores is not None else None,
         }
 
     # Total row (row 6)
@@ -1199,6 +1204,7 @@ def extract_instore_metrics(week, df):
     instock_pct_t = safe_float(row.iloc[9], 100)
     usw_t = safe_float(row.iloc[33])
     markdown_pct_t = safe_float(row.iloc[41], 100)
+    traited_t = safe_float(row.iloc[17])
 
     # Wholesale Total = sum of 4 SKU values
     wholesale_t = sum(
@@ -1213,6 +1219,7 @@ def extract_instore_metrics(week, df):
         "usw":               usw_t,
         "wholesale_dollars": wholesale_t,
         "markdown_pct":      markdown_pct_t,
+        "traited_stores":    int(traited_t) if traited_t is not None else None,
     }
 
     return result
@@ -1345,6 +1352,69 @@ def build_traited_from_feed(raw_store_rows_by_week, week_dates=None):
         "summary":       summary,
     }
 
+
+def pin_trait_base(base_week, metrics, raw_store_rows_by_week, store_weeks_list):
+    """Hold every week after `base_week` on base_week's traited store base.
+
+    Walmart dropped 598 store-SKU traits in wk202635 with no agreed change, which
+    shrank the U/S/W denominator and showed +18% U/S/W on +5% units. Until that is
+    resolved, slots traited in the base week stay traited in later weeks, so U/S/W
+    and Instock % stay comparable week to week.
+
+    Walmart's POS units already count every store (the dropped slots kept
+    selling); only U/S/W and Instock % cover traited stores. So the slots go back
+    into the denominator: U/S/W = POS units / (Walmart traited + restored), and
+    Instock % is re-weighted with each restored slot counted in stock when its
+    on-hand > 0 (an approximation; Walmart's own figure is store-day based). Row
+    flags are set back to traited so Store Data, Sales Map and OOS see the same
+    base. Slots missing from a week's feed have no row and stay out.
+
+    Returns {week: {sku: restored_count}} for the dashboard note.
+    """
+    if base_week not in store_weeks_list:
+        print(f"  [WARN] TRAIT_BASE_WEEK {base_week} has no store feed; trait base not pinned")
+        return {}
+    base = {(r["item_name"], r["store_num"]) for r in raw_store_rows_by_week[base_week]
+            if r.get("traited")}
+    out = {}
+    for week in store_weeks_list[store_weeks_list.index(base_week) + 1:]:
+        restored, instock = defaultdict(int), defaultdict(int)
+        for r in raw_store_rows_by_week[week]:
+            if r.get("traited") == 0 and (r["item_name"], r["store_num"]) in base:
+                r["traited"] = 1
+                restored[r["item_name"]] += 1
+                instock[r["item_name"]] += 1 if (r.get("on_hand") or 0) > 0 else 0
+        if not restored:
+            continue
+        out[week] = dict(restored)
+        m = metrics.get(week, {})
+        tot_n = tot_in = 0
+        for sku in SKUS:
+            v = m.get(sku)
+            if not v or not v.get("traited_stores"):
+                continue
+            n0, k = v["traited_stores"], restored.get(sku, 0)
+            n1 = n0 + k
+            old_usw, old_in = v["usw"], v["instock_pct"]
+            if v.get("pos_qty") is not None:
+                v["usw"] = round(v["pos_qty"] / n1, 6)
+            if old_in is not None:
+                v["instock_pct"] = round((old_in / 100 * n0 + instock.get(sku, 0)) / n1 * 100, 6)
+            v["traited_stores"] = n1
+            tot_n += n1
+            tot_in += (v["instock_pct"] or 0) / 100 * n1
+            print(f"  [trait base] {week} {sku:<22} traited {n0:>5,} + {k:>3} = {n1:>5,}   "
+                  f"U/S/W {old_usw:.3f} -> {v['usw']:.3f}   Instock {old_in:.1f}% -> {v['instock_pct']:.1f}%")
+        t = m.get("Total")
+        if t and tot_n:
+            old_usw, old_in = t["usw"], t["instock_pct"]
+            if t.get("pos_qty") is not None:
+                t["usw"] = round(t["pos_qty"] / tot_n, 6)
+            t["instock_pct"] = round(tot_in / tot_n * 100, 6)
+            t["traited_stores"] = tot_n
+            print(f"  [trait base] {week} {'Total':<22} traited {tot_n:>13,}   "
+                  f"U/S/W {old_usw:.3f} -> {t['usw']:.3f}   Instock {old_in:.1f}% -> {t['instock_pct']:.1f}%")
+    return out
 
 # ─── Ecomm Extraction ─────────────────────────────────────────────────────────
 
@@ -1927,6 +1997,15 @@ def main():
             except Exception as e:
                 print(f"  [ERROR] LW Ecomm sheet '{lw_sheet}': {e}")
 
+    # Hold U/S/W on a fixed traited base (see pin_trait_base). TRAIT_BASE_WEEK=""
+    # in the environment turns it off and shows Walmart's numbers as reported.
+    trait_base_week = os.environ.get("TRAIT_BASE_WEEK", TRAIT_BASE_WEEK)
+    trait_restated = {}
+    if trait_base_week:
+        print(f"\nPinning traited store base to wk{trait_base_week}...")
+        trait_restated = pin_trait_base(trait_base_week, metrics, raw_store_rows_by_week,
+                                        store_weeks_list)
+
     # 4. Geocode
     print("\nGeocoding store zip codes...")
     # Collect all store meta from raw rows
@@ -2131,6 +2210,7 @@ def main():
         "endcap_status":  endcap_status,
         "trial_repeat": trial_repeat,
         "traited": traited,
+        "trait_restated": {"base_week": trait_base_week, "weeks": trait_restated} if trait_restated else None,
         "supply_plan": supply_plan,
         "forecast_baseline": forecast_baseline,
         "rollback": rollback,
@@ -2152,7 +2232,6 @@ def main():
     html = html.replace("/*DATA_PLACEHOLDER*/", f"const DATA = {json_str};")
 
     output_path = os.path.join(os.path.dirname(__file__), OUTPUT_FILE)
-
     # Regression guard: never overwrite the published dashboard with one that
     # DROPS weeks. This catches the failure mode where a local rebuild runs
     # against a folder missing auto-ingested source files (weeks live only in

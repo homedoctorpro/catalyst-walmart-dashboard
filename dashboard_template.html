@@ -767,6 +767,9 @@
 
   <!-- ── Tab 1: Metrics ─────────────────────────────────────────────────── -->
   <div id="tab-metrics" class="tab-panel active">
+    <!-- Restated traited base note (DATA.trait_restated) -->
+    <div id="trait-base-note" style="display:none;margin:0 0 16px;padding:10px 14px;border-left:4px solid #b45309;background:rgba(180,83,9,.08);border-radius:6px;font-size:13px;line-height:1.45"></div>
+
     <!-- Rollback co-op tracker (top of dashboard) -->
     <div id="coop-tracker" style="display:none;margin:0 0 22px;"></div>
 
@@ -2244,7 +2247,22 @@ function showApp() {
   document.getElementById("gate").style.display = "none";
   document.getElementById("app").style.display = "flex";
   initDashboard();
+  renderTraitBaseNote();
   verRestoreView();
+}
+
+// U/S/W and Instock % for weeks after the base week keep that week's traited
+// store base (extract_data.pin_trait_base); say so wherever it applies.
+function renderTraitBaseNote() {
+  const tr = DATA.trait_restated, el = document.getElementById("trait-base-note");
+  if (!tr || !el) return;
+  const lbl = w => (DATA.week_labels && DATA.week_labels[w]) || "wk" + w;
+  const weeks = Object.keys(tr.weeks).sort();
+  const n = weeks.map(w => Object.values(tr.weeks[w]).reduce((a, b) => a + b, 0));
+  el.innerHTML = `<b>Restated traited base.</b> Walmart dropped ${n[0].toLocaleString()} store-SKU traits in ${lbl(weeks[0])}. ` +
+    `U/S/W and Instock % from ${lbl(weeks[0])} on still count those stores, using the ${lbl(tr.base_week)} traited base, ` +
+    `so weeks compare apples to apples. Units and sales dollars are Walmart's figures as reported (they already include those stores).`;
+  el.style.display = "block";
 }
 
 // ══ Constants ═════════════════════════════════════════════════════════════════
