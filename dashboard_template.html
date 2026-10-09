@@ -9159,8 +9159,15 @@ let RT_INFLIGHT = 0;
 
 function rtSyncEnabled() { return !!RT_SYNC_URL; }
 
+// Every browser connects to the shared Sheet by default. Without this, a browser
+// that was never pointed at the Sheet silently shows only the built-in list.
+const RT_DEFAULT_SYNC_URL = "https://script.google.com/macros/s/AKfycbzzEI7f3O3uKJIub-sqAvd4-wSH-OK5_yMthSWIKoOQoJcyWo0hjTKMr6PzZMOvluLA/exec";
+const RT_SYNC_OFF = "off";
+
 function rtLoadSyncUrl() {
-  RT_SYNC_URL = localStorage.getItem(RT_SYNC_URL_KEY) || null;
+  let saved = null;
+  try { saved = localStorage.getItem(RT_SYNC_URL_KEY); } catch {}
+  RT_SYNC_URL = saved === RT_SYNC_OFF ? null : (saved || RT_DEFAULT_SYNC_URL);
 }
 
 function rtSetSyncStatus(status, text) {
@@ -9214,7 +9221,7 @@ function rtSaveSyncUrl() {
 function rtDisconnectSync() {
   if (!confirm("Disconnect from the Google Sheet?\n\nYour local edits in this browser will remain. The Sheet keeps its data.")) return;
   RT_SYNC_URL = null;
-  localStorage.removeItem(RT_SYNC_URL_KEY);
+  localStorage.setItem(RT_SYNC_URL_KEY, RT_SYNC_OFF);
   rtSetSyncStatus("disabled", "Not connected to a Google Sheet");
 }
 
