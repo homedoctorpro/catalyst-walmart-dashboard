@@ -823,6 +823,7 @@
       <div class="chart-card"><h3>Units Sold (POS Qty)</h3><div id="chart-units" class="chart-div"></div></div>
       <div class="chart-card"><h3>Retail Sales ($)</h3><div id="chart-retail" class="chart-div"></div></div>
       <div class="chart-card"><h3>Wholesale Revenue ($)</h3><div id="chart-wholesale" class="chart-div"></div></div>
+      <div class="chart-card"><h3>Avg Selling Price ($/Unit)</h3><div id="chart-asp" class="chart-div"></div></div>
     </div>
 
     <!-- Metrics Table -->
@@ -2297,7 +2298,7 @@ const SKU_COLORS = {
 };
 
 const ALL_SERIES = [...DATA.skus, "Total"];
-const METRIC_CHART_IDS = ["chart-usw","chart-adj-usw","chart-instock","chart-units","chart-retail","chart-wholesale","chart-md-pct"];
+const METRIC_CHART_IDS = ["chart-usw","chart-adj-usw","chart-instock","chart-units","chart-retail","chart-wholesale","chart-asp","chart-md-pct"];
 
 // Global max consecutive OOS weeks — used to anchor OOS dot color scale across all weeks
 const MAX_CONSEC_WEEKS = Math.max(1, ...Object.values(DATA.consecutive_oos_by_week).flatMap(
@@ -3105,6 +3106,15 @@ function buildMetricCharts() {
   Plotly.newPlot("chart-wholesale",
     ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("wholesale_dollars", s), s==="Total", "$%{y:,.0f}")),
     {...PLOTLY_LAYOUT_BASE, ...RB, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"$", tickprefix:"$", tickformat:",.0f"}}, cfg);
+
+  // ASP = POS $ / POS units, all stores (includes clearance at untraited stores)
+  Plotly.newPlot("chart-asp",
+    ALL_SERIES.map(s => makeTrace(s, xLabels,
+      weeks.map(w => {
+        const m = (met[w]||{})[s]; if (!m || !m.pos_qty || m.pos_dollars == null) return null;
+        return Math.round(m.pos_dollars / m.pos_qty * 100) / 100;
+      }), s==="Total", "$%{y:,.2f}")),
+    {...PLOTLY_LAYOUT_BASE, ...RB, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"$ / unit", tickprefix:"$", tickformat:",.2f"}}, cfg);
 }
 
 // ══ Metrics Table ═════════════════════════════════════════════════════════════
