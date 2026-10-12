@@ -877,6 +877,7 @@
       <div class="chart-card"><h3 data-grain-title="Units Sold (%G Sum)"></h3><div id="chart-m-units" class="chart-div"></div></div>
       <div class="chart-card"><h3 data-grain-title="Retail Sales ($, %G Sum)"></h3><div id="chart-m-retail" class="chart-div"></div></div>
       <div class="chart-card"><h3 data-grain-title="Wholesale Revenue ($, %G Sum)"></h3><div id="chart-m-wholesale" class="chart-div"></div></div>
+      <div class="chart-card"><h3 data-grain-title="Avg Selling Price ($/Unit, %G)"></h3><div id="chart-m-asp" class="chart-div"></div></div>
     </div>
 
     <!-- Rollup Table -->
@@ -897,6 +898,7 @@
           <button class="pill-btn"        data-mmet="usw"               onclick="setMonthlyMetric(this)">U/S/W (avg)</button>
           <button class="pill-btn"        data-mmet="adj_usw"           onclick="setMonthlyMetric(this)">Adj U/S/W (avg)</button>
           <button class="pill-btn"        data-mmet="instock_pct"       onclick="setMonthlyMetric(this)">Instock % (avg)</button>
+          <button class="pill-btn"        data-mmet="asp"               onclick="setMonthlyMetric(this)">ASP ($/unit)</button>
         </div>
         <button class="copy-metric-btn" onclick="copyMonthlyMetric(event)" style="margin-left:auto">Copy table</button>
       </div>
@@ -2477,7 +2479,7 @@ function switchTab(name, btn) {
   if (name === "monthly") {
     if (!monthlyInit) { initMonthly(); monthlyInit = true; }
     else setTimeout(() => {
-      ["chart-m-usw","chart-m-adj-usw","chart-m-instock","chart-m-units","chart-m-retail","chart-m-wholesale"]
+      ["chart-m-usw","chart-m-adj-usw","chart-m-instock","chart-m-units","chart-m-retail","chart-m-wholesale","chart-m-asp"]
         .forEach(id => { const el = document.getElementById(id); if (el) Plotly.Plots.resize(el); });
     }, 50);
   }
@@ -3347,6 +3349,8 @@ function buildPeriodRollup(grain /* "month" | "quarter" */) {
         pos_qty:           hasQty       ? sumQty       : null,
         pos_dollars:       hasDollars   ? sumDollars   : null,
         wholesale_dollars: hasWholesale ? sumWholesale : null,
+        // Period ASP = summed POS $ / summed units (both pro-rated the same way)
+        asp:               (hasDollars && hasQty && sumQty) ? sumDollars / sumQty : null,
       };
     });
 
@@ -3481,7 +3485,7 @@ function buildMonthlyKPIs() {
 function buildMonthlyFilter() {
   const container = document.getElementById("monthly-filter");
   // Reuse the same visibleSeries set as the Metrics tab — chips drive both.
-  const chartIds = ["chart-m-usw","chart-m-adj-usw","chart-m-instock","chart-m-units","chart-m-retail","chart-m-wholesale"];
+  const chartIds = ["chart-m-usw","chart-m-adj-usw","chart-m-instock","chart-m-units","chart-m-retail","chart-m-wholesale","chart-m-asp"];
   ALL_SERIES.forEach((series, idx) => {
     const lbl = document.createElement("label");
     lbl.className = "series-chip";
@@ -3536,6 +3540,10 @@ function buildMonthlyCharts() {
   Plotly.newPlot("chart-m-wholesale",
     ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("wholesale_dollars", s), s==="Total", "$%{y:,.0f}")),
     {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"$", tickprefix:"$", tickformat:",.0f"}}, cfg);
+
+  Plotly.newPlot("chart-m-asp",
+    ALL_SERIES.map(s => makeTrace(s, xLabels, getVals("asp", s), s==="Total", "$%{y:,.2f}")),
+    {...PLOTLY_LAYOUT_BASE, yaxis:{...PLOTLY_LAYOUT_BASE.yaxis, title:"$ / unit", tickprefix:"$", tickformat:",.2f"}}, cfg);
 }
 
 // Monthly table — months across columns, sticky series rows. One metric at a time.
@@ -3547,6 +3555,7 @@ const MONTHLY_METRIC_TYPE = {
   pos_qty:           "int",
   pos_dollars:       "dollar",
   wholesale_dollars: "dollar",
+  asp:               "price",
 };
 
 function setMonthlyMetric(btn) {
@@ -3564,6 +3573,7 @@ function fmtMonthlyValue(v, type) {
   if (type === "usw")    return v.toFixed(2);
   if (type === "int")    return Math.round(v).toLocaleString();
   if (type === "dollar") return "$" + Math.round(v).toLocaleString();
+  if (type === "price")  return "$" + v.toFixed(2);
   return String(v);
 }
 
@@ -3612,7 +3622,7 @@ function copyMonthlyMetric(evt) {
 
   const rawFmt = v => {
     if (v == null) return "";
-    if (type === "pct" || type === "usw") return (Math.round(v * 100) / 100).toFixed(2);
+    if (type === "pct" || type === "usw" || type === "price") return (Math.round(v * 100) / 100).toFixed(2);
     return String(Math.round(v));
   };
 
