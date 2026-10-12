@@ -227,14 +227,29 @@ jobs:
           git config user.email "ligneticsdata@gmail.com"
           # Reviews/ carries the refreshed verified-purchase payload. Without it the
           # next run starts from a stale cache and the tab silently ages.
-          git add dashboard.html store_map.html stores_geo.json version.json
-          git add Reviews/ 2>/dev/null || true
-          if ! git diff --cached --quiet; then
+          #
+          # A watch run can sit for hours before the build, so master often moves
+          # underneath it (2026-10-12: a template push 2 min before the WK36 build
+          # rejected this push and Pages stayed a week behind). dashboard.html is
+          # generated from dashboard_template.html, so rebasing the old output
+          # would conflict or drop the new template. Instead: reset to the new
+          # master and rebuild there, with email and review scraping off.
+          for attempt in 1 2 3; do
+            git add dashboard.html store_map.html stores_geo.json version.json
+            git add Reviews/ 2>/dev/null || true
+            if git diff --cached --quiet; then
+              echo "Dashboard output unchanged — nothing to publish."
+              exit 0
+            fi
             git commit -m "Auto-rebuild dashboard: ${{ steps.poll.outputs.weeks || 'manual' }}"
-            git push
-          else
-            echo "Dashboard output unchanged — nothing to publish."
-          fi
+            if git push; then exit 0; fi
+            echo "Push rejected (attempt $attempt) — rebuilding on the latest master."
+            git fetch origin master
+            git reset --hard origin/master
+            SKIP_EMAIL=1 SKIP_REVIEWS=1 PYTHONHASHSEED=0 python extract_data.py
+          done
+          echo "::error::Could not publish after 3 attempts"
+          exit 1
 
       - name: Extend Monday watch
         # A watch run caps at 5h30m (6h job ceiling), but the Monday window is
