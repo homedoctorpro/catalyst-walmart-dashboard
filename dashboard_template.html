@@ -77,6 +77,9 @@
   .chart-card h3 { font-size: 0.8rem; font-weight: 700; color: #666; text-transform: uppercase;
                    letter-spacing: 0.06em; margin-bottom: 10px; }
   .chart-div { width: 100%; height: 270px; }
+  /* Metrics + By Date: two larger charts per row for readability */
+  .chart-grid.chart-grid-wide { grid-template-columns: repeat(2, 1fr); }
+  .chart-grid-wide .chart-div { height: 400px; }
 
   /* ── Metrics Table ── */
   .metrics-table-card { background: #fff; border-radius: 12px; padding: 20px;
@@ -427,7 +430,7 @@
 
   @media (max-width: 900px) {
     .kpi-row      { grid-template-columns: repeat(3, 1fr); }
-    .chart-grid   { grid-template-columns: 1fr; }
+    .chart-grid, .chart-grid.chart-grid-wide { grid-template-columns: 1fr; }
     .map2-grid    { grid-template-columns: 1fr; }
   }
   @media (max-width: 600px) {
@@ -816,7 +819,7 @@
     <div class="metrics-filter" id="metrics-filter"><span>Show:</span></div>
 
     <!-- Charts -->
-    <div class="chart-grid">
+    <div class="chart-grid chart-grid-wide">
       <div class="chart-card"><h3>Units Sold / Week (U/S/W)</h3><div id="chart-usw" class="chart-div"></div></div>
       <div class="chart-card"><h3>Adjusted U/S/W (at 100% Instock)</h3><div id="chart-adj-usw" class="chart-div"></div></div>
       <div class="chart-card"><h3>Instock %</h3><div id="chart-instock" class="chart-div"></div></div>
@@ -843,6 +846,7 @@
             <th><div>Units Sold</div><button class="copy-metric-btn" onclick="copyMetric(event,'pos_qty')">Copy</button></th>
             <th><div>Retail $</div><button class="copy-metric-btn" onclick="copyMetric(event,'pos_dollars')">Copy</button></th>
             <th><div>Wholesale $</div><button class="copy-metric-btn" onclick="copyMetric(event,'wholesale_dollars')">Copy</button></th>
+            <th><div>ASP</div><button class="copy-metric-btn" onclick="copyMetric(event,'asp')">Copy</button></th>
           </tr>
         </thead>
         <tbody id="metrics-tbody"></tbody>
@@ -870,7 +874,7 @@
     <div class="metrics-filter" id="monthly-filter"><span>Show:</span></div>
 
     <!-- Charts -->
-    <div class="chart-grid">
+    <div class="chart-grid chart-grid-wide">
       <div class="chart-card"><h3 data-grain-title="U/S/W (%G Avg)"></h3><div id="chart-m-usw" class="chart-div"></div></div>
       <div class="chart-card"><h3 data-grain-title="Adj U/S/W (%G Avg)"></h3><div id="chart-m-adj-usw" class="chart-div"></div></div>
       <div class="chart-card"><h3 data-grain-title="Instock % (%G Avg)"></h3><div id="chart-m-instock" class="chart-div"></div></div>
@@ -3128,12 +3132,13 @@ function buildMetricsTable() {
     if (type === "usw")    return v.toFixed(2);
     if (type === "int")    return v.toLocaleString();
     if (type === "dollar") return "$" + Math.round(v).toLocaleString();
+    if (type === "price")  return "$" + v.toFixed(2);
     return v;
   };
   // Round raw value to the same precision as displayed, so % change matches manual calculation
   const toDisplayVal = (v, type) => {
     if (v == null) return null;
-    if (type === "pct" || type === "usw") return parseFloat(v.toFixed(2));
+    if (type === "pct" || type === "usw" || type === "price") return parseFloat(v.toFixed(2));
     if (type === "dollar") return Math.round(v);
     return v; // "int" is already integer
   };
@@ -3145,10 +3150,11 @@ function buildMetricsTable() {
     return `<span style="font-size:0.75em;color:${color};margin-left:4px">(${sign}${chg.toFixed(1)}%)</span>`;
   };
 
-  // 7 data columns: SKU | U/S/W | Adj U/S/W | Instock% | Units | Retail$ | Wholesale$
-  const COL_COUNT = 7;
+  // 8 data columns: SKU | U/S/W | Adj U/S/W | Instock% | Units | Retail$ | Wholesale$ | ASP
+  const COL_COUNT = 8;
 
-  DATA.weeks.forEach((w, wIdx) => {
+  // Newest week first; % change still compares each week to the one before it
+  DATA.weeks.map((w, wIdx) => [w, wIdx]).reverse().forEach(([w, wIdx]) => {
     // Week group header row — spans all columns
     const trHead = document.createElement("tr");
     trHead.className = "week-group-row";
@@ -3167,6 +3173,8 @@ function buildMetricsTable() {
       const pm = prevMet[series] || {};
       const adjUSW  = calcAdjUSW(m);
       const pAdjUSW = calcAdjUSW(pm);
+      const asp  = calcASP(m);
+      const pAsp = calcASP(pm);
       const tr = document.createElement("tr");
       if (series === "Total") tr.className = "total-row";
 
@@ -3178,6 +3186,7 @@ function buildMetricsTable() {
         { text: fmt(m.pos_qty, "int"),             curr: toDisplayVal(m.pos_qty, "int"),        prev: toDisplayVal(pm.pos_qty, "int") },
         { text: fmt(m.pos_dollars, "dollar"),      curr: toDisplayVal(m.pos_dollars, "dollar"), prev: toDisplayVal(pm.pos_dollars, "dollar") },
         { text: fmt(m.wholesale_dollars, "dollar"), curr: toDisplayVal(m.wholesale_dollars, "dollar"), prev: toDisplayVal(pm.wholesale_dollars, "dollar") },
+        { text: fmt(asp, "price"),                 curr: toDisplayVal(asp, "price"),            prev: toDisplayVal(pAsp, "price") },
       ];
       cellDefs.forEach(({ text, curr, prev }) => {
         const td = document.createElement("td");
@@ -3205,7 +3214,13 @@ const COPY_METRIC_SPECS = {
   pos_qty:           { get: m => m && m.pos_qty,           fmt: v => String(Math.round(v)) },
   pos_dollars:       { get: m => m && m.pos_dollars,       fmt: v => String(Math.round(v)) },
   wholesale_dollars: { get: m => m && m.wholesale_dollars, fmt: v => String(Math.round(v)) },
+  asp:               { get: m => calcASP(m),               fmt: v => (Math.round(v * 100) / 100).toFixed(2) },
 };
+
+// ASP = POS $ / POS units (all stores)
+function calcASP(m) {
+  return (m && m.pos_qty && m.pos_dollars != null) ? m.pos_dollars / m.pos_qty : null;
+}
 
 function copyMetric(evt, key) {
   const spec = COPY_METRIC_SPECS[key];
