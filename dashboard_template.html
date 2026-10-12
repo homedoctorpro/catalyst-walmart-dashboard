@@ -709,6 +709,11 @@
                                    animation:rt-sync-pulse 1s infinite; }
   .rt-sync-dot.rt-sync-error    { background:#e53935; box-shadow:0 0 0 3px rgba(229,57,53,0.18); }
   .rt-sync-dot.rt-sync-idle     { background:#90a4ae; }
+  .rt-stale-banner { display:none; margin:0 0 14px; padding:12px 16px; border-radius:10px;
+    background:#fdecea; border:2px solid #e53935; color:#8e1b17; font-weight:600;
+    align-items:center; gap:12px; flex-wrap:wrap; }
+  .rt-stale-banner.show { display:flex; }
+  .rt-stale-banner span { flex:1 1 280px; }
   @keyframes rt-sync-pulse { 0%, 100% { opacity:1; } 50% { opacity:0.4; } }
   .rt-sync-text-wrap { flex:1; font-weight:600; color:#444; }
   .rt-sync-gear { font-size:0.78rem; color:#666; font-weight:600; padding:3px 10px;
@@ -1888,8 +1893,8 @@
       All US retailers that might carry Catalyst Pet cat litter, grouped by channel.
       Annual unit opportunity = <em>Store Count × U/S/W × 52 weeks</em>. At <strong>$10 wholesale / $20 retail per unit</strong>.
       U/S/W defaults are by channel — edit any cell to override (yellow = overridden). Assign rep firms,
-      set status, and write next steps inline. Edits save to this browser by default;
-      connect a Google Sheet below to sync them across users and devices.
+      set status, and write next steps inline. Edits save to the shared Google Sheet, so everyone
+      sees the same list; a red banner appears if this browser can't reach it.
     </div>
 
     <!-- Google Sheet Sync Bar -->
@@ -1921,6 +1926,12 @@
         </div>
       </div>
     </details>
+
+    <!-- Shown when this browser can't reach the Sheet, so nobody mistakes a stale list for the live one -->
+    <div class="rt-stale-banner" id="rt-stale-banner" role="alert">
+      <span id="rt-stale-text"></span>
+      <button class="rt-btn primary" onclick="rtFetchFromSheet(true)">↻ Try again</button>
+    </div>
 
     <!-- Opportunity sizing: collapsible, state remembered per browser -->
     <details class="rt-sizing" id="rt-sizing" ontoggle="rtSizingToggled()">
@@ -9178,6 +9189,14 @@ function rtSetSyncStatus(status, text) {
   txt.textContent = text || "";
 }
 
+// Big red banner over the table whenever what's on screen may not match the Sheet.
+function rtStaleBanner(text) {
+  const el = document.getElementById("rt-stale-banner");
+  if (!el) return;
+  if (text) document.getElementById("rt-stale-text").textContent = text;
+  el.classList.toggle("show", !!text);
+}
+
 function rtFmtTimeAgo(date) {
   if (!date) return "never";
   const s = Math.max(0, Math.round((Date.now() - date.getTime()) / 1000));
@@ -9222,6 +9241,7 @@ function rtDisconnectSync() {
   if (!confirm("Disconnect from the Google Sheet?\n\nYour local edits in this browser will remain. The Sheet keeps its data.")) return;
   RT_SYNC_URL = null;
   localStorage.setItem(RT_SYNC_URL_KEY, RT_SYNC_OFF);
+  rtStaleBanner(null);
   rtSetSyncStatus("disabled", "Not connected to a Google Sheet");
 }
 
@@ -9262,6 +9282,9 @@ async function rtFetchFromSheet(showFeedback) {
     RT_UNLINKED_OPPS = j.unlinkedOpps || [];
     localStorage.setItem(RT_STORAGE_KEY, JSON.stringify(RT_OVERRIDES));
     RT_LAST_SYNC_AT = new Date();
+    rtStaleBanner(RT_PENDING.size
+      ? "⚠ " + RT_PENDING.size + " of your edits haven't saved to the Sheet yet. Others won't see them until they do."
+      : null);
     rtRenderTable();
     RT_INFLIGHT = Math.max(0, RT_INFLIGHT - 1);
     if (RT_INFLIGHT === 0) {
@@ -9270,6 +9293,8 @@ async function rtFetchFromSheet(showFeedback) {
   } catch (err) {
     RT_INFLIGHT = Math.max(0, RT_INFLIGHT - 1);
     rtSetSyncStatus("error", "Pull failed: " + err.message);
+    rtStaleBanner("⚠ Couldn't load the latest from the Sheet (" + err.message + "). This list is from " +
+      (RT_LAST_SYNC_AT ? rtFmtTimeAgo(RT_LAST_SYNC_AT) : "an earlier visit") + " and may be out of date.");
     console.warn("[retailers sync] fetch failed:", err);
   }
 }
@@ -9341,6 +9366,7 @@ async function rtPushToSheet(retailerId) {
   }
   RT_INFLIGHT = Math.max(0, RT_INFLIGHT - 1);
   rtSetSyncStatus("error", "Save failed: " + lastErr.message + " (kept locally, will retry on next sync)");
+  rtStaleBanner("⚠ Your last edit didn't save to the Sheet (" + lastErr.message + "). It's kept in this browser and will retry, but others can't see it yet.");
 }
 
 async function rtPushAllRetailers() {
