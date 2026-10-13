@@ -1353,6 +1353,55 @@ def build_traited_from_feed(raw_store_rows_by_week, week_dates=None):
     }
 
 
+def build_traited_only_metrics(metrics, raw_store_rows_by_week):
+    """Metrics restricted to stores Walmart flags as traited that week.
+
+    Walmart's reported U/S/W divides units from EVERY store (incl. untraited
+    endcap stores and clearance at newly untraited stores) by the traited count
+    only. This view uses traited rows on both sides: units / $ / wholesale are
+    summed over traited store-SKU rows, U/S/W = those units / traited rows.
+    Instock % is Walmart's (already traited-only). Must run BEFORE
+    pin_trait_base, which rewrites row flags and metrics in place.
+    Weeks without a traited flag in the feed (before wk202626) are omitted;
+    the dashboard falls back to the all-store numbers there.
+    """
+    out = {}
+    for week, rows in raw_store_rows_by_week.items():
+        if not any(r.get("traited") is not None for r in rows):
+            continue
+        wm = metrics.get(week, {})
+        agg = {sku: {"qty": 0, "dollars": 0.0, "n": 0} for sku in SKUS}
+        for r in rows:
+            a = agg.get(r["item_name"])
+            if a is None or not r.get("traited"):
+                continue
+            a["qty"] += r.get("pos_qty") or 0
+            a["dollars"] += r.get("pos_dollars") or 0
+            a["n"] += 1
+        week_out, tot = {}, {"qty": 0, "dollars": 0.0, "n": 0, "wholesale": 0.0}
+        for sku, a in agg.items():
+            if not a["n"]:
+                continue
+            wholesale = round(a["qty"] * WHOLESALE_PRICE[sku], 2)
+            week_out[sku] = {
+                "pos_dollars": round(a["dollars"], 2), "pos_qty": a["qty"],
+                "instock_pct": (wm.get(sku) or {}).get("instock_pct"),
+                "usw": round(a["qty"] / a["n"], 6), "wholesale_dollars": wholesale,
+                "traited_stores": a["n"],
+            }
+            tot["qty"] += a["qty"]; tot["dollars"] += a["dollars"]
+            tot["n"] += a["n"]; tot["wholesale"] += wholesale
+        if tot["n"]:
+            week_out["Total"] = {
+                "pos_dollars": round(tot["dollars"], 2), "pos_qty": tot["qty"],
+                "instock_pct": (wm.get("Total") or {}).get("instock_pct"),
+                "usw": round(tot["qty"] / tot["n"], 6),
+                "wholesale_dollars": round(tot["wholesale"], 2), "traited_stores": tot["n"],
+            }
+            out[week] = week_out
+    return out
+
+
 def pin_trait_base(base_week, metrics, raw_store_rows_by_week, store_weeks_list):
     """Hold every week after `base_week` on base_week's traited store base.
 
@@ -2000,6 +2049,8 @@ def main():
     # Hold U/S/W on a fixed traited base (see pin_trait_base). TRAIT_BASE_WEEK=""
     # in the environment turns it off and shows Walmart's numbers as reported.
     trait_base_week = os.environ.get("TRAIT_BASE_WEEK", TRAIT_BASE_WEEK)
+    # Traited-stores-only view for the dashboard toggle (before the pin mutates flags)
+    metrics_traited = build_traited_only_metrics(metrics, raw_store_rows_by_week)
     trait_restated = {}
     if trait_base_week:
         print(f"\nPinning traited store base to wk{trait_base_week}...")
@@ -2194,6 +2245,7 @@ def main():
         "store_weeks": store_weeks_list,
         "skus":        SKUS,
         "metrics":     metrics,
+        "metrics_traited": metrics_traited,
         "stores":      stores,
         "weekly_stores": all_store_weeks,
         "state_sales": state_sales,

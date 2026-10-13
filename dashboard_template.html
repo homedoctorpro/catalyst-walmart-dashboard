@@ -775,6 +775,7 @@
 
   <!-- ── Tab 1: Metrics ─────────────────────────────────────────────────── -->
   <div id="tab-metrics" class="tab-panel active">
+    <div class="traited-toggle-slot" style="margin:0 0 12px"></div>
     <!-- Restated traited base note (DATA.trait_restated) -->
     <div id="trait-base-note" style="display:none;margin:0 0 16px;padding:10px 14px;border-left:4px solid #b45309;background:rgba(180,83,9,.08);border-radius:6px;font-size:13px;line-height:1.45"></div>
 
@@ -865,6 +866,7 @@
       </div>
     </div>
 
+    <div class="traited-toggle-slot" style="margin:0 0 12px"></div>
     <div id="monthly-blurb" style="background:#fff;border-radius:12px;padding:14px 18px;margin-bottom:14px;font-size:0.82rem;color:#555;border-left:4px solid #0057e7"></div>
 
     <!-- KPI Row -->
@@ -2269,11 +2271,66 @@ function showApp() {
   verRestoreView();
 }
 
+// ══ Traited-stores-only toggle ═══════════════════════════════════════════════
+// "all": Walmart's figures (units from every store; U/S/W on the pinned trait base).
+// "traited": only store-SKU rows Walmart flags traited that week, on both sides of
+// U/S/W (DATA.metrics_traited). Weeks before the feed carried the flag fall back to "all".
+let METRICS_MODE = "all";
+let ACTIVE_METRICS = DATA.metrics;
+const TRAITED_FROM_WEEK = Object.keys(DATA.metrics_traited || {}).sort()[0] || null;
+
+function setTraitedOnly(on) {
+  METRICS_MODE = on ? "traited" : "all";
+  if (on) {
+    const merged = {};
+    DATA.weeks.forEach(w => { merged[w] = (DATA.metrics_traited || {})[w] || DATA.metrics[w]; });
+    ACTIVE_METRICS = merged;
+  } else {
+    ACTIVE_METRICS = DATA.metrics;
+  }
+  document.querySelectorAll(".traited-only-cb").forEach(cb => { cb.checked = on; });
+  renderTraitBaseNote();
+  buildKPIs();
+  buildMetricCharts();
+  document.getElementById("metrics-tbody").innerHTML = "";
+  buildMetricsTable();
+  if (typeof monthlyInit !== "undefined" && monthlyInit) {
+    MONTHLY_ROLLUP = buildPeriodRollup(ROLLUP_GRAIN);
+    buildMonthlyKPIs();
+    buildMonthlyCharts();
+    buildMonthlyTable();
+  }
+  // New plots start with every series visible; re-apply the chip selection
+  ALL_SERIES.forEach((series, idx) => {
+    if (visibleSeries.has(series)) return;
+    METRIC_CHART_IDS.concat(["chart-m-usw","chart-m-adj-usw","chart-m-instock","chart-m-units","chart-m-retail","chart-m-wholesale","chart-m-asp"])
+      .forEach(id => { const el = document.getElementById(id); if (el && el.data) Plotly.restyle(el, { visible: "legendonly" }, [idx]); });
+  });
+}
+
+function traitedToggleHTML() {
+  if (!TRAITED_FROM_WEEK) return "";
+  const lbl = (DATA.week_labels && DATA.week_labels[TRAITED_FROM_WEEK]) || "wk" + TRAITED_FROM_WEEK;
+  return `<label style="display:inline-flex;align-items:center;gap:8px;font-size:0.82rem;font-weight:600;color:#333;cursor:pointer;background:#fff;border-radius:8px;padding:8px 12px;box-shadow:0 1px 4px rgba(0,0,0,0.08)">` +
+    `<input type="checkbox" class="traited-only-cb" onchange="setTraitedOnly(this.checked)"> Traited stores only` +
+    `<span style="font-weight:400;color:#777">(excludes sales at stores Walmart doesn't trait that week${TRAITED_FROM_WEEK > DATA.weeks[0] ? "; from " + lbl : ""})</span></label>`;
+}
+
 // U/S/W and Instock % for weeks after the base week keep that week's traited
 // store base (extract_data.pin_trait_base); say so wherever it applies.
 function renderTraitBaseNote() {
   const tr = DATA.trait_restated, el = document.getElementById("trait-base-note");
-  if (!tr || !el) return;
+  if (!el) return;
+  if (METRICS_MODE === "traited") {
+    const lbl = w => (DATA.week_labels && DATA.week_labels[w]) || "wk" + w;
+    el.innerHTML = `<b>Traited stores only.</b> Units, sales $, wholesale $, ASP and U/S/W count only store-SKUs Walmart flags as traited that week, ` +
+      `so untraited endcap stores and clearance at stores Walmart stopped trading are left out. U/S/W = traited units ÷ traited stores. ` +
+      `Store-level sums run about 0.1% off Walmart's item totals.` +
+      (TRAITED_FROM_WEEK > DATA.weeks[0] ? ` Weeks before ${lbl(TRAITED_FROM_WEEK)} have no trait flag and show all stores.` : "");
+    el.style.display = "block";
+    return;
+  }
+  if (!tr) { el.style.display = "none"; return; }
   const lbl = w => (DATA.week_labels && DATA.week_labels[w]) || "wk" + w;
   const weeks = Object.keys(tr.weeks).sort();
   const n = weeks.map(w => Object.values(tr.weeks[w]).reduce((a, b) => a + b, 0));
@@ -2837,6 +2894,7 @@ function initDashboard() {
   if (DATA.weeks && DATA.weeks.length)
     document.getElementById("header-range").textContent =
       `Weeks ${DATA.weeks[0]} – ${DATA.weeks[DATA.weeks.length-1]}`;
+  document.querySelectorAll(".traited-toggle-slot").forEach(el => { el.innerHTML = traitedToggleHTML(); });
   buildKPIs();
   renderCoopTracker();
   buildMetricFilter();
@@ -2980,13 +3038,13 @@ function calcAdjUSW(m) {
 
 function buildKPIs() {
   const latestWeek = DATA.weeks[DATA.weeks.length - 1];
-  const total      = ((DATA.metrics[latestWeek] || {})["Total"]) || {};
+  const total      = ((ACTIVE_METRICS[latestWeek] || {})["Total"]) || {};
   const adjUSW     = calcAdjUSW(total);
 
   // Find previous week that has Total metrics
-  const weeksWithTotal = DATA.weeks.filter(w => DATA.metrics[w]?.["Total"]);
+  const weeksWithTotal = DATA.weeks.filter(w => ACTIVE_METRICS[w]?.["Total"]);
   const prevWeek  = weeksWithTotal.length >= 2 ? weeksWithTotal[weeksWithTotal.length - 2] : null;
-  const prevTotal = prevWeek ? ((DATA.metrics[prevWeek] || {})["Total"] || {}) : {};
+  const prevTotal = prevWeek ? ((ACTIVE_METRICS[prevWeek] || {})["Total"] || {}) : {};
   const prevAdj   = calcAdjUSW(prevTotal);
 
   const chg = (curr, prev) => {
@@ -3076,7 +3134,7 @@ function rollbackOverlay() {
 function buildMetricCharts() {
   const weeks   = DATA.weeks;
   const xLabels = weeks.map(weekLabel);
-  const met     = DATA.metrics;
+  const met     = ACTIVE_METRICS;
   const cfg     = { responsive:true, displayModeBar:false };
   const RB      = rollbackOverlay();
 
@@ -3164,9 +3222,9 @@ function buildMetricsTable() {
     trHead.appendChild(tdHead);
     tbody.appendChild(trHead);
 
-    const wMet   = DATA.metrics[w] || {};
+    const wMet   = ACTIVE_METRICS[w] || {};
     const prevW  = wIdx > 0 ? DATA.weeks[wIdx - 1] : null;
-    const prevMet = prevW ? (DATA.metrics[prevW] || {}) : {};
+    const prevMet = prevW ? (ACTIVE_METRICS[prevW] || {}) : {};
 
     ALL_SERIES.forEach(series => {
       const m  = wMet[series]  || {};
@@ -3229,7 +3287,7 @@ function copyMetric(evt, key) {
 
   const header = ["Week", ...COPY_SKU_HEADERS, "Total"].join("\t");
   const rows = DATA.weeks.map(w => {
-    const wMet = DATA.metrics[w] || {};
+    const wMet = ACTIVE_METRICS[w] || {};
     const vals = COPY_SKUS_ORDER.map(sku => fmt(spec.get(wMet[sku])));
     const total = fmt(spec.get(wMet["Total"]));
     return [weekLabel(w), ...vals, total].join("\t");
@@ -3344,7 +3402,7 @@ function buildPeriodRollup(grain /* "month" | "quarter" */) {
       let uswSum = 0, uswW = 0;
       let instockSum = 0, instockW = 0;
       wfracs.forEach(({ w, frac }) => {
-        const m = (DATA.metrics[w] || {})[s];
+        const m = (ACTIVE_METRICS[w] || {})[s];
         if (!m) return;
         if (m.pos_dollars != null)       { sumDollars   += m.pos_dollars * frac;   hasDollars = true; }
         if (m.pos_qty != null)           { sumQty       += m.pos_qty * frac;       hasQty = true; }
