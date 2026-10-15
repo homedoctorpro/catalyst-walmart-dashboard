@@ -1,5 +1,5 @@
 {
- "lastSentOn": "2026-10-06",
+ "lastSentOn": "2026-10-15",
  "overdueSeen": [],
  "rows": {
   "ace": {
@@ -58,9 +58,9 @@
   },
   "bradley-caldwell": {
    "deadline": "2026-10-30",
-   "nextSteps": "Annamarie",
+   "nextSteps": "Nick Massi (PSE, Northeast) meets BCI end of October. Samples sent 10/6; PSE sent updated contract for signing 10/8. Phil sent distributor deck + preliminary pricing to Cindee 10/14 (30% distributor margin, ~50% retailer, ISO/BOGO launch promo, 17.5-18% co-op, ~$25K/yr for 2 trade shows; 9 lb bag est.). Confirm final pricing and FOB Kenbridge before it goes to Nick.",
    "priority": 2,
-   "repFirm": "Internal",
+   "repFirm": "PSE",
    "sfOppStage": "Qualification",
    "status": "target"
   },
@@ -132,10 +132,12 @@
    "status": "in"
   },
   "food-lion": {
-   "deadline": "2026-10-19",
-   "nextSteps": "Discuss with PSE (Lori)",
+   "deadline": "2026-10-30",
+   "nextReview": "2026-10-22",
+   "nextSteps": "10/14: Lori (PSE) got a virtual appt with Food Lion's new buyer for Cat Litter Cycle 8 2027, 10/21 or 10/22, time not set yet. Fill the item form for the 4 Catalyst SKUs (quote FOB Kenbridge; DC list attached for DLVD) before the meeting. Buyer has no set margin requirement; slotting expectation $50K, open to conversation. Samples due 10/30; new vendor paperwork 11/6; items due in warehouse 3/22/27; POGs live 3/29/27.",
    "priority": 1,
    "repFirm": "PSE",
+   "resetDate": "2027-04-12",
    "status": "target"
   },
   "giant-company": {
@@ -161,7 +163,7 @@
   },
   "heb": {
    "deadline": "2026-10-19",
-   "nextSteps": "Cindee to reach out / Lori / Skyler",
+   "nextSteps": "10/14: Cindee asked PSE who handles H-E-B; Lori checking. Cindee wants a meeting.",
    "priority": 1,
    "repFirm": "Internal",
    "status": "target"
@@ -372,9 +374,9 @@
    "repFirm": "StoR"
   },
   "walmart-canada": {
-   "deadline": "2026-10-16",
-   "nextReview": "2026-10-06",
-   "nextSteps": "Fill out the new item sheet - mod review for in-store will be late October",
+   "deadline": "2026-10-21",
+   "nextReview": "2026-11-16",
+   "nextSteps": "10/9: Rob McClinton approved Feline Fresh online (20/40 lb pellets, 17/34 lb clumping). Create items in SupplierOne by 10/21; online FC modular 11/26, first orders ~mid-Nov. Store distribution: Wk14 modular build starts mid-Nov, needs a complete modular intake template incl. retail price survey and Business Review tab (Cindee needs it by Mon 10/19). EDI/Retail Link logins and CAD/USD + province tax questions open with Paul Peterson / Alain.",
    "priority": 1,
    "repFirm": "StoR",
    "resetDate": "2027-04-30",
@@ -394,5 +396,5 @@
    "repFirm": "Brian Schlager"
   }
  },
- "savedAt": "2026-10-15T15:38:27"
+ "savedAt": "2026-10-15T20:04:40"
 }
