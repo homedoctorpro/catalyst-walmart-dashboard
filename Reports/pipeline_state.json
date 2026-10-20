@@ -1,6 +1,13 @@
 {
- "lastSentOn": "2026-10-15",
- "overdueSeen": [],
+ "lastSentOn": "2026-10-20",
+ "overdueSeen": [
+  "giant-company",
+  "giant-food",
+  "hannaford",
+  "heb",
+  "meijer",
+  "stop-shop"
+ ],
  "rows": {
   "ace": {
    "status": "target"
@@ -396,5 +403,5 @@
    "repFirm": "Brian Schlager"
   }
  },
- "savedAt": "2026-10-19T21:16:38"
+ "savedAt": "2026-10-20T15:40:46"
 }
