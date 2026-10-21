@@ -1,5 +1,5 @@
 {
- "lastSentOn": "2026-10-20",
+ "lastSentOn": "2026-10-21",
  "overdueSeen": [
   "giant-company",
   "giant-food",
@@ -33,7 +33,7 @@
    "priority": 3,
    "repFirm": "Internal",
    "sfOppStage": "Closed Lost",
-   "status": "target"
+   "status": "declined"
   },
   "big-lots": {
    "status": "non-target"
@@ -151,7 +151,7 @@
    "deadline": "2026-10-19",
    "priority": 1,
    "repFirm": "Brian Schlager",
-   "status": "target"
+   "status": "pitched"
   },
   "giant-eagle": {
    "repFirm": "Brian Schlager"
@@ -160,13 +160,13 @@
    "deadline": "2026-10-19",
    "priority": 1,
    "repFirm": "Brian Schlager",
-   "status": "target"
+   "status": "pitched"
   },
   "hannaford": {
    "deadline": "2026-10-19",
    "priority": 1,
    "repFirm": "Brian Schlager",
-   "status": "target"
+   "status": "pitched"
   },
   "heb": {
    "deadline": "2026-10-19",
@@ -262,14 +262,14 @@
    "nextSteps": "New Buyer - hear back from Tim Evans",
    "priority": 2,
    "repFirm": "PSE",
-   "status": "target"
+   "status": "pitched"
   },
   "pet-supplies-plus": {
    "deadline": "2026-10-30",
    "nextSteps": "Sent Teaser deck - hear back from Tim Evans",
    "priority": 2,
    "repFirm": "PSE",
-   "status": "target"
+   "status": "pitched"
   },
   "petco": {
    "nextSteps": "Follow up in October",
@@ -336,7 +336,7 @@
    "deadline": "2026-10-19",
    "priority": 1,
    "repFirm": "Brian Schlager",
-   "status": "target"
+   "status": "pitched"
   },
   "target": {
    "nextSteps": "Wait until next year",
@@ -352,7 +352,7 @@
    "priority": 2,
    "repFirm": "Internal",
    "sfOppStage": "Closed Won",
-   "status": "target"
+   "status": "pitched"
   },
   "trader-joes": {
    "deadline": "2026-11-30",
@@ -403,5 +403,5 @@
    "repFirm": "Brian Schlager"
   }
  },
- "savedAt": "2026-10-20T15:40:46"
+ "savedAt": "2026-10-21T15:59:49"
 }
