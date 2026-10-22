@@ -1,12 +1,13 @@
 {
- "lastSentOn": "2026-10-21",
+ "lastSentOn": "2026-10-22",
  "overdueSeen": [
   "giant-company",
   "giant-food",
   "hannaford",
   "heb",
   "meijer",
-  "stop-shop"
+  "stop-shop",
+  "walmart-canada"
  ],
  "rows": {
   "ace": {
@@ -403,5 +404,5 @@
    "repFirm": "Brian Schlager"
   }
  },
- "savedAt": "2026-10-21T15:59:49"
+ "savedAt": "2026-10-22T15:55:11"
 }
