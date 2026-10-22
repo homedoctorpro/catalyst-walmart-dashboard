@@ -509,6 +509,12 @@
    "default_usw": 2.0,
    "name": "Woodman's Markets",
    "us_stores": 20
+  },
+  "zeiglers": {
+   "channel": "Pet Distributors",
+   "default_usw": 4.0,
+   "name": "Zeigler's Distributor",
+   "us_stores": 0
   }
  }
 }
