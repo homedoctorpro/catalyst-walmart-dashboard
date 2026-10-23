@@ -1,5 +1,5 @@
 {
- "lastSentOn": "2026-10-22",
+ "lastSentOn": "2026-10-23",
  "overdueSeen": [
   "giant-company",
   "giant-food",
@@ -70,7 +70,7 @@
    "priority": 2,
    "repFirm": "PSE",
    "sfOppStage": "Qualification",
-   "status": "target"
+   "status": "sent"
   },
   "cal-ranch": {
    "deadline": "2027-01-15",
@@ -146,13 +146,13 @@
    "priority": 1,
    "repFirm": "PSE",
    "resetDate": "2027-04-12",
-   "status": "target"
+   "status": "pitched"
   },
   "giant-company": {
    "deadline": "2026-10-19",
    "priority": 1,
    "repFirm": "Brian Schlager",
-   "status": "pitched"
+   "status": "sent"
   },
   "giant-eagle": {
    "repFirm": "Brian Schlager"
@@ -161,13 +161,13 @@
    "deadline": "2026-10-19",
    "priority": 1,
    "repFirm": "Brian Schlager",
-   "status": "pitched"
+   "status": "sent"
   },
   "hannaford": {
    "deadline": "2026-10-19",
    "priority": 1,
    "repFirm": "Brian Schlager",
-   "status": "pitched"
+   "status": "sent"
   },
   "heb": {
    "deadline": "2026-10-19",
@@ -263,14 +263,14 @@
    "nextSteps": "New Buyer - hear back from Tim Evans",
    "priority": 2,
    "repFirm": "PSE",
-   "status": "pitched"
+   "status": "target"
   },
   "pet-supplies-plus": {
    "deadline": "2026-10-30",
    "nextSteps": "Sent Teaser deck - hear back from Tim Evans",
    "priority": 2,
    "repFirm": "PSE",
-   "status": "pitched"
+   "status": "target"
   },
   "petco": {
    "nextSteps": "Follow up in October",
@@ -306,7 +306,7 @@
    "priority": 5,
    "repFirm": "Brian Schlager",
    "sfOppStage": "Qualification",
-   "status": "target"
+   "status": "requested"
   },
   "rite-aid": {
    "status": "non-target"
@@ -337,7 +337,7 @@
    "deadline": "2026-10-19",
    "priority": 1,
    "repFirm": "Brian Schlager",
-   "status": "pitched"
+   "status": "sent"
   },
   "target": {
    "nextSteps": "Wait until next year",
@@ -353,7 +353,7 @@
    "priority": 2,
    "repFirm": "Internal",
    "sfOppStage": "Closed Won",
-   "status": "pitched"
+   "status": "target"
   },
   "trader-joes": {
    "deadline": "2026-11-30",
@@ -404,5 +404,5 @@
    "repFirm": "Brian Schlager"
   }
  },
- "savedAt": "2026-10-22T15:55:11"
+ "savedAt": "2026-10-23T15:46:30"
 }
