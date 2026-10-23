@@ -13,8 +13,8 @@ Excel formulas, so editing a U/S/W or door count in the workbook re-sizes the ro
 This file goes outside the company, so it carries no internal fields (priority, rep
 firm, deadlines, contacts) and the commentary is the short, reviewed line in
 COMMENTARY below, never the sheet's working notes. A retailer with no entry there
-gets a blank comment. Retailers we already sell to are left out; Non-Target and
-Declined rows are listed but kept out of the totals, same as the dashboard.
+gets a blank comment. Retailers we already sell to and Non-Target rows are left
+out; Declined rows are listed but kept out of the totals, same as the dashboard.
 
     python build_retailer_summary.py      → Reports/Catalyst_Retailer_Summary.xlsx
 """
@@ -119,9 +119,9 @@ def main():
                                            and r["stores"] == 0 else "")
         recs.append({**r, "status": status or "", "usw": usw, "note": note})
 
-    # Retailers we already sell to are left out. Sort by status (furthest along first,
-    # parked last), then by wholesale $ potential.
-    recs = [x for x in recs if x["status"] != "in"]
+    # Retailers we already sell to and ones ruled out (Non-Target) are left out. Sort by
+    # status (furthest along first, Declined last), then by wholesale $ potential.
+    recs = [x for x in recs if x["status"] not in ("in", "non-target")]
     rank = lambda s: STATUS_ORDER.index(s) if s in STATUS_ORDER else len(STATUS_ORDER)
     recs.sort(key=lambda x: (rank(x["status"]), -x["stores"] * x["usw"], x["name"]))
 
@@ -159,18 +159,19 @@ def main():
 
     # ── By Channel ──
     sc = wb.create_sheet("By Channel")
+    order = [ch for ch in order if any(x["channel"] == ch for x in recs)]
     shown = ["pitched", "sent", "requested", "target", ""]
     sc.append(["Channel", "Retailers", "Doors", "Annual Units", "Wholesale $ Potential"]
-              + [STATUS_LABEL[s] for s in shown] + ["Non-Target / Declined"])
+              + [STATUS_LABEL[s] for s in shown] + ["Declined"])
     rng = lambda col: f"Retailers!${col}$2:${col}${last}"
     for i, ch in enumerate(order, start=2):
         nm = channels[ch]["name"]
-        inc = f'{rng("B")},A{i},{rng("G")},"<>Non-Target",{rng("G")},"<>Declined"'
+        inc = f'{rng("B")},A{i},{rng("G")},"<>Declined"'
         st = lambda s: f'COUNTIFS({rng("B")},A{i},{rng("G")},"{s}")'
         sc.append([nm, f"=COUNTIFS({inc})", f"=SUMIFS({rng('C')},{inc})",
                    f"=SUMIFS({rng('E')},{inc})", f"=SUMIFS({rng('F')},{inc})"]
                   + ["=" + st(STATUS_LABEL[s]) for s in shown]
-                  + [f'={st("Non-Target")}+{st("Declined")}'])
+                  + ["=" + st("Declined")])
     tot = len(order) + 2
     ncol = 5 + len(shown) + 1
     sc.append(["TOTAL (working list)"] + [f"=SUM({get_column_letter(c)}2:{get_column_letter(c)}{tot-1})"
@@ -187,9 +188,9 @@ def main():
     for cell in sc[tot]:
         cell.font = Font(bold=True)
         cell.border = Border(top=Side(style="thin", color="1A1A2E"))
-    sc.cell(tot + 2, 1, "Retailers, doors, units and $ count the working list only; Non-Target "
-            "and Declined are excluded. Status columns count every row. Retailers Catalyst "
-            "already sells to are not included.").font = Font(italic=True, color="666666")
+    sc.cell(tot + 2, 1, "Retailers, doors, units and $ count the working list only; Declined "
+            "is excluded. Status columns count every row. Retailers Catalyst already sells "
+            "to, and ones ruled out, are not included.").font = Font(italic=True, color="666666")
     sc.freeze_panes = "B2"
 
     # ── Assumptions ──
