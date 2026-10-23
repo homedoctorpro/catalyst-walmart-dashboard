@@ -9,6 +9,7 @@ Sizing matches the dashboard exactly:
     wholesale $   = annual units × $10
 U/S/W is the row override if one is set, else the channel default. Units and $ are
 Excel formulas, so editing a U/S/W or door count in the workbook re-sizes the row.
+The exception is the private-label rows (PL_SPLIT), sized from the PetSmart RFQ.
 
 This file goes outside the company, so it carries no internal fields (priority, rep
 firm, deadlines, contacts) and the commentary is the short, reviewed line in
@@ -68,7 +69,19 @@ COMMENTARY = {
     "southern-states": "~1,200 dealer outlets",
     "indie-via-distributors": "Reached through the distributors listed; doors counted once",
     "target": "Revisit next year",
+    "petsmart-pl": "Pine pellet litter RFQ submitted; sized at the RFQ volume",
+    "petco-pl": "Invited to discuss own-brand pine litter; sized from PetSmart PL by store count",
 }
+
+# Retailers split into a branded Catalyst row and a private-label row. PetSmart PL is
+# sized from its pine pellet RFQ (Aug 2026, round 1 prices as submitted, FOB):
+# 193K 25 lb + 444K 40 lb bags a year = 11,293 tons, $3.50M. Every PL row uses the same
+# bags/store/week (RFQ bags ÷ 52 ÷ PetSmart doors), so Petco PL is PetSmart's volume
+# weighted by store count. PL doors repeat the branded row's and are counted once.
+PL_SPLIT = ["petsmart", "petco"]
+PL_RFQ = {"bags_25": 193_000, "price_25": 4.633, "bags_40": 444_000, "price_40": 5.86}
+PL_BASE = "petsmart"
+PL_TAG = "(Private Label)"
 
 
 def load_template():
@@ -119,7 +132,19 @@ def main():
         usw = float(usw) if usw not in (None, "") else channels[r["channel"]]["usw"]
         note = COMMENTARY.get(r["id"]) or (DIST_NOTE if r["channel"] == "distributor"
                                            and r["stores"] == 0 else "")
-        recs.append({**r, "status": status or "", "usw": usw, "note": note})
+        recs.append({**r, "status": status or "", "usw": usw, "note": note, "price": price})
+
+    # Branded / private-label split. The PL row inherits the retailer's live status.
+    pl_bags = PL_RFQ["bags_25"] + PL_RFQ["bags_40"]
+    pl_price = (PL_RFQ["bags_25"] * PL_RFQ["price_25"]
+                + PL_RFQ["bags_40"] * PL_RFQ["price_40"]) / pl_bags
+    base_doors = next(x["stores"] for x in recs if x["id"] == PL_BASE)
+    pl_usw = pl_bags / weeks / base_doors
+    for x in [x for x in recs if x["id"] in PL_SPLIT]:
+        recs.append({**x, "id": f"{x['id']}-pl", "name": f"{x['name']} {PL_TAG}",
+                     "usw": pl_usw, "price": pl_price, "pl": True,
+                     "note": COMMENTARY.get(f"{x['id']}-pl", "")})
+        x["name"] = f"{x['name']} (Branded)"
 
     # Retailers we already sell to, ones ruled out (Non-Target) and ones that declined are
     # left out, except the declined ones in KEEP_DECLINED. Sort by status (furthest along
@@ -127,7 +152,7 @@ def main():
     recs = [x for x in recs if x["status"] not in ("in", "non-target", "declined")
             or (x["status"] == "declined" and x["id"] in KEEP_DECLINED)]
     rank = lambda s: STATUS_ORDER.index(s) if s in STATUS_ORDER else len(STATUS_ORDER)
-    recs.sort(key=lambda x: (rank(x["status"]), -x["stores"] * x["usw"], x["name"]))
+    recs.sort(key=lambda x: (rank(x["status"]), -x["stores"] * x["usw"] * x["price"], x["name"]))
 
     wb = Workbook()
     ws = wb.active
@@ -137,8 +162,11 @@ def main():
     widths = [34, 17, 9, 8, 13, 15, 20, 58]
     ws.append(hdr)
     for i, rec in enumerate(recs, start=2):
-        ws.append([rec["name"], channels[rec["channel"]]["name"], rec["stores"], rec["usw"],
-                   f"=C{i}*D{i}*Assumptions!$B$3", f"=E{i}*Assumptions!$B$2",
+        pl = rec.get("pl")
+        ws.append([rec["name"], channels[rec["channel"]]["name"], rec["stores"],
+                   "=Assumptions!$B$12" if pl else rec["usw"],
+                   f"=C{i}*D{i}*Assumptions!$B$3",
+                   f"=E{i}*Assumptions!$B${10 if pl else 2}",
                    STATUS_LABEL.get(rec["status"], rec["status"]), rec["note"]])
     last = len(recs) + 1
 
@@ -171,8 +199,9 @@ def main():
     for i, ch in enumerate(order, start=2):
         nm = channels[ch]["name"]
         inc = f'{rng("B")},A{i},{rng("G")},"<>Declined"'
-        st = lambda s: f'COUNTIFS({rng("B")},A{i},{rng("G")},"{s}")'
-        sc.append([nm, f"=COUNTIFS({inc})", f"=SUMIFS({rng('C')},{inc})",
+        once = f'{inc},{rng("A")},"<>*{PL_TAG}"'  # PL rows share the branded row's doors
+        st = lambda s: f'COUNTIFS({rng("B")},A{i},{rng("G")},"{s}",{rng("A")},"<>*{PL_TAG}")'
+        sc.append([nm, f"=COUNTIFS({once})", f"=SUMIFS({rng('C')},{once})",
                    f"=SUMIFS({rng('E')},{inc})", f"=SUMIFS({rng('F')},{inc})"]
                   + ["=" + st(STATUS_LABEL[s]) for s in shown]
                   + ["=" + st("Declined")])
@@ -195,6 +224,8 @@ def main():
     sc.cell(tot + 2, 1, "Retailers, doors, units and $ count the working list only; Declined "
             "is excluded. Status columns count every row. Retailers Catalyst already sells "
             "to, and ones ruled out or declined (other than Target), are not included.").font = Font(italic=True, color="666666")
+    sc.cell(tot + 3, 1, "Private-label rows add units and $ but not retailers or doors, since "
+            "they sell through the same stores as the branded row.").font = Font(italic=True, color="666666")
     sc.freeze_panes = "B2"
 
     # ── Assumptions ──
@@ -203,15 +234,30 @@ def main():
     sa.append(["Wholesale $ per unit", price, "Blended 15 lb / 34 lb"])
     sa.append(["Weeks per year", weeks, "Annual units = Doors × U/S/W × weeks"])
     sa.append([])
+    # Rows 5-12. Retailers!D/F on the PL rows point at B12 and B10.
+    sa.append(["Private label", "", "PetSmart pine pellet RFQ, Aug 2026 (round 1 prices, FOB)"])
+    sa.append(["25 lb bags / year", PL_RFQ["bags_25"]])
+    sa.append(["25 lb $ / bag", PL_RFQ["price_25"]])
+    sa.append(["40 lb bags / year", PL_RFQ["bags_40"]])
+    sa.append(["40 lb $ / bag", PL_RFQ["price_40"]])
+    sa.append(["PL $ / bag (blended)", "=(B6*B7+B8*B9)/(B6+B8)", "Used for $ on every private-label row"])
+    sa.append([f"{next(r['name'] for r in rows if r['id'] == PL_BASE)} doors", base_doors])
+    sa.append(["PL U/S/W", "=(B6+B8)/B3/B11",
+               "RFQ bags ÷ weeks ÷ doors; other PL rows scale with their door count"])
+    sa.append([])
     sa.append(["Channel U/S/W", "", "Units per store per week assumed for each channel"])
     for ch in order:
         sa.append([channels[ch]["name"], channels[ch]["usw"]])
     sa.append([])
     sa.append(["As of", date.today().strftime("%m/%d/%y")])
-    sa["B2"].number_format = "$#,##0.00"
+    for ref in ("B2", "B7", "B9", "B10"):
+        sa[ref].number_format = "$#,##0.000" if ref in ("B7", "B9") else "$#,##0.00"
+    for ref in ("B6", "B8", "B11"):
+        sa[ref].number_format = "#,##0"
+    sa["B12"].number_format = "0.00"
     for c, w in enumerate([24, 12, 60], start=1):
         sa.column_dimensions[get_column_letter(c)].width = w
-    for cell in sa[1] + sa[5]:
+    for cell in sa[1] + sa[5] + sa[14]:
         cell.font = Font(bold=True)
 
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
@@ -219,8 +265,15 @@ def main():
 
     work = [x for x in recs if x["status"] not in PARKED]
     units = sum(x["stores"] * x["usw"] * weeks for x in work)
-    print(f"  {len(recs)} retailers ({len(work)} working, {len(recs)-len(work)} parked), "
-          f"{sum(x['stores'] for x in work):,} doors, {units:,.0f} units, ${units*price:,.0f} wholesale")
+    dollars = sum(x["stores"] * x["usw"] * weeks * x["price"] for x in work)
+    print(f"  {len(recs)} rows ({len(work)} working, {len(recs)-len(work)} parked), "
+          f"{sum(x['stores'] for x in work if not x.get('pl')):,} doors, {units:,.0f} units, "
+          f"${dollars:,.0f} wholesale")
+    for x in recs:
+        if x["id"].split("-pl")[0] in PL_SPLIT:
+            u = x["stores"] * x["usw"] * weeks
+            print(f"    {x['name']:<26} {x['stores']:>5} doors  U/S/W {x['usw']:.2f}  "
+                  f"{u:>9,.0f} units  ${u*x['price']:>11,.0f}")
     print(f"  -> {OUT}")
 
 
