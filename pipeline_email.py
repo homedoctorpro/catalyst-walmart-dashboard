@@ -61,6 +61,7 @@ TRACKED = [
     ("sfOppStage",       "Opportunity stage"),
 ]
 STATUS_LABEL = {"in": "Currently In", "pitched": "Pitched", "target": "Target",
+                "sent": "Sent Materials", "requested": "Requested Materials",
                 "non-target": "Non-Target", "declined": "Declined", "": "—"}
 
 BLUE, INK, MUTED = "#0057e7", "#1a1a2e", "#888"
@@ -144,7 +145,7 @@ def overdue_deadlines(rows, names, today):
     out = []
     for rid, row in rows.items():
         dl = str(row.get("deadline") or "")
-        if len(dl) == 10 and dl < today and row.get("status") in ("target", "pitched"):
+        if len(dl) == 10 and dl < today and row.get("status") in ("target", "requested", "sent", "pitched"):
             out.append({"id": rid, "name": names.get(rid, rid), "deadline": dl,
                         "status": STATUS_LABEL.get(row.get("status"), ""),
                         "owner": row.get("repFirm") or "Unassigned",
@@ -225,7 +226,8 @@ def build_html(changes, overdue, new_overdue, unlinked, counts, today):
             Catalyst Pet · Retailer pipeline</div>
           <h1 style="font-size:20px;margin:4px 0 2px">What moved since the last update</h1>
           <div style="font-size:13px;color:{MUTED}">{today} · {counts['working']} retailers in the working list ·
-            {counts['target']} target · {counts['pitched']} pitched</div>
+            {counts['target']} target · {counts['requested']} requested materials ·
+            {counts['sent']} sent materials · {counts['pitched']} pitched</div>
           {body}
           {overdue_html}
           {unlinked_html}
@@ -301,6 +303,8 @@ def main():
                        if r.get("status") not in ("in", "non-target", "declined")),
         "target": sum(1 for r in rows.values() if r.get("status") == "target"),
         "pitched": sum(1 for r in rows.values() if r.get("status") == "pitched"),
+        "sent": sum(1 for r in rows.values() if r.get("status") == "sent"),
+        "requested": sum(1 for r in rows.values() if r.get("status") == "requested"),
     }
 
     first_run = not state.get("rows")

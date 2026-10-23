@@ -19,7 +19,7 @@
  *   I wholesale_opp   formula: annual_units × $10
  *   J retail_opp      formula: annual_units × $20
  *   K rep_firm        Unassigned / Brian Schlager / Internal / Jeff Day / PSE / StoR   EDIT ME
- *   L status          in / pitched / target / non-target / declined    EDIT ME
+ *   L status          in / pitched / sent / requested / target / non-target / declined    EDIT ME
  *   M next_steps      free text                            EDIT ME
  *   N updated_at      auto-stamped on every write
  *   O next_review     date (yyyy-mm-dd)                    EDIT ME
@@ -488,7 +488,7 @@ const MCP_WRITABLE = {
   needs_distributor: 'needsDistributor', distributor_name: 'distributorName',
   key_contact: 'keyContact', notes: 'notes',
 };
-const MCP_STATUSES = ['in', 'pitched', 'target', 'non-target', 'declined', ''];
+const MCP_STATUSES = ['in', 'pitched', 'sent', 'requested', 'target', 'non-target', 'declined', ''];
 
 function mcpTools_() {
   return [
@@ -525,14 +525,14 @@ function mcpTools_() {
       name: 'update_retailer',
       title: 'Update a retailer',
       description: 'Change one retailer\'s planning fields. Only the arguments you pass are touched. ' +
-        'Status Target or Pitched puts the row into Salesforce and creates its cat-litter opportunity; ' +
+        'Status Target, Requested Materials, Sent Materials or Pitched puts the row into Salesforce and creates its cat-litter opportunity; ' +
         'Currently In, Non-Target and Declined park it at the bottom of the dashboard. Dates accept ' +
         'yyyy-mm-dd.',
       inputSchema: {
         type: 'object',
         properties: {
           retailer:          { type: 'string', description: 'Retailer name or id' },
-          status:            { type: 'string', enum: MCP_STATUSES, description: 'in | pitched | target | non-target | declined, or empty to clear' },
+          status:            { type: 'string', enum: MCP_STATUSES, description: 'in | pitched | sent (Sent Materials) | requested (Requested Materials) | target | non-target | declined, or empty to clear' },
           priority:          { type: 'number', description: '1-10, 1 is highest. 0 clears it.' },
           rep_firm:          { type: 'string', description: 'Unassigned, Brian Schlager, Internal, Jeff Day, PSE, StoR' },
           next_steps:        { type: 'string' },
@@ -855,12 +855,13 @@ const SF_FIELDS = {           // Sheet field → Account field
 // Dashboard status codes ↔ Salesforce picklist labels
 const SF_STATUS = {
   'in': 'Currently In', 'pitched': 'Pitched', 'target': 'Target',
+  'sent': 'Sent Materials', 'requested': 'Requested Materials',
   'non-target': 'Non-Target', 'declined': 'Declined',
 };
 // Only these statuses put a retailer's fields into Salesforce. Everything
 // else stays in the dashboard and the Sheet: the Account keeps its link and
 // whatever it already had, and we never blank a field we stopped syncing.
-const SF_PUSH_STATUSES = { 'target': 1, 'pitched': 1 };
+const SF_PUSH_STATUSES = { 'target': 1, 'requested': 1, 'sent': 1, 'pitched': 1 };
 // ── Opportunities ───────────────────────────────────────────────────────────
 // One Catalyst cat-litter Opportunity per retailer, created the first time a
 // retailer reaches Target or Pitched. Tagged with the org's own picklists:
@@ -878,7 +879,8 @@ const SF_OPP_LABEL = 'Catalyst';
 const SF_OPPS_SHEET = 'SF_Opps';   // litter Opportunities on Accounts no retailer is linked to
 const SF_OPP_TYPE = 'New Business';
 const SF_OPP_FORECAST = 'Omitted';        // keeps sizing estimates out of forecast totals
-const SF_OPP_STAGE = { 'target': 'Qualification', 'pitched': 'Proposal' };
+const SF_OPP_STAGE = { 'target': 'Qualification', 'requested': 'Qualification',
+                       'sent': 'Qualification', 'pitched': 'Proposal' };
 // Stages we set ourselves; anything past these is a human's call and is left alone.
 const SF_OPP_OURS = { 'Qualification': 1, 'Proposal': 1 };
 const SF_OPP_DEFAULT_DAYS = 90;           // close date when the row has no next review

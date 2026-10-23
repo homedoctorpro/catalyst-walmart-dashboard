@@ -180,7 +180,7 @@ def probe():
 def run(scope, enrich, limit_per_retailer, max_retailers):
     rows = [r for r in sheet_rows() if needs_contact(r)]
     if scope == "target":
-        rows = [r for r in rows if r.get("status") in ("target", "pitched")]
+        rows = [r for r in rows if r.get("status") in ("target", "requested", "sent", "pitched")]
     rows.sort(key=lambda r: (r.get("priority") or 99, -(r.get("us_stores") or 0)))
     rows = rows[:max_retailers]
     print(f"{len(rows)} retailer(s) with no contact in scope\n")

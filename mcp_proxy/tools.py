@@ -53,7 +53,7 @@ def _today():
     from datetime import date
     return date.today().isoformat()
 
-STATUSES = ["in", "pitched", "target", "non-target", "declined", ""]
+STATUSES = ["in", "pitched", "sent", "requested", "target", "non-target", "declined", ""]
 REP_FIRMS = ["Unassigned", "Brian Schlager", "Internal", "Jeff Day", "PSE", "StoR"]
 # tool argument → the field name the sheet's upsert expects
 WRITABLE = {
@@ -381,8 +381,8 @@ TOOLS = [
         "name": "update_retailer",
         "title": "Update a retailer",
         "description": "Change one retailer's planning fields; only the arguments passed are touched. "
-                       "Target or Pitched puts the row into Salesforce and creates its cat-litter "
-                       "opportunity. Currently In, Non-Target and Declined park it at the bottom of "
+                       "Target, Requested Materials (requested), Sent Materials (sent) or Pitched puts "
+                       "the row into Salesforce and creates its cat-litter opportunity. Currently In, Non-Target and Declined park it at the bottom of "
                        "the dashboard. Dates are yyyy-mm-dd.",
         "inputSchema": {
             "type": "object",
