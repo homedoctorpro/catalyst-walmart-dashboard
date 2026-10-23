@@ -74,12 +74,13 @@ COMMENTARY = {
 }
 
 # Retailers split into a branded Catalyst row and a private-label row. PetSmart PL is
-# sized from its pine pellet RFQ (Aug 2026, round 1 prices as submitted, FOB):
-# 193K 25 lb + 444K 40 lb bags a year = 11,293 tons, $3.50M. Every PL row uses the same
+# sized from its pine pellet RFQ (Aug 2026, round 1 prices as submitted, FOB), per
+# "Analysis & Forecasting/Petsmart PL Illustrative Pricing.xlsx": 193,097 25 lb +
+# 443,934 40 lb bags a year = 11,292 tons, $3,495,492. Every PL row uses the same
 # bags/store/week (RFQ bags ÷ 52 ÷ PetSmart doors), so Petco PL is PetSmart's volume
 # weighted by store count. PL doors repeat the branded row's and are counted once.
 PL_SPLIT = ["petsmart", "petco"]
-PL_RFQ = {"bags_25": 193_000, "price_25": 4.633, "bags_40": 444_000, "price_40": 5.86}
+PL_RFQ = {"bags_25": 193_097, "price_25": 4.63, "bags_40": 443_934, "price_40": 5.86}
 PL_BASE = "petsmart"
 PL_TAG = "(Private Label)"
 
