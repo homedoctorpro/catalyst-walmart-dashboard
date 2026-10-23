@@ -654,8 +654,10 @@
   .rt-tbl .rt-date-input.has-value { background:#f0fdf4; border-color:#a5d6a7; }
   .rt-tbl .rt-date-input.is-overdue { background:#ffe0e0; border-color:#ef9a9a; color:#b71c1c; }
   .rt-tbl select.rt-status-select { padding:4px 8px; border:1px solid #e0e0e0; border-radius:4px;
-                                    font-size:0.82rem; font-family:inherit; background:#fff;
+                                    font-size:0.82rem; font-family:inherit;
                                     font-weight:600; }
+  /* With a status set, the select takes that status's .rt-status-* colors. */
+  .rt-tbl select.rt-status-select:not(.has-status) { background:#fff; }
   .rt-tbl .rt-status-cell { white-space:nowrap; }
   .rt-tbl select.rt-status-select:focus { outline:none; border-color:#0057e7; }
   .rt-tbl select.rt-rep-select { padding:4px 8px; border:1px solid #e0e0e0; border-radius:4px;
@@ -8888,10 +8890,9 @@ function rtRowHtml(r, dimmed) {
         <td class="rt-size-col"><strong>${rtFmt$(annualUnits * RT_WHOLESALE_PRICE)}</strong></td>
         <td class="rt-size-col">${rtFmt$(annualUnits * RT_RETAIL_PRICE)}</td>`}
         <td class="rt-status-cell">
-          <select class="rt-status-select" onchange="rtUpdateStatus('${r.id}', this.value)">
+          <select class="rt-status-select ${status ? `has-status ${statusOpt.cls}` : ""}" onchange="rtUpdateStatus('${r.id}', this.value)">
             ${RT_STATUS_OPTIONS.map(o => `<option value="${o.v}" ${o.v === status ? "selected" : ""}>${o.label}</option>`).join("")}
           </select>
-          ${status ? `<span class="rt-status-pill ${statusOpt.cls}" style="margin-left:6px">${statusOpt.label}</span>` : ""}
         </td>
         <td>
           <select class="rt-rep-select ${repFirm && repFirm !== RT_REP_FIRM_DEFAULT ? 'has-value' : ''}"
