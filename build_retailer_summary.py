@@ -14,7 +14,8 @@ This file goes outside the company, so it carries no internal fields (priority, 
 firm, deadlines, contacts) and the commentary is the short, reviewed line in
 COMMENTARY below, never the sheet's working notes. A retailer with no entry there
 gets a blank comment. Retailers we already sell to and Non-Target rows are left
-out; Declined rows are listed but kept out of the totals, same as the dashboard.
+out. So are Declined rows, except those in KEEP_DECLINED (Target), which are listed
+but kept out of the totals, same as the dashboard.
 
     python build_retailer_summary.py      → Reports/Catalyst_Retailer_Summary.xlsx
 """
@@ -38,6 +39,8 @@ STATUS_LABEL = {"in": "Currently In", "pitched": "Pitched", "sent": "Sent Materi
                 "non-target": "Non-Target", "declined": "Declined", "": "Prospect"}
 PARKED = {"in", "non-target", "declined"}
 STATUS_ORDER = ["pitched", "sent", "requested", "target", "", "non-target", "declined"]
+# Declined retailers still worth showing investors (listed, kept out of the totals).
+KEEP_DECLINED = {"target"}
 
 DIST_NOTE = "Distribution route; doors counted under independents"
 # Investor-facing one-liners. Update these by hand when a retailer's story changes.
@@ -65,7 +68,6 @@ COMMENTARY = {
     "southern-states": "~1,200 dealer outlets",
     "indie-via-distributors": "Reached through the distributors listed; doors counted once",
     "target": "Revisit next year",
-    "atwoods": "Price sensitive; will revisit",
 }
 
 
@@ -119,9 +121,11 @@ def main():
                                            and r["stores"] == 0 else "")
         recs.append({**r, "status": status or "", "usw": usw, "note": note})
 
-    # Retailers we already sell to and ones ruled out (Non-Target) are left out. Sort by
-    # status (furthest along first, Declined last), then by wholesale $ potential.
-    recs = [x for x in recs if x["status"] not in ("in", "non-target")]
+    # Retailers we already sell to, ones ruled out (Non-Target) and ones that declined are
+    # left out, except the declined ones in KEEP_DECLINED. Sort by status (furthest along
+    # first, Declined last), then by wholesale $ potential.
+    recs = [x for x in recs if x["status"] not in ("in", "non-target", "declined")
+            or (x["status"] == "declined" and x["id"] in KEEP_DECLINED)]
     rank = lambda s: STATUS_ORDER.index(s) if s in STATUS_ORDER else len(STATUS_ORDER)
     recs.sort(key=lambda x: (rank(x["status"]), -x["stores"] * x["usw"], x["name"]))
 
@@ -190,7 +194,7 @@ def main():
         cell.border = Border(top=Side(style="thin", color="1A1A2E"))
     sc.cell(tot + 2, 1, "Retailers, doors, units and $ count the working list only; Declined "
             "is excluded. Status columns count every row. Retailers Catalyst already sells "
-            "to, and ones ruled out, are not included.").font = Font(italic=True, color="666666")
+            "to, and ones ruled out or declined (other than Target), are not included.").font = Font(italic=True, color="666666")
     sc.freeze_panes = "B2"
 
     # ── Assumptions ──
