@@ -1,5 +1,2605 @@
 [
  {
+  "authorId": "6017b2a4cbf40ecf7256aee56c021d572ef04b45c54ec5978a116702dca610a86c1cf5c4191d8f71ac89d27acd9fb19d",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 5,
+  "recommended": null,
+  "reviewId": "445429677",
+  "reviewReferenceId": "c264b075-ff10-5b95-824a-c654cef74f00",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "10/23/2026",
+  "reviewText": "I love this litter easy to clean less smell",
+  "reviewTitle": null,
+  "reviewAspects": [],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17929602180",
+  "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "laura",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "34 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "61dc7d782859204c8dc2434c2621b480",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [
+   {
+    "badgeId": "TOP_REVIEWER",
+    "badgeValue": "TOP_REVIEWER"
+   },
+   {
+    "badgeId": "REVIEW_COUNT",
+    "badgeValue": "50"
+   }
+  ],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 2,
+  "recommended": null,
+  "reviewId": "445412584",
+  "reviewReferenceId": "67b96f95-6d1b-5892-893e-3471a6bab951",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "10/23/2026",
+  "reviewText": "I hate the smell.",
+  "reviewTitle": "Smelly",
+  "reviewAspects": [],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17944250041",
+  "itemImageUrl": null,
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Melodye",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "15 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "60e337b46bff5946651c15a1b047da971b06990885591010ef296c948c1b2327c2fa678a45912079f4fa908bd41e9a1a",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [
+   {
+    "badgeId": "TOP_REVIEWER",
+    "badgeValue": "TOP_REVIEWER"
+   },
+   {
+    "badgeId": "REVIEW_COUNT",
+    "badgeValue": "75"
+   }
+  ],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 5,
+  "recommended": null,
+  "reviewId": "445180780",
+  "reviewReferenceId": "0c09ce7a-61a2-5433-8f3c-762aea87e98a",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "10/22/2026",
+  "reviewText": "Absolutely happy replacement to clay litter, if you're super sensitive to urine odors.",
+  "reviewTitle": null,
+  "reviewAspects": [],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17929602180",
+  "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Brandi",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "34 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "730588673f66a68bb2cf2927d0c51533",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [
+   {
+    "badgeId": "TOP_REVIEWER",
+    "badgeValue": "TOP_REVIEWER"
+   },
+   {
+    "badgeId": "REVIEW_COUNT",
+    "badgeValue": "50"
+   }
+  ],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 4,
+  "recommended": null,
+  "reviewId": "444948870",
+  "reviewReferenceId": "a9622712-7ab2-55e4-800a-0f23fa3999e4",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "10/20/2026",
+  "reviewText": "I like it, my cats not so much! I made the mistake of switching from their old litter cold turkey. I don't know if it was the smell or the texture they didn't like. So I started over adding it to their old style clay litter and now we're ok. \nThe litter is everything they advertise. Clumps well, absorbs odors, lasts longer than clay litter.",
+  "reviewTitle": "Great product! But switch gradually!",
+  "reviewAspects": [
+   {
+    "id": 1128,
+    "polarity": "Positive"
+   },
+   {
+    "id": 26481,
+    "polarity": "Positive"
+   },
+   {
+    "id": 267742,
+    "polarity": "Positive"
+   }
+  ],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17929602180",
+  "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "KLI122",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "34 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "a9866e99c13348f97d0fbe57b067d0dc",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 3,
+  "recommended": null,
+  "reviewId": "444827125",
+  "reviewReferenceId": "e2685ca9-6135-53ca-b860-04197aa739bb",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "10/19/2026",
+  "reviewText": "Can't use in our auto litter box",
+  "reviewTitle": null,
+  "reviewAspects": [],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17929602180",
+  "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Cass",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "34 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "e6541a766e3e74c89b79b4209343d207378faf5b993b5d61d3ace537d99d3c18bff27bf9e6de41a1131d47cf01a241ae",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 5,
+  "recommended": null,
+  "reviewId": "444820037",
+  "reviewReferenceId": "693b2f47-ad61-5614-b0e6-1c741c88f7c1",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "10/19/2026",
+  "reviewText": "Did not think I would like this litter, but with 2 cats, the urine smell is gone!  And no more clay litter is getting tracked ALL over the house. One downfall is it's hard to sift. I did have to buy a wire sifter/scooper and now it's perfect.",
+  "reviewTitle": "Better than expected",
+  "reviewAspects": [
+   {
+    "id": 1128,
+    "polarity": "Positive"
+   },
+   {
+    "id": 86216,
+    "polarity": "Negative"
+   }
+  ],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17944250041",
+  "itemImageUrl": null,
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Christie",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "15 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "89eb72395e9f0262e516b33c875fc4295925faa030f35f40afe8b4df16fbb0f79e9ef812dd3319e40ac31c30baeb3267",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [
+   {
+    "badgeId": "TOP_REVIEWER",
+    "badgeValue": "TOP_REVIEWER"
+   },
+   {
+    "badgeId": "REVIEW_COUNT",
+    "badgeValue": "75"
+   }
+  ],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 5,
+  "recommended": null,
+  "reviewId": "444710186",
+  "reviewReferenceId": "19cceabd-110c-5960-ae9a-5f1667ef1b12",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "10/18/2026",
+  "reviewText": "this litter is as advertised. it lasts longer than regular litter and the clumping is really good.",
+  "reviewTitle": null,
+  "reviewAspects": [
+   {
+    "id": 26481,
+    "polarity": "Positive"
+   }
+  ],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17929602180",
+  "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Terri",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "34 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "93755749df995c170101b667cbb727b9808d3aec36be28673a4c929eab070f005c470a971974fec414337d5815e43b6a",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 3,
+  "recommended": null,
+  "reviewId": "444471546",
+  "reviewReferenceId": "2b1e3ee0-be92-5ed9-9236-84c42aa9e810",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "10/16/2026",
+  "reviewText": "reordering",
+  "reviewTitle": null,
+  "reviewAspects": [],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17944250041",
+  "itemImageUrl": null,
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "anonymous",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "15 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "f6cd7e406a5281d0e68aa1cb422c90c5",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [
+   {
+    "badgeId": "REVIEW_COUNT",
+    "badgeValue": "25"
+   }
+  ],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 2,
+  "recommended": null,
+  "reviewId": "444398042",
+  "reviewReferenceId": "55febd47-e308-59bb-9d85-25f53f3fccdc",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "10/16/2026",
+  "reviewText": "The litter is as described but my cat developed an allergic reaction to the litter. Sneezing, cough, nasal drainage and eye drainage. My cat cannot use it",
+  "reviewTitle": null,
+  "reviewAspects": [],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17944250041",
+  "itemImageUrl": null,
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Carol",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "15 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "bb46ba00b39effb905ec2e76e136bac2",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 1,
+  "recommended": null,
+  "reviewId": "443851381",
+  "reviewReferenceId": "5b2f91a6-50b9-5676-b139-48afebe94c6d",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "10/11/2026",
+  "reviewText": "This is supposed to be sent free but it smells like the strongest pine tree out there. My cats and I hate it.  Didn't like the texture either.",
+  "reviewTitle": "Bad litter",
+  "reviewAspects": [
+   {
+    "id": 9552,
+    "polarity": "Negative"
+   }
+  ],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17944250041",
+  "itemImageUrl": null,
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "ConCon123",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "15 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "78233cefcde509af03dc82a3941cdabd",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 3,
+  "recommended": null,
+  "reviewId": "443792817",
+  "reviewReferenceId": "a39ae4e1-de82-5bf2-9453-761631dd1e72",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "10/11/2026",
+  "reviewText": "I wasn't crazy about this litter.",
+  "reviewTitle": null,
+  "reviewAspects": [],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17929602180",
+  "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Dee",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "34 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "9b0a89a3725b412eb5c1bb32853db27593a986e0ee1018c9ba3f74df8b88e3d87c01d5884142b3c1beeed17d20db8a87",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [
+   {
+    "badgeId": "TOP_REVIEWER",
+    "badgeValue": "TOP_REVIEWER"
+   },
+   {
+    "badgeId": "REVIEW_COUNT",
+    "badgeValue": "250"
+   }
+  ],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 3,
+  "recommended": null,
+  "reviewId": "443171245",
+  "reviewReferenceId": "a5ffe64b-e238-5cd6-9d72-fa011b21734e",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "10/6/2026",
+  "reviewText": "I really wanted to like this cat litter, but it's too light and flies all over the bathroom floor. And it doesn't clump very well either. It does hide the smell, though this litter would be good in an enclosed box.",
+  "reviewTitle": "Wanted to like it, but\u2026",
+  "reviewAspects": [
+   {
+    "id": 1128,
+    "polarity": "Positive"
+   },
+   {
+    "id": 26481,
+    "polarity": "Negative"
+   }
+  ],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": null,
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17944250041",
+  "itemImageUrl": null,
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Mary",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "15 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "0376170988b577e900f0d57bc66861c7e438a048425154ff32a7bc687f114f822ac680966bfe4c55f7d7878cfac2f7c7",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [
+   {
+    "badgeId": "REVIEW_COUNT",
+    "badgeValue": "25"
+   }
+  ],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 4,
+  "recommended": null,
+  "reviewId": "442848772",
+  "reviewReferenceId": "337e3e21-4316-59cc-90ac-2540e3132e8d",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "10/3/2026",
+  "reviewText": "Love this and will never go back to regular cat litter. I have 8  cats and can totally tell a difference.",
+  "reviewTitle": null,
+  "reviewAspects": [],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17929602180",
+  "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Amanda",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "34 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "3677f8f64bde3a58214939101ec5eac7",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [
+   {
+    "badgeId": "TOP_REVIEWER",
+    "badgeValue": "TOP_REVIEWER"
+   },
+   {
+    "badgeId": "REVIEW_COUNT",
+    "badgeValue": "100"
+   }
+  ],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 5,
+  "recommended": null,
+  "reviewId": "442693172",
+  "reviewReferenceId": "8a3dd6a0-010b-57df-99a5-1a4de335f3ce",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "10/2/2026",
+  "reviewText": "my cat has feline asthma. finally a dust free litter he will actually use. customer for life",
+  "reviewTitle": null,
+  "reviewAspects": [],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17944250041",
+  "itemImageUrl": null,
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Andrea",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "15 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "bd63b2232c8da68aeee895f07208388c",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 5,
+  "recommended": null,
+  "reviewId": "442572221",
+  "reviewReferenceId": "26b5b329-1184-581e-a181-a57e74ab0af0",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "10/1/2026",
+  "reviewText": "I love this so much. easier to clean smells less. but I do have to clean at least every. 3 days",
+  "reviewTitle": "this is so amazing",
+  "reviewAspects": [
+   {
+    "id": 95,
+    "polarity": "Positive"
+   },
+   {
+    "id": 1128,
+    "polarity": "Positive"
+   }
+  ],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17944250041",
+  "itemImageUrl": null,
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "lilwolfmisty",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "15 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "ca632b3bd7d28c00b55c1aa68b920553",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 5,
+  "recommended": null,
+  "reviewId": "442040736",
+  "reviewReferenceId": "68274401-4301-579d-bbd9-23b85caaf139",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "9/27/2026",
+  "reviewText": "I will not use anything else after using this litter. It is the best at odor control.",
+  "reviewTitle": "Best litter ever!",
+  "reviewAspects": [
+   {
+    "id": 1128,
+    "polarity": "Positive"
+   }
+  ],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17944250041",
+  "itemImageUrl": null,
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "KingMe",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "15 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "5a6f6005063270165d03bdf508708043f0cafea855e884d449c8361d9918d12e192a345081c4dcd0aa88c26144c16a62",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [
+   {
+    "badgeId": "TOP_REVIEWER",
+    "badgeValue": "TOP_REVIEWER"
+   },
+   {
+    "badgeId": "REVIEW_COUNT",
+    "badgeValue": "100"
+   }
+  ],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 2,
+  "recommended": null,
+  "reviewId": "441864469",
+  "reviewReferenceId": "bd59d2db-1e12-5dd1-884d-acee4b0d95a2",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "9/25/2026",
+  "reviewText": "My cats didn't like it at all",
+  "reviewTitle": null,
+  "reviewAspects": [],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17929602180",
+  "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Good",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "34 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "3b496c8c788ae767152a6ad7f2643ab8ab73ef5e85bd6ad4579a1fe1cee140d0bff27bf9e6de41a1131d47cf01a241ae",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [
+   {
+    "badgeId": "TOP_REVIEWER",
+    "badgeValue": "TOP_REVIEWER"
+   },
+   {
+    "badgeId": "REVIEW_COUNT",
+    "badgeValue": "150"
+   }
+  ],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 5,
+  "recommended": null,
+  "reviewId": "441727749",
+  "reviewReferenceId": "f156f628-b1bb-5998-9fc4-269c8c2d92b0",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "9/24/2026",
+  "reviewText": "We are VERY happy with this litter! It clumps quickly, cleanly",
+  "reviewTitle": "The Hype is True",
+  "reviewAspects": [
+   {
+    "id": 26481,
+    "polarity": "Positive"
+   }
+  ],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17929602180",
+  "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "S",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "34 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "3e804ab3b78232e865a0e8153df616205529036f74eca47c1a85441da801fb18bff27bf9e6de41a1131d47cf01a241ae",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 1,
+  "recommended": null,
+  "reviewId": "441465752",
+  "reviewReferenceId": "1a551781-ca45-5ace-bd1d-1c8005ae5a2b",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "9/22/2026",
+  "reviewText": "Had high hopes but it fails to clump",
+  "reviewTitle": null,
+  "reviewAspects": [],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17944250041",
+  "itemImageUrl": null,
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Terry",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "15 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "28cac49f6ccd54d5f558251b634cc65f838aee366423213f2aafc83c48bfca3ddc7f741fdf0e6be71f6dd6b96a49c207",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 2,
+  "recommended": null,
+  "reviewId": "441024196",
+  "reviewReferenceId": "6f1e19a0-cf64-5b42-aaff-20b079318a49",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "9/18/2026",
+  "reviewText": "This litter left a chalky coat on our black cats legs. We returned most of it unused",
+  "reviewTitle": "Chalky dust residue",
+  "reviewAspects": [],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17929602180",
+  "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Julie",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "34 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "71b96f688ad151ed4773b067ca3f7d63",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 3,
+  "recommended": null,
+  "reviewId": "440713332",
+  "reviewReferenceId": "56af7c8e-7238-5413-8af5-6fd7a36d1237",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "9/15/2026",
+  "reviewText": "This is a very light litter with the texture of sawdust. It does not track much. Unfortunately it does not form hard clumps, and  sticks to sides of my metal litter pan. I don't know how it will do on plastic.",
+  "reviewTitle": null,
+  "reviewAspects": [
+   {
+    "id": 15372,
+    "polarity": "Negative"
+   },
+   {
+    "id": 26481,
+    "polarity": "Negative"
+   }
+  ],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17929602180",
+  "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Stronglmt",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "34 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "49e916164704c2db0b1871360bc481061910d191859b5e538e6f0721b0cbf0837cc773a8f09a031822335b02440fc4c6",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 5,
+  "recommended": null,
+  "reviewId": "440638624",
+  "reviewReferenceId": "c8399249-c414-5e32-b1c9-f2208c55d50c",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "9/15/2026",
+  "reviewText": "Keeps litter box odor under control with a natural wood scent!  No over powering perfumes. clumps well and is easy to scoop. No dust like with clay litter. Love it!",
+  "reviewTitle": "Great Litter!",
+  "reviewAspects": [
+   {
+    "id": 1128,
+    "polarity": "Positive"
+   },
+   {
+    "id": 2429,
+    "polarity": "Positive"
+   },
+   {
+    "id": 2955,
+    "polarity": "Positive"
+   },
+   {
+    "id": 3009,
+    "polarity": "Positive"
+   },
+   {
+    "id": 3727,
+    "polarity": "Positive"
+   },
+   {
+    "id": 5980,
+    "polarity": "Positive"
+   },
+   {
+    "id": 26481,
+    "polarity": "Positive"
+   },
+   {
+    "id": 56088,
+    "polarity": "Negative"
+   }
+  ],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17944250041",
+  "itemImageUrl": null,
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Delana",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "15 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "b8cdf9619d9a301a6408fceffd29b39d",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [
+   {
+    "badgeId": "TOP_REVIEWER",
+    "badgeValue": "TOP_REVIEWER"
+   },
+   {
+    "badgeId": "REVIEW_COUNT",
+    "badgeValue": "50"
+   }
+  ],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 5,
+  "recommended": null,
+  "reviewId": "440594315",
+  "reviewReferenceId": "f1e5d80b-a071-57f3-baba-7599317e4471",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "9/14/2026",
+  "reviewText": "Wow! I will never buy clay litter again!",
+  "reviewTitle": null,
+  "reviewAspects": [],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17929602180",
+  "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Christine",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "34 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "8756ce8192a8ee217a24085c761ca96e",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 5,
+  "recommended": null,
+  "reviewId": "440416717",
+  "reviewReferenceId": "f897a777-d682-5e61-885b-e2ac5fead9dc",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "9/13/2026",
+  "reviewText": "One of my kitties started going outside the box a few months ago when my now ex-husband didn't keep the litter box clean when I was away visiting my mother for a few weeks. It broke her litter box training and she continued to go outside the box occasionally even after I returned and was keeping the boxes clean. I had been using Feline Pine, which I'd used for decades and loved, but I thought maybe a scooping litter would help the situation. It really did! And I think the soft texture has helped attract her back to the box, too. I've had zero issues since starting this litter, and there aren't pellets all over the place either now!",
+  "reviewTitle": "The absolute BEST!!!",
+  "reviewAspects": [
+   {
+    "id": 9552,
+    "polarity": "Positive"
+   }
+  ],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17929602180",
+  "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "KC",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "34 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "876a1f0056150a0f0efac7a3db0e88fc82f4cd9ec8dcb16b11f973af5029de67e3f661946541bbe7dc73179414318082",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [
+   {
+    "badgeId": "REVIEW_COUNT",
+    "badgeValue": "100"
+   }
+  ],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 2,
+  "recommended": null,
+  "reviewId": "440118220",
+  "reviewReferenceId": "19522ece-05a8-565d-a656-0ff35fb18ba0",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "9/10/2026",
+  "reviewText": "doesn't clump well.",
+  "reviewTitle": null,
+  "reviewAspects": [
+   {
+    "id": 26481,
+    "polarity": "Negative"
+   }
+  ],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17944250041",
+  "itemImageUrl": null,
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Julie",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "15 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "72f175f137629a70493bf1acdf03431f3aa6acbaad5e204528e7ee740d2fe796bff27bf9e6de41a1131d47cf01a241ae",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 5,
+  "recommended": null,
+  "reviewId": "440036068",
+  "reviewReferenceId": "b276baa3-20dd-5f8e-ac97-c0bd20772c89",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "9/10/2026",
+  "reviewText": "So much better than clay litter!  No odorbuild up.  Easy to scoop.  Easy to clean litter boxes.  No hard pellets all over my house.  Definitely prefer the unscented litter, cats didn't like the scented.",
+  "reviewTitle": "So much better than clay litter!",
+  "reviewAspects": [
+   {
+    "id": 1128,
+    "polarity": "Negative"
+   },
+   {
+    "id": 5980,
+    "polarity": "Positive"
+   }
+  ],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17929602180",
+  "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Allison",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "34 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "bf6e7573adba28c8ca5eebc14ec1bb9abc3e284d4e945707d599575369599c3cbff27bf9e6de41a1131d47cf01a241ae",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [
+   {
+    "badgeId": "TOP_REVIEWER",
+    "badgeValue": "TOP_REVIEWER"
+   },
+   {
+    "badgeId": "REVIEW_COUNT",
+    "badgeValue": "250"
+   }
+  ],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 4,
+  "recommended": null,
+  "reviewId": "440014274",
+  "reviewReferenceId": "4cb9368c-f949-550f-844f-1907b3823c8f",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "9/10/2026",
+  "reviewText": "Nice product, alot of dust",
+  "reviewTitle": null,
+  "reviewAspects": [
+   {
+    "id": 3727,
+    "polarity": "Positive"
+   }
+  ],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17929602180",
+  "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Sharon",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "34 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "21188acdd2d38285a774704ceda93ae971d9d070a8709ff826542783f7ce161b65cbc35312a5f75d3b1667bef973c105",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 5,
+  "recommended": null,
+  "reviewId": "439013825",
+  "reviewReferenceId": "481d5d14-df6d-5aa5-8528-b5f9ba10536d",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "9/1/2026",
+  "reviewText": "better than clay, lighter, lasts a whole lot longer",
+  "reviewTitle": null,
+  "reviewAspects": [
+   {
+    "id": 160,
+    "polarity": "Positive"
+   }
+  ],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17929602180",
+  "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Andrew",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "34 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "5f3155d53fef0edd858077e758192c6606af1cc45a0aabc1371b8a955ab2ffb7bff27bf9e6de41a1131d47cf01a241ae",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   },
+   {
+    "badgeType": "Affiliation",
+    "contentType": "REVIEW",
+    "id": "Staff",
+    "glassBadge": {
+     "id": "WalmartAssociate",
+     "text": "Walmart Associate"
+    }
+   }
+  ],
+  "userBadges": [],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 5,
+  "recommended": null,
+  "reviewId": "438900417",
+  "reviewReferenceId": "9190345f-d16a-5897-a220-de980d126eea",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "8/31/2026",
+  "reviewText": "This is a lot better than cat litter, it keeps the smell of the cat box not as bad as regular littter",
+  "reviewTitle": null,
+  "reviewAspects": [],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17929602180",
+  "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Nick",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "34 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "0bd16692bc039763a86bfe3956d343e398143ed2237c0354a6e4ed7de29cb79fddc336abafba706c57cdd6b37577dcc3",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [
+   {
+    "badgeId": "TOP_REVIEWER",
+    "badgeValue": "TOP_REVIEWER"
+   },
+   {
+    "badgeId": "REVIEW_COUNT",
+    "badgeValue": "75"
+   }
+  ],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 5,
+  "recommended": null,
+  "reviewId": "438688494",
+  "reviewReferenceId": "b8c1de49-d3a3-5a33-b7eb-3f923a5033c7",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "8/30/2026",
+  "reviewText": "the best litter iv ever had my furr baby use!",
+  "reviewTitle": null,
+  "reviewAspects": [],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17944250041",
+  "itemImageUrl": null,
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Andrea",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "15 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "0dde2693ce071e39f1445c203253e29190075a65909736746d4dfc7fd7e397df434f38aa09e9488581ae157d98c8b84f",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 5,
+  "recommended": null,
+  "reviewId": "438253693",
+  "reviewReferenceId": "9bf2cc8c-3acf-55de-843a-d08d7fd4b446",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "8/26/2026",
+  "reviewText": "Works great!  My cats and I love it!",
+  "reviewTitle": null,
+  "reviewAspects": [],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17929602180",
+  "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Janet",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "34 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "1480f7705227de74ef6adeb18fc481def34ff03c092ac926490cc3fc4bc22d73dac17285827a848121dbb6c6523a10e3",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 5,
+  "recommended": null,
+  "reviewId": "437999190",
+  "reviewReferenceId": "a3286bd8-7534-558c-b967-b590ad34d971",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "8/24/2026",
+  "reviewText": "does everything they say it does\nlasted more than 4 months\nno dust\nno smell\ngood clumping\ngreat value!\nif only it was flushable...",
+  "reviewTitle": "great value!",
+  "reviewAspects": [
+   {
+    "id": 3727,
+    "polarity": "Positive"
+   }
+  ],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17929602180",
+  "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "bargain",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "34 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "069b0103970fd84afb7772db69901739",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [
+   {
+    "badgeId": "TOP_REVIEWER",
+    "badgeValue": "TOP_REVIEWER"
+   },
+   {
+    "badgeId": "REVIEW_COUNT",
+    "badgeValue": "250"
+   }
+  ],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 5,
+  "recommended": null,
+  "reviewId": "437890667",
+  "reviewReferenceId": "979b91e2-985e-5e3f-8ac9-83c06be681ba",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "8/23/2026",
+  "reviewText": "I like this product, scented or unscented",
+  "reviewTitle": "Good",
+  "reviewAspects": [
+   {
+    "id": 1128,
+    "polarity": "Positive"
+   }
+  ],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17944250041",
+  "itemImageUrl": null,
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Delray210",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "15 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "f7bdb93a4660f5e3fab7c71c015908e99f75eccfff301e5ceaa0ad2e0812bdb5ac73562c1e6d85822695039b4283aa91",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [
+   {
+    "badgeId": "TOP_REVIEWER",
+    "badgeValue": "TOP_REVIEWER"
+   },
+   {
+    "badgeId": "REVIEW_COUNT",
+    "badgeValue": "150"
+   }
+  ],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 4,
+  "recommended": null,
+  "reviewId": "437840838",
+  "reviewReferenceId": "654ea7a3-3181-5cd6-939f-42d46de1c389",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "8/22/2026",
+  "reviewText": "I needed a heavy clumping litter to use in the cats' automatic litter container. This litter doesn't clump hard enough for use in those type of litter 'boxes.'  On the other hand, it doesn't advertise that it is designed to use in them. It IS a relatively soft product, perhaps more comfortable underfoot for the cats. It may be more suitable in traditional litter pans.  Therefore I  gave it 4 stars to be fair.",
+  "reviewTitle": "Maybe better used in traditional litter pans.",
+  "reviewAspects": [
+   {
+    "id": 26481,
+    "polarity": "Negative"
+   }
+  ],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17929602180",
+  "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "georgia",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "34 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "e81d89c509ba00c2d48cc0db54855208a461517d27475a80e6220e8bf68ed9e03526148bca8ba882e13214c776cd8c51",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 1,
+  "recommended": null,
+  "reviewId": "437510544",
+  "reviewReferenceId": "ea97f3a7-d354-5a9f-b94d-0b7b4d796489",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "8/20/2026",
+  "reviewText": "I did not receive the correct grocery order!!!",
+  "reviewTitle": null,
+  "reviewAspects": [],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17929602180",
+  "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "Cheryl",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "34 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
+  "authorId": "236a617574e446462f6b3cd9eee76dd17dd14b961e1fedf86ca995ad5f2914e6a53c3fb9be0bf71c75d5230d87c6dcaa",
+  "badges": [
+   {
+    "badgeType": "Custom",
+    "contentType": "REVIEW",
+    "id": "VerifiedPurchaser",
+    "glassBadge": {
+     "id": "VerifiedPurchaser",
+     "text": "Verified Purchase"
+    }
+   }
+  ],
+  "userBadges": [],
+  "conditionGroupCode": null,
+  "condition": null,
+  "userLocation": null,
+  "negativeFeedback": 0,
+  "positiveFeedback": 0,
+  "rating": 5,
+  "recommended": null,
+  "reviewId": "437410169",
+  "reviewReferenceId": "2bbc5ac5-48ec-5533-830f-5b290b013702",
+  "originalLanguage": "English",
+  "originalLocale": "en_US",
+  "translatedLanguage": "English",
+  "translatedLocale": "en",
+  "showTranslationCTA": false,
+  "reviewSubmissionTime": "8/19/2026",
+  "reviewText": "I have three cats. that's a lot of \u2606\u2606\u2606.  it is the most easy cat box to clean.  i also have self cleaning ones, but they  like this one the best.",
+  "reviewTitle": null,
+  "reviewAspects": [
+   {
+    "id": 95,
+    "polarity": "Positive"
+   },
+   {
+    "id": 2429,
+    "polarity": "Positive"
+   }
+  ],
+  "reviewAspectStart": null,
+  "reviewAspectEnd": null,
+  "reviewSentimentStart": null,
+  "reviewSentimentEnd": null,
+  "snippetFromTitle": null,
+  "showRecommended": null,
+  "fulfilledBy": "Walmart",
+  "status": "APPROVED",
+  "sellerName": "Walmart.com",
+  "sellerId": "0",
+  "itemId": "17929602180",
+  "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
+  "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
+  "reviewType": null,
+  "clientResponses": null,
+  "syndicationSource": null,
+  "userNickname": "anonymous",
+  "externalSource": "bazaarvoice",
+  "media": null,
+  "photos": [],
+  "features": [
+   {
+    "name": "Size",
+    "value": "34 lbs"
+   }
+  ],
+  "_product": "Unscented",
+  "_itemPageId": "17944250041",
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
+  "_catalogAvg": 4.2
+ },
+ {
   "authorId": "0a4e15a68595d212b4111e6a2594fd97",
   "badges": [
    {
@@ -54,6 +2654,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -72,8 +2673,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -117,6 +2718,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -135,8 +2737,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -155,7 +2757,7 @@
   "userBadges": [
    {
     "badgeId": "REVIEW_COUNT",
-    "badgeValue": "50"
+    "badgeValue": "75"
    }
   ],
   "conditionGroupCode": null,
@@ -185,6 +2787,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -203,8 +2806,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -248,6 +2851,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": null,
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -266,8 +2870,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -287,6 +2891,10 @@
    {
     "badgeId": "TOP_REVIEWER",
     "badgeValue": "TOP_REVIEWER"
+   },
+   {
+    "badgeId": "REVIEW_COUNT",
+    "badgeValue": "25"
    }
   ],
   "conditionGroupCode": null,
@@ -316,6 +2924,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -334,8 +2943,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -388,6 +2997,7 @@
   "fulfilledBy": null,
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": null,
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -406,8 +3016,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -478,6 +3088,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -496,8 +3107,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -550,6 +3161,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": null,
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -568,8 +3180,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -592,7 +3204,7 @@
    },
    {
     "badgeId": "REVIEW_COUNT",
-    "badgeValue": "25"
+    "badgeValue": "50"
    }
   ],
   "conditionGroupCode": null,
@@ -622,6 +3234,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": null,
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -640,8 +3253,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -664,7 +3277,7 @@
    },
    {
     "badgeId": "REVIEW_COUNT",
-    "badgeValue": "600"
+    "badgeValue": "700"
    }
   ],
   "conditionGroupCode": null,
@@ -703,6 +3316,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": null,
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -721,8 +3335,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -776,6 +3390,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": null,
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -794,8 +3409,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -839,6 +3454,7 @@
   "fulfilledBy": null,
   "status": "APPROVED",
   "sellerName": null,
+  "sellerId": null,
   "itemId": "17944250041",
   "itemImageUrl": null,
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -857,8 +3473,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -907,6 +3523,7 @@
   "fulfilledBy": null,
   "status": "APPROVED",
   "sellerName": null,
+  "sellerId": null,
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -946,8 +3563,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -991,6 +3608,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -1009,8 +3627,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -1054,6 +3672,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -1072,8 +3691,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -1135,6 +3754,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": null,
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -1153,8 +3773,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -1198,6 +3818,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": null,
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -1216,8 +3837,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -1275,6 +3896,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -1304,8 +3926,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -1376,6 +3998,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -1394,8 +4017,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -1418,7 +4041,7 @@
    },
    {
     "badgeId": "REVIEW_COUNT",
-    "badgeValue": "150"
+    "badgeValue": "200"
    }
   ],
   "conditionGroupCode": null,
@@ -1453,6 +4076,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": null,
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -1471,8 +4095,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -1516,6 +4140,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": null,
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -1534,8 +4159,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -1593,6 +4218,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -1611,8 +4237,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -1656,6 +4282,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -1674,8 +4301,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -1732,6 +4359,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": null,
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -1750,8 +4378,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -1817,6 +4445,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": null,
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -1835,8 +4464,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -1889,6 +4518,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": null,
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -1907,8 +4537,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -1970,6 +4600,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": null,
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -1988,8 +4619,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -2012,7 +4643,7 @@
    },
    {
     "badgeId": "REVIEW_COUNT",
-    "badgeValue": "150"
+    "badgeValue": "250"
    }
   ],
   "conditionGroupCode": null,
@@ -2042,6 +4673,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -2060,8 +4692,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -2110,6 +4742,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": null,
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -2128,8 +4761,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -2182,6 +4815,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": null,
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -2200,8 +4834,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -2245,6 +4879,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -2263,8 +4898,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -2317,6 +4952,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": null,
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -2335,8 +4971,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -2359,7 +4995,7 @@
    },
    {
     "badgeId": "REVIEW_COUNT",
-    "badgeValue": "800"
+    "badgeValue": "850"
    }
   ],
   "conditionGroupCode": null,
@@ -2389,6 +5025,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": null,
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -2407,8 +5044,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -2425,6 +5062,10 @@
    }
   ],
   "userBadges": [
+   {
+    "badgeId": "TOP_REVIEWER",
+    "badgeValue": "TOP_REVIEWER"
+   },
    {
     "badgeId": "REVIEW_COUNT",
     "badgeValue": "25"
@@ -2466,6 +5107,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": null,
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -2484,8 +5126,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -2508,7 +5150,7 @@
    },
    {
     "badgeId": "REVIEW_COUNT",
-    "badgeValue": "500"
+    "badgeValue": "600"
    }
   ],
   "conditionGroupCode": null,
@@ -2538,6 +5180,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -2556,8 +5199,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -2576,7 +5219,7 @@
   "userBadges": [
    {
     "badgeId": "REVIEW_COUNT",
-    "badgeValue": "400"
+    "badgeValue": "450"
    }
   ],
   "conditionGroupCode": null,
@@ -2606,6 +5249,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -2624,8 +5268,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -2682,6 +5326,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": null,
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -2700,8 +5345,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -2754,6 +5399,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -2772,8 +5418,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -2796,7 +5442,7 @@
    },
    {
     "badgeId": "REVIEW_COUNT",
-    "badgeValue": "400"
+    "badgeValue": "600"
    }
   ],
   "conditionGroupCode": null,
@@ -2826,6 +5472,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": null,
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -2844,8 +5491,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -2911,6 +5558,7 @@
   "fulfilledBy": "Walmart",
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -2929,8 +5577,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -2987,6 +5635,7 @@
   "fulfilledBy": "Walmart",
   "status": null,
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -3005,8 +5654,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -3059,6 +5708,7 @@
   "fulfilledBy": "Walmart",
   "status": null,
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -3077,8 +5727,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -3135,6 +5785,7 @@
   "fulfilledBy": "Walmart",
   "status": null,
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -3153,8 +5804,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -3208,6 +5859,7 @@
   "fulfilledBy": "Walmart",
   "status": null,
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -3226,8 +5878,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -3280,6 +5932,7 @@
   "fulfilledBy": "Walmart",
   "status": null,
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -3298,8 +5951,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -3361,6 +6014,7 @@
   "fulfilledBy": "Walmart",
   "status": null,
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -3379,8 +6033,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -3429,6 +6083,7 @@
   "fulfilledBy": "Walmart",
   "status": null,
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -3447,8 +6102,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -3501,6 +6156,7 @@
   "fulfilledBy": "Walmart",
   "status": null,
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -3519,8 +6175,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -3581,6 +6237,7 @@
   "fulfilledBy": "Walmart",
   "status": null,
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -3599,8 +6256,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -3657,6 +6314,7 @@
   "fulfilledBy": "Walmart",
   "status": null,
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -3675,8 +6333,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -3734,6 +6392,7 @@
   "fulfilledBy": null,
   "status": "APPROVED",
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17929602180",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -3752,8 +6411,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  },
  {
@@ -3802,6 +6461,7 @@
   "fulfilledBy": "Walmart",
   "status": null,
   "sellerName": "Walmart.com",
+  "sellerId": "0",
   "itemId": "17944250041",
   "itemImageUrl": "https://i5.walmartimages.com/seo/Catalyst-Pet-Softwood-Natural-Clumping-Cat-Litter-Unscented-Formula-15-lb_dd81346e-b063-45e5-9429-f89066e78863.5f82f4e8441f0d8d5b270b5bc472eccb.jpeg",
   "itemName": "Catalyst Pet Softwood Natural Clumping Cat Litter Unscented Formula, 34 lb",
@@ -3831,8 +6491,8 @@
   ],
   "_product": "Unscented",
   "_itemPageId": "17944250041",
-  "_advertisedTotal": 52,
-  "_catalogTotal": 1316,
+  "_advertisedTotal": 88,
+  "_catalogTotal": 1509,
   "_catalogAvg": 4.2
  }
 ]
