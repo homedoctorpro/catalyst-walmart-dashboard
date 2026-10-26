@@ -1,14 +1,6 @@
 {
- "lastSentOn": "2026-10-23",
- "overdueSeen": [
-  "giant-company",
-  "giant-food",
-  "hannaford",
-  "heb",
-  "meijer",
-  "stop-shop",
-  "walmart-canada"
- ],
+ "lastSentOn": "2026-10-26",
+ "overdueSeen": [],
  "rows": {
   "ace": {
    "status": "target"
@@ -36,7 +28,15 @@
    "sfOppStage": "Closed Lost",
    "status": "declined"
   },
+  "awg": {
+   "deadline": "2026-10-30",
+   "nextSteps": "follow up w Buyer to let them know we are ready",
+   "repFirm": "Internal",
+   "status": "pitched"
+  },
   "big-lots": {
+   "deadline": "2026-11-19",
+   "repFirm": "Internal",
    "status": "non-target"
   },
   "big-r": {
@@ -51,6 +51,8 @@
    "repFirm": "Brian Schlager"
   },
   "bjs": {
+   "deadline": "2028-06-20",
+   "repFirm": "Internal",
    "status": "non-target"
   },
   "bomgaars": {
@@ -80,17 +82,27 @@
    "sfOppStage": "Qualification",
    "status": "target"
   },
+  "concord-pet": {
+   "repFirm": "PSE",
+   "status": "target"
+  },
   "costco": {
+   "deadline": "2028-04-04",
+   "repFirm": "Internal",
    "status": "non-target"
   },
   "cs-wholesale": {
-   "repFirm": "Brian Schlager"
+   "nextSteps": "we will not pitch these guys - the grocery accounts may require us to ship thru them - they do not come and purchase product first",
+   "repFirm": "Internal"
   },
   "cvs": {
+   "deadline": "2026-12-23",
+   "repFirm": "Internal",
    "status": "non-target"
   },
   "db-supply": {
    "deadline": "2026-11-13",
+   "nextSteps": "need to send samples to Shelly at D&B",
    "priority": 3,
    "repFirm": "Internal",
    "status": "target"
@@ -107,6 +119,8 @@
    "status": "target"
   },
   "dollar-tree": {
+   "deadline": "2026-12-04",
+   "repFirm": "Internal",
    "status": "non-target"
   },
   "earthwise-pet": {
@@ -131,7 +145,13 @@
    "sfOppStage": "Qualification",
    "status": "target"
   },
+  "feeders": {
+   "repFirm": "Internal",
+   "status": "target"
+  },
   "five-below": {
+   "nextSteps": "not a fit",
+   "repFirm": "Internal",
    "status": "non-target"
   },
   "fleet-farm": {
@@ -140,16 +160,16 @@
    "status": "in"
   },
   "food-lion": {
-   "deadline": "2026-10-30",
-   "nextReview": "2026-10-22",
-   "nextSteps": "10/14: Lori (PSE) got a virtual appt with Food Lion's new buyer for Cat Litter Cycle 8 2027, 10/21 or 10/22, time not set yet. Fill the item form for the 4 Catalyst SKUs (quote FOB Kenbridge; DC list attached for DLVD) before the meeting. Buyer has no set margin requirement; slotting expectation $50K, open to conversation. Samples due 10/30; new vendor paperwork 11/6; items due in warehouse 3/22/27; POGs live 3/29/27.",
+   "deadline": "2026-11-06",
+   "nextReview": "2026-11-09",
+   "nextSteps": "Sent samples 10/23 10/14: Lori (PSE) got a virtual appt with Food Lion's new buyer for Cat Litter Cycle 8 2027, 10/21 or 10/22, time not set yet. Fill the item form for the 4 Catalyst SKUs (quote FOB Kenbridge; DC list attached for DLVD) before the meeting. Buyer has no set margin requirement; slotting expectation $50K, open to conversation. Samples due 10/30; new vendor paperwork 11/6; items due in warehouse 3/22/27; POGs live 3/29/27.",
    "priority": 1,
    "repFirm": "PSE",
    "resetDate": "2027-04-12",
    "status": "pitched"
   },
   "giant-company": {
-   "deadline": "2026-10-19",
+   "deadline": "2026-11-13",
    "priority": 1,
    "repFirm": "Brian Schlager",
    "status": "sent"
@@ -158,19 +178,24 @@
    "repFirm": "Brian Schlager"
   },
   "giant-food": {
-   "deadline": "2026-10-19",
+   "deadline": "2026-11-06",
    "priority": 1,
    "repFirm": "Brian Schlager",
    "status": "sent"
   },
+  "hall-roberts": {
+   "deadline": "2026-12-11",
+   "nextSteps": "Until we have shavings in stock they will not entertain cat litter",
+   "repFirm": "Internal"
+  },
   "hannaford": {
-   "deadline": "2026-10-19",
+   "deadline": "2026-12-18",
    "priority": 1,
    "repFirm": "Brian Schlager",
    "status": "sent"
   },
   "heb": {
-   "deadline": "2026-10-19",
+   "deadline": "2027-10-26",
    "nextSteps": "10/14: Cindee asked PSE who handles H-E-B; Lori checking. Cindee wants a meeting.",
    "priority": 1,
    "repFirm": "Internal",
@@ -181,14 +206,23 @@
    "status": "in"
   },
   "home-depot": {
+   "deadline": "2026-12-04",
+   "repFirm": "Internal",
    "status": "non-target"
   },
   "hyvee": {
+   "repFirm": "Internal",
    "status": "in"
   },
   "ingles": {
    "nextSteps": "Bryan to open; slotting $8k/SKU, start 15 lb",
    "repFirm": "Brian Schlager"
+  },
+  "jeffers": {
+   "deadline": "2026-10-23",
+   "nextReview": "2026-10-23",
+   "nextSteps": "this should not be here. They have 1 store and would buy thru a distributor",
+   "repFirm": "Internal"
   },
   "kahoots": {
    "deadline": "2026-11-30",
@@ -200,6 +234,7 @@
   "kehe": {
    "deadline": "2026-11-13",
    "nextSteps": "Reach out",
+   "notes": "I filled out the paperwork online to participate in the new item online meetings",
    "priority": 3,
    "repFirm": "Internal",
    "status": "target"
@@ -207,6 +242,7 @@
   "kriser": {
    "deadline": "2026-11-30",
    "nextSteps": "Need distributor",
+   "notes": "Annamarie is going the week of Nov 9",
    "priority": 4,
    "repFirm": "Internal",
    "status": "target"
@@ -220,6 +256,8 @@
    "status": "target"
   },
   "lowes": {
+   "deadline": "2026-12-31",
+   "repFirm": "Internal",
    "status": "non-target"
   },
   "lowes-foods": {
@@ -232,7 +270,7 @@
    "repFirm": "Brian Schlager"
   },
   "meijer": {
-   "deadline": "2026-10-19",
+   "deadline": "2026-11-06",
    "nextSteps": "Cindee to reach out / wait for Mike's response",
    "priority": 1,
    "repFirm": "PSE",
@@ -240,6 +278,8 @@
    "status": "target"
   },
   "menards": {
+   "deadline": "2027-07-13",
+   "repFirm": "Internal",
    "status": "non-target"
   },
   "murdochs": {
@@ -273,15 +313,20 @@
    "status": "target"
   },
   "petco": {
-   "nextSteps": "Follow up in October",
+   "deadline": "2026-11-27",
+   "nextSteps": "Follow up w Matt at PSE",
    "priority": 1,
    "repFirm": "PSE",
    "sfOppStage": "Proposal",
    "status": "pitched"
   },
-  "petsense": {},
+  "petsense": {
+   "deadline": "2027-01-22",
+   "repFirm": "Internal"
+  },
   "petsmart": {
-   "nextSteps": "Follow up in October - follow up with Steve now",
+   "deadline": "2026-11-23",
+   "nextSteps": "waiting on Steve - we will have Skyler email next week",
    "priority": 1,
    "repFirm": "PSE",
    "sfOppStage": "Proposal",
@@ -301,14 +346,17 @@
    "repFirm": "Brian Schlager"
   },
   "publix": {
-   "deadline": "2026-11-20",
+   "deadline": "2026-10-30",
    "nextSteps": "Start working on it at the end of October",
+   "notes": "waiting for the paperwork and then will submit to buyer for meeting request",
    "priority": 5,
-   "repFirm": "Brian Schlager",
+   "repFirm": "Internal",
    "sfOppStage": "Qualification",
    "status": "requested"
   },
   "rite-aid": {
+   "nextSteps": "not a good fit",
+   "repFirm": "Internal",
    "status": "non-target"
   },
   "rural-king": {
@@ -320,6 +368,8 @@
    "status": "target"
   },
   "sams-club": {
+   "deadline": "2027-11-08",
+   "repFirm": "Internal",
    "status": "non-target"
   },
   "southeastern": {
@@ -329,17 +379,19 @@
    "deadline": "2027-01-15",
    "nextSteps": "See response",
    "priority": 6,
-   "repFirm": "Jeff Day",
+   "repFirm": "PSE",
    "sfOppStage": "Qualification",
    "status": "target"
   },
   "stop-shop": {
-   "deadline": "2026-10-19",
+   "deadline": "2026-12-26",
+   "nextSteps": "No PLR set for litter",
    "priority": 1,
    "repFirm": "Brian Schlager",
    "status": "sent"
   },
   "target": {
+   "deadline": "2027-07-05",
    "nextSteps": "Wait until next year",
    "repFirm": "PSE",
    "status": "declined"
@@ -358,6 +410,7 @@
   "trader-joes": {
    "deadline": "2026-11-30",
    "nextSteps": "Reach out to buyer - PL",
+   "notes": "dropped litter in 2020 - they do not have a litter currently in store",
    "priority": 4,
    "repFirm": "Internal",
    "status": "target"
@@ -382,13 +435,13 @@
    "repFirm": "StoR"
   },
   "walmart-canada": {
-   "deadline": "2026-10-21",
+   "deadline": "2026-11-18",
    "nextReview": "2026-11-16",
-   "nextSteps": "10/9: Rob McClinton approved Feline Fresh online (20/40 lb pellets, 17/34 lb clumping). Create items in SupplierOne by 10/21; online FC modular 11/26, first orders ~mid-Nov. Store distribution: Wk14 modular build starts mid-Nov, needs a complete modular intake template incl. retail price survey and Business Review tab (Cindee needs it by Mon 10/19). EDI/Retail Link logins and CAD/USD + province tax questions open with Paul Peterson / Alain.",
+   "nextSteps": "all paperwork submitted and received Supplier #10/9: Rob McClinton approved Feline Fresh online (20/40 lb pellets, 17/34 lb clumping). Create items in SupplierOne by 10/21; online FC modular 11/26, first orders ~mid-Nov. Store distribution: Wk14 modular build starts mid-Nov, needs a complete modular intake template incl. retail price survey and Business Review tab (Cindee needs it by Mon 10/19). EDI/Retail Link logins and CAD/USD + province tax questions open with Paul Peterson / Alain.",
    "priority": 1,
    "repFirm": "StoR",
    "resetDate": "2027-04-30",
-   "status": "target"
+   "status": "sent"
   },
   "wegmans": {
    "repFirm": "Brian Schlager"
@@ -397,12 +450,23 @@
    "repFirm": "Brian Schlager"
   },
   "winco": {
+   "deadline": "2026-11-16",
+   "nextSteps": "Annamarie has a log meeting and will get the interest on Catalyst",
+   "repFirm": "Internal",
    "sfOppStage": "Qualification",
    "status": "target"
   },
   "woodmans": {
-   "repFirm": "Brian Schlager"
+   "deadline": "2026-11-20",
+   "nextReview": "2026-12-15",
+   "repFirm": "PSE",
+   "status": "target"
+  },
+  "zeiglers": {
+   "deadline": "2026-11-27",
+   "nextSteps": "Nick to call on them",
+   "repFirm": "PSE"
   }
  },
- "savedAt": "2026-10-23T15:46:30"
+ "savedAt": "2026-10-26T17:26:48"
 }
