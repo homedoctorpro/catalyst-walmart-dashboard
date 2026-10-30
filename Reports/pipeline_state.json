@@ -1,5 +1,5 @@
 {
- "lastSentOn": "2026-10-26",
+ "lastSentOn": "2026-10-30",
  "overdueSeen": [],
  "rows": {
   "ace": {
@@ -317,7 +317,7 @@
    "nextSteps": "Follow up w Matt at PSE",
    "priority": 1,
    "repFirm": "PSE",
-   "sfOppStage": "Proposal",
+   "sfOppStage": "Documentation",
    "status": "pitched"
   },
   "petsense": {
@@ -468,5 +468,5 @@
    "repFirm": "PSE"
   }
  },
- "savedAt": "2026-10-30T17:02:49"
+ "savedAt": "2026-10-30T21:08:40"
 }
